@@ -21,4 +21,3 @@ endif()
 
 add_subdirectory(libs)
 add_subdirectory(projects)
-# add_subdirectory(tests)
