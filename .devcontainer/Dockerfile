@@ -29,7 +29,7 @@ WORKDIR /home/$USERNAME/ros2_ws
 RUN echo 'source /opt/ros/'$ROS_DISTRO'/setup.bash' >> /home/$USERNAME/.bashrc \
     && echo 'source /home/'$USERNAME'/ros2_ws/install/setup.bash' >> /home/$USERNAME/.bashrc
 
-RUN chmod +x "/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
+RUN sudo chmod +x "/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
 ENV BASH_ENV="/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
 
 # Setup entrypoint
