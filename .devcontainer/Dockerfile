@@ -11,6 +11,7 @@ RUN apt update -q \
     software-properties-common \
     python3-pip \
     xauth \
+    ssh-tools \
     && apt clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
