@@ -29,7 +29,7 @@ RUN echo 'source /opt/ros/'$ROS_DISTRO'/setup.bash' >> /home/$USERNAME/.bashrc \
     && echo 'source /home/'$USERNAME'/ros2_ws/install/setup.bash' >> /home/$USERNAME/.bashrc
 
 #  Setup env variables for non-interactive processes
-COPY .devcontainer/ros_env.sh /etc/ros_env.sh
+COPY ros_env.sh /etc/ros_env.sh
 RUN chmod 644 /etc/ros_env.sh
 ENV BASH_ENV=/etc/ros_env.sh
 
