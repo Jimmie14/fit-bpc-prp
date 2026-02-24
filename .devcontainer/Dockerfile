@@ -28,10 +28,8 @@ WORKDIR /home/$USERNAME/ros2_ws
 RUN echo 'source /opt/ros/'$ROS_DISTRO'/setup.bash' >> /home/$USERNAME/.bashrc \
     && echo 'source /home/'$USERNAME'/ros2_ws/install/setup.bash' >> /home/$USERNAME/.bashrc
 
-#  Setup env variables for non-interactive processes
-COPY ros_env.sh /etc/ros_env.sh
-RUN sudo chmod 644 /etc/ros_env.sh
-ENV BASH_ENV=/etc/ros_env.sh
+RUN chmod +x "/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
+ENV BASH_ENV="/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
 
 # Setup entrypoint
 COPY ./ros_entrypoint.sh /
