@@ -1,13 +1,12 @@
 #!/bin/bash
 # shellcheck disable=SC1090,SC1091
-set -e
+set -euo pipefail
+
+echo "Hello world!"
+echo "test" >> "$HOME/ros2_ws/entrypoint.log"
 
 # setup ros2 environment
-source "/opt/ros/${ROS_DISTRO}/setup.bash"
+source "/opt/ros/$ROS_DISTRO/setup.bash"
 source "$HOME/ros2_ws/install/setup.bash"
-
-# add sourcing to .bashrc
-echo "source '/opt/ros/$ROS_DISTRO/setup.bash'" >> ~/.bashrc
-echo "source '~/ros2_ws/install/setup.bash'" >> ~/.bashrc
 
 exec "$@"
