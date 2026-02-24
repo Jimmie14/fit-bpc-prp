@@ -1,7 +1,7 @@
 
 # Root CMake file
-cmake_minimum_required(VERSION 3.28)
-project(BPC_PRP
+cmake_minimum_required(VERSION 3.22)
+project(bcp_prp
         VERSION 1.0
         DESCRIPTION "" # todo: add description
         LANGUAGES CXX)
@@ -11,7 +11,12 @@ set(CMAKE_CXX_STANDARD 23)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 set(CMAKE_CXX_EXTENSIONS OFF)
 
-# Enable testing
+# packages
+find_package(ament_cmake REQUIRED)
+find_package(rclcpp REQUIRED)
+find_package(std_msgs REQUIRED)
+
+# Enable testingcm
 option(ENABLE_TESTING "Build tests" ON)
 
 if (ENABLE_TESTING)
@@ -19,5 +24,5 @@ if (ENABLE_TESTING)
     include(CTest)
 endif()
 
-add_subdirectory(libs)
-add_subdirectory(projects)
+add_subdirectory(include)
+add_subdirectory(src)
