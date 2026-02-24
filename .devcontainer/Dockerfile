@@ -12,6 +12,7 @@ RUN apt update -q \
     python3-pip \
     xauth \
     ssh-tools \
+    vim \
     && apt clean \
     && rm -rf /var/lib/apt/lists/* /tmp/* /var/tmp/*
 
@@ -28,8 +29,6 @@ WORKDIR /home/$USERNAME/ros2_ws
 # Copy configuration files
 RUN echo 'source /opt/ros/'$ROS_DISTRO'/setup.bash' >> /home/$USERNAME/.bashrc \
     && echo 'source /home/'$USERNAME'/ros2_ws/install/setup.bash' >> /home/$USERNAME/.bashrc
-
-ENV BASH_ENV="/home/$USERNAME/ros2_ws/.devcontainer/ros_env.sh"
 
 # Setup entrypoint
 COPY ./ros_entrypoint.sh /

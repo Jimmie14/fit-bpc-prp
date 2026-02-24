@@ -3,8 +3,8 @@
 set -e
 
 # setup ros2 environment
-source /opt/ros/"$ROS_DISTRO"/setup.bash --
-source ~/ros2_ws/install/setup.bash --
+source "/opt/ros/${ROS_DISTRO}/setup.bash"
+source "$HOME/ros2_ws/install/setup.bash"
 
 # add sourcing to .bashrc
 echo "source '/opt/ros/$ROS_DISTRO/setup.bash'" >> ~/.bashrc
