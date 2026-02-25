@@ -1,7 +1,7 @@
 
 # Root CMake file
 cmake_minimum_required(VERSION 3.22)
-project(bcp_prp
+project(project
         VERSION 1.0
         DESCRIPTION "" # todo: add description
         LANGUAGES CXX)
