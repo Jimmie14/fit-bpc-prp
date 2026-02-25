@@ -1,5 +1,5 @@
 {
-  "name": "project",
+  "name": "Manhattan project",
   "remoteUser": "rosdev",
   "build": {
       "dockerfile": "Dockerfile",
