@@ -16,15 +16,10 @@ find_package(ament_cmake REQUIRED)
 find_package(rclcpp REQUIRED)
 find_package(std_msgs REQUIRED)
 
-# Enable testingcm
-option(ENABLE_TESTING "Build tests" ON)
-
-if (ENABLE_TESTING)
-    enable_testing()
-    include(CTest)
-endif()
-
+# Setup ament package
 ament_package()
 
+# Add subdirectory
 add_subdirectory(include)
 add_subdirectory(src)
+add_subdirectory(tests)
