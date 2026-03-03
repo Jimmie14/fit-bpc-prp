@@ -24,5 +24,7 @@ if (ENABLE_TESTING)
     include(CTest)
 endif()
 
+ament_package()
+
 add_subdirectory(include)
 add_subdirectory(src)
