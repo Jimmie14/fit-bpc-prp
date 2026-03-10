@@ -38,8 +38,8 @@ public:
         left = clamp(left, -1.0, 1.0);
         right = clamp(right, -1.0, 1.0);
 
-        auto leftInt = static_cast<uint8_t>((left * .5 + 1) * 255);
-        auto rightInt = static_cast<uint8_t>((right * .5 + 1) * 255);
+        auto leftInt = static_cast<uint8_t>((left * .5 + .5) * 255);
+        auto rightInt = static_cast<uint8_t>((right * .5 + .5) * 255);
 
         auto msg = std_msgs::msg::UInt8MultiArray();
         msg.data.push_back(leftInt);
@@ -51,6 +51,8 @@ public:
 
 private:
     void subscriber_callback(const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
+        RCLCPP_INFO(node_->get_logger(), "test!");
+
         auto length = msg->data.size();
 
         RCLCPP_INFO(node_->get_logger(), "Length: %lu", length);

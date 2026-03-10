@@ -1,5 +1,6 @@
 #include <rclcpp/rclcpp.hpp>
 #include "MotorController.hpp"
+#include "Kinematics.hpp"
 
 using namespace std;
 
@@ -11,7 +12,7 @@ shared_ptr<rclcpp::executors::MultiThreadedExecutor> init_nodes()
     auto motor_node = std::make_shared<rclcpp::Node>("motor");
 
     auto motor_controller = std::make_shared<MotorController>(motor_node);
-    motor_controller->set_speed(0.2, 0.3);
+    motor_controller->set_speed(1, 0);
 
     executor->add_node(motor_node);
 

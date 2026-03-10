@@ -1,9 +1,9 @@
 
-add_library(robot_kinematics kinematics.cpp)
-target_link_libraries(robot_kinematics manhattan_lib)
+add_library(robot_kinematics Kinematics.cpp)
+target_link_libraries(robot_kinematics manhattan_libs)
 
 add_executable(manhattan main.cpp)
-target_link_libraries(manhattan PUBLIC rclcpp::rclcpp manhattan_lib robot_kinematics)
+target_link_libraries(manhattan PUBLIC rclcpp::rclcpp manhattan_libs robot_kinematics)
 
 
 
