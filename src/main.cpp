@@ -1,22 +1,28 @@
 #include <rclcpp/rclcpp.hpp>
-#include "example.hpp"
+#include "MotorController.hpp"
+
+using namespace std;
+
+shared_ptr<rclcpp::executors::MultiThreadedExecutor> init_nodes()
+{
+    auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+
+    // nodes
+    auto motor_node = std::make_shared<rclcpp::Node>("motor");
+
+    auto motor_controller = std::make_shared<MotorController>(motor_node);
+    motor_controller->set_speed(0.2, 0.3);
+
+    executor->add_node(motor_node);
+
+    return executor;
+}
 
 int main(int argc, char* argv[]) {
     rclcpp::init(argc, argv);
 
-    // Create an executor (for handling multiple nodes)
-    auto executor = std::make_shared<rclcpp::executors::MultiThreadedExecutor>();
+    auto executor = init_nodes();
 
-    // Create multiple nodes
-    auto node1 = std::make_shared<rclcpp::Node>("motor");
-
-    // Create instances of RosExampleClass using the existing nodes
-    auto motor_controller = std::make_shared<MotorController>(node1);
-
-    // Add nodes to the executor
-    executor->add_node(node1);
-
-    // Run the executor (handles callbacks for nodes)
     executor->spin();
 
     // Shutdown ROS 2
