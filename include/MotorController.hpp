@@ -10,55 +10,60 @@
 using namespace std;
 
 class MotorController : public Manhattan::Core::BaseController {
-    rclcpp::Node::SharedPtr node_;
+    rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
+    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
-    // Publisher, subscriber
-    rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr publisher_;
-    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr subscriber_;
-
-    rclcpp::Time start_time_;
+    rclcpp::TimerBase::SharedPtr _timer;
+    std_msgs::msg::UInt8MultiArray _msg;
 
 public:
     static constexpr const char* TypeName = "MotorController";
 
-    MotorController(const rclcpp::Node::SharedPtr &node)
-        : node_(node), start_time_(node_->now())
+    explicit MotorController(const rclcpp::Node::SharedPtr &node) : BaseController(node)
     {
-        auto publisher = "/bpc_prp_robot/set_motor_speeds";
-        auto subscriber = "/bpc_prp_robot/encoders";
+        const auto publisher = "/bpc_prp_robot/set_motor_speeds";
+        const auto subscriber = "/bpc_prp_robot/encoders";
 
-        publisher_ = node_->create_publisher<std_msgs::msg::UInt8MultiArray>(publisher, 1);
-        subscriber_ = node_->create_subscription<std_msgs::msg::UInt32MultiArray>(
+        _publisher = _node->create_publisher<std_msgs::msg::UInt8MultiArray>(publisher, 1);
+        _subscriber = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
             subscriber, 1, std::bind(&MotorController::subscriber_callback, this, std::placeholders::_1));
+
+        _msg = std_msgs::msg::UInt8MultiArray();
+        _msg.data.push_back(127);
+        _msg.data.push_back(127);
+
+        _timer = _node->create_wall_timer(
+            100ms,
+            [this]() { loopCallback(); }
+        );
     }
 
-    void set_speed(double left, double right) {
+    void SetSpeed(double left, double right)
+    {
         left = clamp(left, -1.0, 1.0);
         right = clamp(right, -1.0, 1.0);
 
-        auto leftInt = static_cast<uint8_t>((left * .5 + .5) * 255);
-        auto rightInt = static_cast<uint8_t>((right * .5 + .5) * 255);
+        auto leftVal = static_cast<uint8_t>((left * .5 + .5) * 255);
+        auto rightVal = static_cast<uint8_t>((right * .5 + .5) * 255);
 
-        auto msg = std_msgs::msg::UInt8MultiArray();
-        msg.data.push_back(leftInt);
-        msg.data.push_back(rightInt);
-
-        publisher_->publish(msg);
-        RCLCPP_INFO(node_->get_logger(), "Published: left => %u, right => %u", msg.data[0], msg.data[1]);
+        _msg.data[0] = leftVal;
+        _msg.data[1] = rightVal;
     }
 
 private:
-    void subscriber_callback(const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
-        RCLCPP_INFO(node_->get_logger(), "test!");
+    void loopCallback() {
+        _publisher->publish(_msg);
+        RCLCPP_INFO(_node->get_logger(), "Published: left => %u, right => %u", _msg.data[0], _msg.data[1]);
+    }
 
-        auto length = msg->data.size();
-
-        RCLCPP_INFO(node_->get_logger(), "Length: %lu", length);
-
-        if (length >= 1)
-            RCLCPP_INFO(node_->get_logger(), "Left wheel turned: %u", msg->data[0]);
-
-        if (length >= 2)
-            RCLCPP_INFO(node_->get_logger(), "Right wheel turned: %u", msg->data[1]);
+    void subscriber_callback(const std_msgs::msg::UInt32MultiArray::SharedPtr msg) const
+    {
+        // auto length = msg->data.size();
+        //
+        // if (length >= 1)
+        //     RCLCPP_INFO(_node->get_logger(), "Left wheel turned: %u", msg->data[0]);
+        //
+        // if (length >= 2)
+        //     RCLCPP_INFO(_node->get_logger(), "Right wheel turned: %u", msg->data[1]);
     }
 };

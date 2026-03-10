@@ -7,7 +7,8 @@ using namespace std;
 
 void AddMotor(const shared_ptr<Manhattan::Core::App>& app)
 {
-    app->AddController<MotorController>();
+    auto motor = app->AddController<MotorController>();
+    motor->SetSpeed(.4, .4);
 }
 
 int main(int argc, char* argv[]) {
