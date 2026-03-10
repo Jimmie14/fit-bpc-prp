@@ -53,6 +53,8 @@ private:
     void subscriber_callback(const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
         auto length = msg->data.size();
 
+        RCLCPP_INFO(node_->get_logger(), "Length: %lu", length);
+
         if (length >= 1)
             RCLCPP_INFO(node_->get_logger(), "Left wheel turned: %u", msg->data[0]);
 
