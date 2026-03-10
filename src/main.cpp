@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include "MotorController.hpp"
 #include "Kinematics.hpp"
+#include "App.hpp"
 
 using namespace std;
 
