@@ -1,16 +1,12 @@
 #include <gtest/gtest.h>
-#include "../include/kinematics.hpp"
+#include "kinematics.hpp"
 #include <cmath>
 
-using namespace algorithms;
-
 constexpr float ERROR = 0.001;
-constexpr float WHEEL_BASE = 0.12;
-constexpr float WHEEL_RADIUS = 0.033;
+// constexpr float WHEEL_BASE = 0.12;
+// constexpr float WHEEL_RADIUS = 0.033;
 constexpr float WHEEL_CIRCUMFERENCE = 2 * M_PI * WHEEL_RADIUS;
-constexpr int32_t PULSES_PER_ROTATION = 550;
-
-
+// constexpr int32_t PULSES_PER_ROTATION = 550;
 
 TEST(KinematicsTest, BackwardZeroVelocitySI) {
     const float linear = 0;
@@ -18,7 +14,7 @@ TEST(KinematicsTest, BackwardZeroVelocitySI) {
     const float expected_l = 0;
     const float expected_r = 0;
 
-    Kinematics kin(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
+    auto kin = new Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
     auto result = kin.inverse(RobotSpeed {linear, angular});
     EXPECT_NEAR(result.l, expected_l, ERROR);
     EXPECT_NEAR(result.r, expected_r, ERROR);

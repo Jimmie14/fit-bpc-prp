@@ -8,22 +8,22 @@ constexpr int32_t PULSES_PER_ROTATION = 550;
 struct RobotSpeed {
     float linear;
     float angular;
-}
+};
 
 struct WheelSpeed {
     float left;
     float right;
-}
+};
 
 struct Encoders {
     int left;
     int right;
-}
+};
 
-Coord {
+struct Coord {
     float x;
     float y;
-}
+};
 
 class Kinematics {
     Kinematics(double wheel_radius, double wheel_base, int ticks_revolution);
@@ -48,4 +48,4 @@ class Kinematics {
 
     Coord forward(Encoders x) const;
     Encoders inverse(Coord x) const;
- }
+};
