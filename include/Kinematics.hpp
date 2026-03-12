@@ -1,18 +1,13 @@
-#include <cmath>
-
-// todo: move this to implementation cpp file
-constexpr float WHEEL_BASE = 0.12;
-constexpr float WHEEL_RADIUS = 0.033;
-constexpr int32_t PULSES_PER_ROTATION = 550;
+#pragma once
 
 struct RobotSpeed {
-    float linear;
-    float angular;
+    double linear;
+    double angular;
 };
 
 struct WheelSpeed {
-    float left;
-    float right;
+    double left;
+    double right;
 };
 
 struct Encoders {
@@ -21,31 +16,21 @@ struct Encoders {
 };
 
 struct Coord {
-    float x;
-    float y;
+    double x;
+    double y;
 };
 
 class Kinematics {
-    Kinematics(double wheel_radius, double wheel_base, int ticks_revolution);
+public:
+    Kinematics(double wheelradius, double wheelBase, int ticksRevolution);
 
-    RobotSpeed forward(WheelSpeed x) const {
-        RobotSpeed result;
+    [[nodiscard]] RobotSpeed forward(WheelSpeed speed) const;
+    [[nodiscard]] WheelSpeed inverse(RobotSpeed speed) const;
 
-        result.linear = (WHEEL_RADIUS / 2) * (x.left + x.right);
-        result.angular = (WHEEL_RADIUS / WHEEL_BASE) * (x.left - x.right);
-
-        return result;
-    }
-
-    WheelSpeed inverse(RobotSpeed x) const {
-        WheelSpeed result;
-
-        result.left = (2 * x.linear + x.angular * WHEEL_BASE) / (2 * WHEEL_RADIUS);
-        result.right = (2 * x.linear - x.angular * WHEEL_BASE) / (2 * WHEEL_RADIUS);
-
-        return result;
-    }
-
-    Coord forward(Encoders x) const;
-    Encoders inverse(Coord x) const;
+    [[nodiscard]] Coord forward(Encoders encoders) const;
+    [[nodiscard]] Encoders inverse(Coord coord) const;
+private:
+    const double _wheelRadius;
+    const double _wheelBase;
+    const int _ticksRevolution;
 };
