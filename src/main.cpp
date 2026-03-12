@@ -1,20 +1,21 @@
 #include <rclcpp/rclcpp.hpp>
-#include "MotorController.hpp"
-#include "Kinematics.hpp"
-#include "App.hpp"
+
+#include "App.h"
+#include "../include/Controllers/Node/MotorController.h"
 
 using namespace std;
+using namespace Manhattan;
 
-void AddMotor(const shared_ptr<Manhattan::Core::App>& app)
+void AddMotor(const shared_ptr<Core::App>& app)
 {
-    auto motor = app->AddController<MotorController>();
-    motor->SetSpeed(.4, .4);
+    const auto motor = app->AddController<Core::MotorController>();
+    motor->SetForce(.4, .4);
 }
 
-int main(int argc, char* argv[]) {
+int main(const int argc, char* argv[]) {
     rclcpp::init(argc, argv);
 
-    auto app = make_shared<Manhattan::Core::App>();
+    const auto app = make_shared<Core::App>();
 
     AddMotor(app);
 
