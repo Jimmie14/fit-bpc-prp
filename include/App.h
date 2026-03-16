@@ -2,11 +2,13 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "Controllers/BaseController.h"
+#include "Networking/TcpServer.h"
 
 namespace Manhattan::Core
 {
     class App {
         std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> _executor;
+        std::unique_ptr<TcpServer> _tcpServer;
 
         std::vector<std::shared_ptr<BaseController>> _controllers;
 
