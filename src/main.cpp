@@ -2,25 +2,24 @@
 
 #include "App.h"
 #include "Kinematics.hpp"
-#include "../include/Controllers/Node/MotorController.h"
+#include "MotorController.hpp"
+#include "RobotOdometry.hpp"
 
 using namespace std;
 using namespace Manhattan;
 
-constexpr float WHEEL_BASE = 0.12;
-constexpr float WHEEL_RADIUS = 0.033;
-constexpr int32_t PULSES_PER_ROTATION = 550;
-
 void AddKinematics(const shared_ptr<Core::App>& app)
 {
     const auto motor = app->AddController<Core::MotorController>();
-    auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
+    const auto odometry = app->AddController<Core::RobotOdometry>();
+
+    auto kinematics = odometry->GetKinematics();
 
     app->SetMoveCallback([kinematics, motor](double linear, double angular) {
         auto robotSpeed = RobotSpeed(linear, angular);
         auto wheelSpeed = kinematics.inverse(robotSpeed);
 
-        motor->SetForce(wheelSpeed.left / 30.0, wheelSpeed.right / 30.0);
+        motor->SetForce(wheelSpeed.left, wheelSpeed.right);
     });
 
     app->SetStopCallback([motor] {

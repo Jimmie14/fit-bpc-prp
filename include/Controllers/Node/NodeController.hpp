@@ -10,7 +10,6 @@ namespace Manhattan::Core
         static unsigned int instance_count;
 
         protected:
-            rclcpp::Time _startTime;
             rclcpp::Node::SharedPtr _node;
 
         public:
@@ -18,6 +17,6 @@ namespace Manhattan::Core
 
             ~NodeController() override { instance_count--; }
 
-            std::shared_ptr<rclcpp::Node> GetNode() const override { return _node; }
+            [[nodiscard]] std::shared_ptr<rclcpp::Node> GetNode() const override { return _node; }
     };
 }

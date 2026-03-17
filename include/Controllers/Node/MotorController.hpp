@@ -4,7 +4,7 @@
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 
-#include "NodeController.h"
+#include "NodeController.hpp"
 
 namespace Manhattan::Core
 {
@@ -21,10 +21,8 @@ namespace Manhattan::Core
             void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
 
         public:
-            static constexpr auto TypeName = "MotorController";
-
             explicit MotorController();
 
-            void SetForce(double left, double right);
+            void SetForce(double leftAngular, double rightAngular);
     };
 }

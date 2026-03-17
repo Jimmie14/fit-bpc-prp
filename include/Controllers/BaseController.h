@@ -8,6 +8,6 @@ namespace Manhattan::Core
         public:
             virtual ~BaseController() = default;
 
-            virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
+            [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
     };
 }
