@@ -3,6 +3,7 @@
 #include "App.h"
 #include "Kinematics.hpp"
 #include "../include/Controllers/Node/MotorController.h"
+#include "Controllers/Node/LineController.h"
 
 using namespace std;
 using namespace Manhattan;
@@ -34,6 +35,8 @@ int main(const int argc, char* argv[]) {
     const auto app = make_shared<Core::App>();
 
     AddKinematics(app);
+
+    app->AddController<Core::LineController>();
 
     app->Run();
 

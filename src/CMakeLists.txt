@@ -2,7 +2,7 @@
 add_library(robot_kinematics Kinematics.cpp)
 target_link_libraries(robot_kinematics manhattan_libs)
 
-add_executable(manhattan main.cpp App.cpp Controllers/Node/NodeController.cpp Controllers/Node/MotorController.cpp Networking/TcpServer.cpp)
+add_executable(manhattan main.cpp App.cpp Controllers/Node/NodeController.cpp Controllers/Node/MotorController.cpp Controllers/Node/LineController.cpp Networking/TcpServer.cpp LineEstimator.cpp)
 target_link_libraries(manhattan PUBLIC rclcpp::rclcpp manhattan_libs robot_kinematics)
 
 
