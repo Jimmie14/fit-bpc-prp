@@ -4,7 +4,6 @@
 Kinematics::Kinematics(double wheelRadius, double wheelBase, int ticksRevolution)
     : _wheelRadius(wheelRadius), _wheelBase(wheelBase), _ticksRevolution(ticksRevolution)
 {
-
 }
 
 RobotSpeed Kinematics::forward(WheelSpeed speed) const {
@@ -26,10 +25,10 @@ WheelSpeed Kinematics::inverse(RobotSpeed speed) const {
 }
 
 Coord Kinematics::forward(Encoders encoders) const {
-    const auto distanceLeft = (double)encoders.left / (double)_ticksRevolution * _wheelRadius;
-    const auto distanceRight = (double)encoders.right / (double)_ticksRevolution * _wheelRadius;
+    const auto distanceLeft = static_cast<double>(encoders.left) / static_cast<double>(_ticksRevolution) * _wheelRadius;
+    const auto distanceRight = static_cast<double>(encoders.right) / static_cast<double>(_ticksRevolution) * _wheelRadius;
 
-    const auto deltaLinear = (distanceRight + distanceLeft) / 2;
+    const auto deltaLinear = (distanceRight + distanceLeft) / 2.0;
     const auto deltaAngular = (distanceRight - distanceLeft) / _wheelBase;
 
     Coord result = { };

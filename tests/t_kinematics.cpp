@@ -43,7 +43,7 @@ TEST(KinematicsTest, BackwardPositiveLinearVelocitySI) {
 
 TEST(KinematicsTest, BackwardPositiveAngularVelocitySI) {
     // Arrange
-    constexpr auto robotSpeed = RobotSpeed(1.0, 0.0);
+    constexpr auto robotSpeed = RobotSpeed(0, 1.0);
     constexpr float expectedLeft = -(0.5 * WHEEL_BASE) / WHEEL_CIRCUMFERENCE * (2 * M_PI);
     constexpr float expectedRight = +(0.5 * WHEEL_BASE) / WHEEL_CIRCUMFERENCE * (2 * M_PI);
 
