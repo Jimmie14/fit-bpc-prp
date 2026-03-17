@@ -35,8 +35,6 @@ namespace Manhattan::Core
 
         _msg.data[0] = leftVal;
         _msg.data[1] = rightVal;
-
-        cout << "SetForce: left => " << left << ", right => " << right << endl;
     }
 
     void MotorController::Update() const
@@ -46,6 +44,7 @@ namespace Manhattan::Core
 
     void MotorController::SubscriberCallback(const msg::UInt32MultiArray::SharedPtr msg) const
     {
+        return;
         const auto length = msg->data.size();
 
         if (length >= 1)

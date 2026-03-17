@@ -3,12 +3,12 @@
 #include <sys/socket.h>
 #include <netinet/in.h>
 #include <unistd.h>
-#include <cstring>
-#include <arpa/inet.h>
+
+#include "App.h"
 
 namespace Manhattan::Core
 {
-    TcpServer::TcpServer(int port) : _port(port), _serverSocket(-1), _running(false)
+    TcpServer::TcpServer(int port, const App& app) : _app(app), _serverSocket(-1), _port(port), _running(false)
     {
     }
 
@@ -96,10 +96,11 @@ namespace Manhattan::Core
                 // Keep connection open and read multiple messages
                 while (_running) {
                     char buffer[1024] = {0};
-                    ssize_t valread = read(new_socket, buffer, sizeof(buffer));
-                    if (valread > 0) {
-                        std::cout << "Received: " << buffer << std::endl;
-                    } else if (valread == 0) {
+                    ssize_t valRead = read(new_socket, buffer, sizeof(buffer));
+                    if (valRead > 0) {
+                        std::string message(buffer, valRead);
+                        _app.ReceiveMessage(message);
+                    } else if (valRead == 0) {
                         // Client closed connection
                         break;
                     } else {

@@ -1,15 +1,31 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.h"
+#include "Kinematics.hpp"
 #include "../include/Controllers/Node/MotorController.h"
 
 using namespace std;
 using namespace Manhattan;
 
-void AddMotor(const shared_ptr<Core::App>& app)
+constexpr float WHEEL_BASE = 0.12;
+constexpr float WHEEL_RADIUS = 0.033;
+constexpr int32_t PULSES_PER_ROTATION = 550;
+
+void AddKinematics(const shared_ptr<Core::App>& app)
 {
     const auto motor = app->AddController<Core::MotorController>();
-    motor->SetForce(.4, .4);
+    auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
+
+    app->SetMoveCallback([kinematics, motor](double linear, double angular) {
+        auto robotSpeed = RobotSpeed(linear, angular);
+        auto wheelSpeed = kinematics.inverse(robotSpeed);
+
+        motor->SetForce(wheelSpeed.left / 30.0, wheelSpeed.right / 30.0);
+    });
+
+    app->SetStopCallback([motor] {
+        motor->SetForce(0, 0);
+    });
 }
 
 int main(const int argc, char* argv[]) {
@@ -17,7 +33,7 @@ int main(const int argc, char* argv[]) {
 
     const auto app = make_shared<Core::App>();
 
-    AddMotor(app);
+    AddKinematics(app);
 
     app->Run();
 

@@ -1,16 +1,17 @@
 #pragma once
 
-#include <string>
 #include <thread>
 #include <atomic>
-#include <netinet/in.h>
 
 namespace Manhattan::Core
 {
+    class App;
+
     class TcpServer
     {
+        const App& _app;
     public:
-        explicit TcpServer(int port);
+        explicit TcpServer(int port, const App& app);
         ~TcpServer();
 
         void Start();
