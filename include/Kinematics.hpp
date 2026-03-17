@@ -20,6 +20,11 @@ struct Coord {
     double y;
 };
 
+struct Pose {
+    Coord coord;
+    double rotation;
+};
+
 class Kinematics {
 public:
     Kinematics(double wheelradius, double wheelBase, int ticksRevolution);
