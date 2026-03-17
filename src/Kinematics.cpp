@@ -1,9 +1,19 @@
 #include "Kinematics.hpp"
-#include "cmath"
 
-Kinematics::Kinematics(double wheelRadius, double wheelBase, int ticksRevolution)
-    : _wheelRadius(wheelRadius), _wheelBase(wheelBase), _ticksRevolution(ticksRevolution)
-{
+#include <numbers>
+#include <cmath>
+
+Kinematics::Kinematics(double wheelRadius, double wheelBase, int32_t pulsesPerRotation)
+    : _wheelRadius(wheelRadius), _wheelBase(wheelBase), _pulsesPerRotation(pulsesPerRotation) {
+
+}
+WheelSpeed Kinematics::inverse(RobotSpeed speed) const {
+    WheelSpeed result = { };
+
+    result.right = (2 * speed.linear + speed.angular * _wheelBase) / (2 * _wheelRadius);
+    result.left = (2 * speed.linear - speed.angular * _wheelBase) / (2 * _wheelRadius);
+
+    return result;
 }
 
 RobotSpeed Kinematics::forward(WheelSpeed speed) const {
@@ -15,31 +25,19 @@ RobotSpeed Kinematics::forward(WheelSpeed speed) const {
     return result;
 }
 
-WheelSpeed Kinematics::inverse(RobotSpeed speed) const {
-    WheelSpeed result = { };
-
-    result.right = (2 * speed.linear + speed.angular * _wheelBase) / (2 * _wheelRadius);
-    result.left = (2 * speed.linear - speed.angular * _wheelBase) / (2 * _wheelRadius);
-
-    return result;
+double Kinematics::ticksToMeters(int32_t deltaTicks) const
+{
+    return static_cast<double>(deltaTicks) * 2.0 * M_PI * _wheelRadius / static_cast<double>(_pulsesPerRotation);
 }
 
-Coord Kinematics::forward(Encoders encoders) const {
-    const auto distanceLeft = static_cast<double>(encoders.left) / static_cast<double>(_ticksRevolution) * _wheelRadius;
-    const auto distanceRight = static_cast<double>(encoders.right) / static_cast<double>(_ticksRevolution) * _wheelRadius;
 
-    const auto deltaLinear = (distanceRight + distanceLeft) / 2.0;
-    const auto deltaAngular = (distanceRight - distanceLeft) / _wheelBase;
+Pose2D Kinematics::integrate(Pose2D pose, double leftLinear, double rightLinear) const {
+    const double dPos = (leftLinear + rightLinear) / 2.0;
+    const double dTheta  = (rightLinear - leftLinear) / _wheelBase;
 
-    Coord result = { };
+    pose.x += dPos * std::cos(pose.theta + dTheta / 2.0);
+    pose.y += dPos * std::sin(pose.theta + dTheta / 2.0);
+    pose.theta += dTheta;
 
-    result.x = deltaLinear * cos(deltaAngular * 0.5);
-    result.y = deltaLinear * sin(deltaAngular * 0.5);
-
-    return { };
+    return pose;
 }
-
-Encoders Kinematics::inverse(Coord coord) const {
-    return { };
-}
-

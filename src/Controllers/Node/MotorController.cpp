@@ -1,4 +1,4 @@
-#include "Controllers/Node/MotorController.h"
+#include "MotorController.hpp"
 
 using namespace std;
 using namespace rclcpp;
@@ -6,14 +6,18 @@ using namespace std_msgs;
 
 namespace Manhattan::Core
 {
+    constexpr auto MOTOR_SPEED_TOPIC = "/bpc_prp_robot/set_motor_speeds";
+    constexpr auto MOTOR_ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
+
+    constexpr double ROTATIONS_PER_SECOND = 1.5;
+    constexpr double MAX_WHEEL_ANGULAR_SPEED = 2.0 * M_PI * ROTATIONS_PER_SECOND;
+    constexpr double ANGULAR_TO_SPEED = 1.0 / MAX_WHEEL_ANGULAR_SPEED;
+
     MotorController::MotorController() : NodeController("MotorController")
     {
-        const auto publisher = "/bpc_prp_robot/set_motor_speeds";
-        const auto subscriber = "/bpc_prp_robot/encoders";
-
-        _publisher = _node->create_publisher<msg::UInt8MultiArray>(publisher, 1);
+        _publisher = _node->create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
         _subscriber = _node->create_subscription<msg::UInt32MultiArray>(
-            subscriber, 1, std::bind(&MotorController::SubscriberCallback, this, std::placeholders::_1));
+            MOTOR_ENCODERS_TOPIC, 1, std::bind(&MotorController::SubscriberCallback, this, std::placeholders::_1));
 
         _msg = msg::UInt8MultiArray();
         _msg.data.push_back(127);
@@ -25,16 +29,16 @@ namespace Manhattan::Core
         );
     }
 
-    void MotorController::SetForce(double left, double right)
+    void MotorController::SetForce(double leftAngular, double rightAngular)
     {
+        auto left = leftAngular * ANGULAR_TO_SPEED;
+        auto right = rightAngular * ANGULAR_TO_SPEED;
+
         left = clamp(left, -1.0, 1.0);
         right = clamp(right, -1.0, 1.0);
 
-        const auto leftVal = static_cast<uint8_t>((left * .5 + .5) * 255);
-        const auto rightVal = static_cast<uint8_t>((right * .5 + .5) * 255);
-
-        _msg.data[0] = leftVal;
-        _msg.data[1] = rightVal;
+        _msg.data[0] = static_cast<uint8_t>((left * .5 + .5) * 255);
+        _msg.data[1] = static_cast<uint8_t>((right * .5 + .5) * 255);
     }
 
     void MotorController::Update() const

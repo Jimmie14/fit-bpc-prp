@@ -1,5 +1,5 @@
 
-#include "Controllers/Node/NodeController.h"
+#include "Controllers/Node/NodeController.hpp"
 
 using namespace std;
 using namespace rclcpp;
@@ -13,7 +13,6 @@ namespace Manhattan::Core
         auto uniqueName = string(nodeName) + "_" + to_string(instance_count);
 
         _node = make_shared<Node>(uniqueName);
-        _startTime = _node->now();
 
         instance_count++;
     }

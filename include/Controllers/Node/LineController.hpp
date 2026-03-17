@@ -4,7 +4,7 @@
 #include <std_msgs/msg/u_int16_multi_array.hpp>
 
 #include "LineEstimator.hpp"
-#include "NodeController.h"
+#include "NodeController.hpp"
 
 namespace Manhattan::Core
 {
