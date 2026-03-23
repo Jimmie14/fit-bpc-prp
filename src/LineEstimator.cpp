@@ -52,19 +52,15 @@ DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, con
     return DiscreteLinePose::LineNone;
 }
 
-float LineEstimator::EstimateContinuousLinePose(float left_value, float right_value) {
+float LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, const unsigned int rightValue) {
     // Calculate a normalized error value between -1.0 and 1.0
     // -1.0 implies line is fully on the left
     //  1.0 implies line is fully on the right
     //  0.0 implies centered or no signal
 
-    float sum = left_value + right_value;
-
-    // specific check to avoid division by zero
-    if (sum < 0.001f) {
-        return 0.0f;
-    }
+    double sum = leftValue + rightValue;
+    if (sum < 0.001f) return 0.0f;
 
     // Normalized difference formula
-    return (right_value - left_value) / sum;
+    return static_cast<double>(leftValue - rightValue) / sum;
 }

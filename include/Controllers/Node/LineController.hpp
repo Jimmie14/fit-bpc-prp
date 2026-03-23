@@ -2,10 +2,12 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int16_multi_array.hpp>
+#include <std_msgs/msg/float64.hpp>
 
 #include "BaseController.h"
 #include "LineEstimator.hpp"
 #include "MotorController.hpp"
+#include "Pid.hpp"
 
 namespace Manhattan::Core
 {
@@ -16,6 +18,19 @@ namespace Manhattan::Core
         std::shared_ptr<MotorController> _motorController;
 
         LineEstimator _lineEstimator;
+
+        Pid _linePid;
+
+        float _baseForce = 0.75f;
+        float _maxCorrection = 0.45f;
+        float _lastContinuousError = 0.0f;
+        rclcpp::Time _lastPidTime;
+
+        rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
+
+
+
+
     public:
         explicit LineController(const App& app);
 

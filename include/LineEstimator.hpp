@@ -34,7 +34,7 @@ public:
 
     DiscreteLinePose EstimateDiscrete(unsigned int leftVal, unsigned int rightVal);
 
-    float EstimateContinuousLinePose(float left_value, float right_value);
+    float EstimateContinuousLinePose(unsigned int leftValue, unsigned int rightValue);
 
 private:
     float NormalizeValue(unsigned int value, SensorLocation location);
