@@ -11,7 +11,7 @@ using namespace rclcpp;
 
 namespace Manhattan::Core
 {
-    LineController::LineController(const App& app) : BaseController(app), _lineEstimator(10, 100)
+    LineController::LineController(const App& app) : BaseController(app), _lineEstimator(0, 1000)
     {
         const auto subscriber = "/bpc_prp_robot/line_sensors";
 
