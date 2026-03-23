@@ -11,7 +11,7 @@ using namespace rclcpp;
 
 namespace Manhattan::Core
 {
-    LineController::LineController(const App& app) : BaseController(app)
+    LineController::LineController(const App& app) : BaseController(app), _lineEstimator(10, 100)
     {
         const auto subscriber = "/bpc_prp_robot/line_sensors";
 
@@ -34,26 +34,26 @@ namespace Manhattan::Core
 
     void LineController::OnLineSensorMsg(const std_msgs::msg::UInt16MultiArray::SharedPtr msg)
     {
-        const auto length = msg->data.size();
-        if (length != 2) return;
+        if (const auto length = msg->data.size(); length != 2) return;
 
-        auto estimation = LineEstimator::EstimateDiscrete(msg->data[0], msg->data[1]);
+        auto estimation = _lineEstimator.EstimateDiscrete(msg->data[0], msg->data[1]);
+
         if (estimation == _linePose) return;
 
         if (estimation == DiscreteLinePose::LineBoth)
-            _motorController->SetForce(.3, .3);
+            _motorController->SetForce(1, 1);
         else if (estimation == DiscreteLinePose::LineOnRight)
-            _motorController->SetForce(.3, .1);
+            _motorController->SetForce(1, .5);
         else if (estimation == DiscreteLinePose::LineOnLeft)
-            _motorController->SetForce(.1, .3);
+            _motorController->SetForce(.5, 1);
         else
         {
             if (_linePose == DiscreteLinePose::LineOnRight)
-                _motorController->SetForce(.1, .05);
+                _motorController->SetForce(0.3, -.3);
             else if (_linePose == DiscreteLinePose::LineOnLeft)
-                _motorController->SetForce(.05, 0.1);
+                _motorController->SetForce(-.3, 0.3);
             else
-                _motorController->SetForce(0, 0);
+                _motorController->SetForce(-1, 1);
         }
 
         _linePose = estimation;
