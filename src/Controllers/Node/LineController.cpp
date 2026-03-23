@@ -24,7 +24,7 @@ namespace Manhattan::Core
         _motorController = _app.GetController<MotorController>();
 
 
-        _linePosePublisher = _node->create_publisher<std_msgs::msg::Float64>("~/line_pose", 10);
+        _linePosePublisher = _node->create_publisher<std_msgs::msg::Float64>("~/line_pose2", 10);
 
 
         _lastPidTime = _node->now();
