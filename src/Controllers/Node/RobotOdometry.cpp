@@ -21,17 +21,31 @@ namespace Manhattan::Core
     RobotOdometry::RobotOdometry(const App& app) : BaseController(app),
         _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
     {
-        _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
-            ENCODERS_TOPIC, 10,
-            [this](std_msgs::msg::UInt32MultiArray::SharedPtr msg) { onEncoders(std::move(msg)); }
-        );
-
         _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
         _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/path", 10);
 
         _path.header.frame_id = "odom";
 
-        RCLCPP_INFO(_node->get_logger(), "RobotOdometry started — encoder topic: %s", ENCODERS_TOPIC);
+        Enable();
+    }
+
+    void RobotOdometry::Enable()
+    {
+        if (_encoderSub) return;
+
+        _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
+            ENCODERS_TOPIC, 10,
+            [this](std_msgs::msg::UInt32MultiArray::SharedPtr msg) { onEncoders(std::move(msg)); }
+        );
+
+        RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled — encoder topic: %s", ENCODERS_TOPIC);
+    }
+
+    void RobotOdometry::Disable()
+    {
+        _encoderSub.reset();
+
+        RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
     }
 
     void RobotOdometry::ApplyCorrection(const Pose2D& correctedPose)
@@ -47,7 +61,7 @@ namespace Manhattan::Core
     // Private
     // ---------------------------------------------------------------------------
 
-    void RobotOdometry::onEncoders(std_msgs::msg::UInt32MultiArray::SharedPtr msg)
+    void RobotOdometry::onEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
     {
         if (msg->data.size() < 2)
         {
@@ -85,7 +99,7 @@ namespace Manhattan::Core
         publishOdometry(_node->now());
     }
 
-    void RobotOdometry::publishOdometry(const rclcpp::Time& stamp)
+    void RobotOdometry::publishOdometry(const Time& stamp)
     {
         if ((stamp - _lastPublishTime).seconds() < 0.1) return;
 

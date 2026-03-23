@@ -8,7 +8,7 @@
 
 namespace Manhattan::Core
 {
-    TcpServer::TcpServer(int port, const App& app) : _app(app), _serverSocket(-1), _port(port), _running(false)
+    TcpServer::TcpServer(int port) : _serverSocket(-1), _port(port), _running(false)
     {
     }
 
@@ -32,7 +32,7 @@ namespace Manhattan::Core
             return;
         }
 
-        struct sockaddr_in address;
+        sockaddr_in address;
         address.sin_family = AF_INET;
         address.sin_addr.s_addr = INADDR_ANY;
         address.sin_port = htons(_port);
@@ -65,9 +65,10 @@ namespace Manhattan::Core
         }
     }
 
-    void TcpServer::ServerLoop() {
+    void TcpServer::ServerLoop() const
+    {
         while (_running) {
-            struct sockaddr_in address;
+            sockaddr_in address;
             int addrlen = sizeof(address);
 
             // Use select to implement non-blocking accept or timeout
@@ -75,7 +76,7 @@ namespace Manhattan::Core
             FD_ZERO(&readfds);
             FD_SET(_serverSocket, &readfds);
 
-            struct timeval timeout;
+            timeval timeout;
             timeout.tv_sec = 1;
             timeout.tv_usec = 0;
 
@@ -95,11 +96,13 @@ namespace Manhattan::Core
 
                 // Keep connection open and read multiple messages
                 while (_running) {
-                    char buffer[1024] = {0};
-                    ssize_t valRead = read(new_socket, buffer, sizeof(buffer));
+                    char buffer[1024] = {};
+                    const ssize_t valRead = read(new_socket, buffer, sizeof(buffer));
+
                     if (valRead > 0) {
-                        std::string message(buffer, valRead);
-                        _app.ReceiveMessage(message);
+                        if (_dataReceivedCallback) {
+                            _dataReceivedCallback({buffer, buffer + valRead});
+                        }
                     } else if (valRead == 0) {
                         // Client closed connection
                         break;

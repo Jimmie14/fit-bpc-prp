@@ -11,16 +11,29 @@ using namespace rclcpp;
 
 namespace Manhattan::Core
 {
+    constexpr auto subscriber = "/bpc_prp_robot/line_sensors";
+
     LineController::LineController(const App& app) : BaseController(app), _lineEstimator(0, 1000)
     {
-        const auto subscriber = "/bpc_prp_robot/line_sensors";
+        _motorController = _app.GetController<MotorController>();
+    }
+
+    void LineController::Enable()
+    {
+        if (_subscriber) return;
 
         _subscriber = _node->create_subscription<std_msgs::msg::UInt16MultiArray>(
             subscriber, 1, std::bind(&LineController::OnLineSensorMsg, this, std::placeholders::_1));
 
-        _motorController = _app.GetController<MotorController>();
+        RCLCPP_INFO(_node->get_logger(), "Line controller enabled");
     }
 
+    void LineController::Disable()
+    {
+        _subscriber.reset();
+
+        RCLCPP_INFO(_node->get_logger(), "Line controller disabled");
+    }
 
     float LineController::GetContinuousLinePose() const
     {
