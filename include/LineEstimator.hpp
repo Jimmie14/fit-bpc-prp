@@ -27,15 +27,22 @@ enum class SensorLocation
 };
 
 class LineEstimator {
-    unsigned int _maxIntensity[2];
-    unsigned int _minIntensity[2];
 public:
     LineEstimator(unsigned int maxIntensity, unsigned int minIntensity);
 
     DiscreteLinePose EstimateDiscrete(unsigned int leftVal, unsigned int rightVal);
 
-    float EstimateContinuousLinePose(float left_value, float right_value);
+    double EstimateContinuousLinePose(unsigned int leftValue, unsigned int rightValue);
 
 private:
-    float NormalizeValue(unsigned int value, SensorLocation location);
+    unsigned int _maxIntensity[2];
+    unsigned int _minIntensity[2];
+
+    double _lastContinuousPose = 0.0;
+    bool _hasContinuousPose = false;
+
+    double _continuousEma = 0.0;
+    bool _hasContinuousEma = false;
+
+    double NormalizeValue(unsigned int value, SensorLocation location);
 };

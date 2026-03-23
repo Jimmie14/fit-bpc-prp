@@ -5,6 +5,8 @@
 using namespace std;
 
 constexpr float LINE_THRESHOLD = .5;
+constexpr double CONTINUOUS_SUM_EPSILON = 0.001;
+constexpr double CONTINUOUS_EMA_ALPHA = 0.20;
 
 LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int minIntensity) {
     _maxIntensity[0] = maxIntensity;
@@ -14,15 +16,21 @@ LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int
     _minIntensity[1] = minIntensity;
 }
 
-float LineEstimator::NormalizeValue(const unsigned int value, SensorLocation location)
+double LineEstimator::NormalizeValue(const unsigned int value, SensorLocation location)
 {
     const auto index = static_cast<int>(location);
+
     if (_maxIntensity[index] < value)
         _maxIntensity[index] = value;
+
     if (_minIntensity[index] > value)
         _minIntensity[index] = value;
 
-    return (value - _minIntensity[index]) / static_cast<double>(_maxIntensity[index] - _minIntensity[index]);
+    const auto range = static_cast<double>(_maxIntensity[index] - _minIntensity[index]);
+    if (range < 1.0) return 0.0;
+
+    const auto normalized = (static_cast<double>(value) - static_cast<double>(_minIntensity[index])) / range;
+    return std::clamp(normalized, 0.0, 1.0);
 }
 
 DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, const unsigned int rightVal)
@@ -45,19 +53,29 @@ DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, con
     return DiscreteLinePose::LineNone;
 }
 
-float LineEstimator::EstimateContinuousLinePose(float left_value, float right_value) {
-    // Calculate a normalized error value between -1.0 and 1.0
-    // -1.0 implies line is fully on the left
-    //  1.0 implies line is fully on the right
-    //  0.0 implies centered or no signal
+double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, const unsigned int rightValue) {
+    const double left = NormalizeValue(leftValue, SensorLocation::Left);
+    const double right = NormalizeValue(rightValue, SensorLocation::Right);
 
-    float sum = left_value + right_value;
+    double sum = left + right;
 
-    // specific check to avoid division by zero
-    if (sum < 0.001f) {
-        return 0.0f;
+    double rawPose = 0.0;
+    if (sum >= CONTINUOUS_SUM_EPSILON) {
+        rawPose = (right - left) / sum;
+        rawPose = std::clamp(rawPose, -1.0, 1.0);
+
+        _lastContinuousPose = rawPose;
+        _hasContinuousPose = true;
+    } else if (_hasContinuousPose) {
+        rawPose = _lastContinuousPose;
     }
 
-    // Normalized difference formula
-    return (right_value - left_value) / sum;
+    if (!_hasContinuousEma) {
+        _continuousEma = rawPose;
+        _hasContinuousEma = true;
+    } else {
+        _continuousEma = CONTINUOUS_EMA_ALPHA * rawPose + (1.0 - CONTINUOUS_EMA_ALPHA) * _continuousEma;
+    }
+
+    return std::clamp(_continuousEma, -1.0, 1.0);
 }
