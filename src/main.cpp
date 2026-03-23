@@ -1,9 +1,9 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.h"
-#include "Kinematics.hpp"
 #include "MotorController.hpp"
 #include "RobotOdometry.hpp"
+#include "UserInputController.hpp"
 #include "Controllers/Node/LineController.hpp"
 
 using namespace std;
@@ -13,19 +13,6 @@ void AddKinematics(const shared_ptr<Core::App>& app)
 {
     const auto motor = app->AddController<Core::MotorController>();
     const auto odometry = app->AddController<Core::RobotOdometry>();
-
-    auto kinematics = odometry->GetKinematics();
-
-    app->SetMoveCallback([kinematics, motor](double linear, double angular) {
-        auto robotSpeed = RobotSpeed(linear / 5, angular);
-        auto wheelSpeed = kinematics.inverse(robotSpeed);
-
-        motor->SetForce(wheelSpeed.left, wheelSpeed.right);
-    });
-
-    app->SetStopCallback([motor] {
-        motor->SetForce(0, 0);
-    });
 }
 
 int main(const int argc, char* argv[]) {
@@ -36,6 +23,8 @@ int main(const int argc, char* argv[]) {
     AddKinematics(app);
 
     app->AddController<Core::LineController>();
+
+    app->AddController<Core::UserInputController>();
 
     app->Run();
 

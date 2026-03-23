@@ -16,17 +16,35 @@ namespace Manhattan::Core
     MotorController::MotorController(const App& app) : BaseController(app)
     {
         _publisher = _node->create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
-        _subscriber = _node->create_subscription<msg::UInt32MultiArray>(
-            MOTOR_ENCODERS_TOPIC, 1, std::bind(&MotorController::SubscriberCallback, this, std::placeholders::_1));
 
         _msg = msg::UInt8MultiArray();
         _msg.data.push_back(127);
         _msg.data.push_back(127);
 
+        Enable();
+    }
+
+    void MotorController::Enable()
+    {
+        if (_subscriber) return;
+
+        _subscriber = _node->create_subscription<msg::UInt32MultiArray>(
+            MOTOR_ENCODERS_TOPIC, 1, std::bind(&MotorController::SubscriberCallback, this, std::placeholders::_1));
+
         _timer = _node->create_wall_timer(
             100ms,
-            [this] { Update(); }
+            [this] { _publisher->publish(_msg); }
         );
+
+        RCLCPP_INFO(_node->get_logger(), "Motor controller enabled");
+    }
+
+    void MotorController::Disable()
+    {
+        _subscriber.reset();
+        _timer.reset();
+
+        RCLCPP_INFO(_node->get_logger(), "Motor controller disabled");
     }
 
     void MotorController::SetForce(double leftAngular, double rightAngular)
@@ -39,11 +57,6 @@ namespace Manhattan::Core
 
         _msg.data[0] = static_cast<uint8_t>((left * .5 + .5) * 255);
         _msg.data[1] = static_cast<uint8_t>((right * .5 + .5) * 255);
-    }
-
-    void MotorController::Update() const
-    {
-        _publisher->publish(_msg);
     }
 
     void MotorController::SubscriberCallback(const msg::UInt32MultiArray::SharedPtr msg) const

@@ -11,7 +11,7 @@
 
 namespace Manhattan::Core
 {
-    class RobotOdometry : public BaseController
+    class RobotOdometry final : public BaseController
     {
     public:
         explicit RobotOdometry(const App& app);
@@ -20,8 +20,12 @@ namespace Manhattan::Core
 
         [[nodiscard]] Kinematics GetKinematics() const;
 
+        void Enable() override;
+
+        void Disable() override;
+
     private:
-        void onEncoders(std_msgs::msg::UInt32MultiArray::SharedPtr msg);
+        void onEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
         void publishOdometry(const rclcpp::Time& stamp);
 

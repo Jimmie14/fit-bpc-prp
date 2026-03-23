@@ -9,20 +9,14 @@ namespace Manhattan::Core
     protected:
         const App& _app;
         const rclcpp::Node::SharedPtr _node;
-
-        bool _enabled = false;
     public:
         explicit BaseController(const App& app);
 
         virtual ~BaseController() = default;
 
-        void Enable() {
-            _enabled = true;
-        }
+        virtual void Enable() { }
 
-        void Disable() {
-            _enabled = false;
-        }
+        virtual void Disable() { }
 
         [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
     };

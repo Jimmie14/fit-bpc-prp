@@ -11,7 +11,7 @@
 
 namespace Manhattan::Core
 {
-    class LineController: public BaseController {
+    class LineController final : public BaseController {
         rclcpp::Subscription<std_msgs::msg::UInt16MultiArray>::SharedPtr _subscriber;
         DiscreteLinePose _linePose = DiscreteLinePose::LineNone;
 
@@ -38,6 +38,10 @@ namespace Manhattan::Core
         [[nodiscard]] float GetContinuousLinePose() const;
 
         [[nodiscard]] DiscreteLinePose GetDiscreteLinePose() const;
+
+        void Enable() override;
+
+        void Disable() override;
 
     private:
         void OnLineSensorMsg(std_msgs::msg::UInt16MultiArray::SharedPtr msg);
