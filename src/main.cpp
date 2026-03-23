@@ -17,7 +17,7 @@ void AddKinematics(const shared_ptr<Core::App>& app)
     auto kinematics = odometry->GetKinematics();
 
     app->SetMoveCallback([kinematics, motor](double linear, double angular) {
-        auto robotSpeed = RobotSpeed(linear, angular);
+        auto robotSpeed = RobotSpeed(linear / 5, angular);
         auto wheelSpeed = kinematics.inverse(robotSpeed);
 
         motor->SetForce(wheelSpeed.left, wheelSpeed.right);
