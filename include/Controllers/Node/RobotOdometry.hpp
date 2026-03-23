@@ -37,6 +37,8 @@ namespace Manhattan::Core
         int32_t _prevRight = 0;
         bool _initialized = false;
 
+        rclcpp::Time _lastPublishTime{0, 0, RCL_ROS_TIME};
+
         rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
