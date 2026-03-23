@@ -2,8 +2,8 @@
 
 #include <rclcpp/rclcpp.hpp>
 #include <nav_msgs/msg/odometry.hpp>
+#include <nav_msgs/msg/path.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
-#include <std_msgs/msg/int32_multi_array.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
 #include "BaseController.h"
@@ -23,7 +23,7 @@ namespace Manhattan::Core
     private:
         void onEncoders(std_msgs::msg::UInt32MultiArray::SharedPtr msg);
 
-        void publishOdometry(const rclcpp::Time& stamp) const;
+        void publishOdometry(const rclcpp::Time& stamp);
 
         // -----------------------------------------------------------------------
         Kinematics _kinematics;
@@ -38,7 +38,9 @@ namespace Manhattan::Core
         bool _initialized = false;
 
         rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
-        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr           _odomPub;
-        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr   _posePub;
+        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
+        rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
+
+        nav_msgs::msg::Path _path;
     };
 }
