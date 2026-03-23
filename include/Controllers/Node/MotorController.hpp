@@ -4,25 +4,25 @@
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 
-#include "NodeController.hpp"
+#include "BaseController.h"
 
 namespace Manhattan::Core
 {
-    class MotorController : public NodeController
+    class MotorController : public BaseController
     {
-            rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
-            rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
+        rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
+        rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
-            rclcpp::TimerBase::SharedPtr _timer;
-            std_msgs::msg::UInt8MultiArray _msg;
+        rclcpp::TimerBase::SharedPtr _timer;
+        std_msgs::msg::UInt8MultiArray _msg;
 
-            void Update() const;
+        void Update() const;
 
-            void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
+        void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
 
-        public:
-            explicit MotorController();
+    public:
+        explicit MotorController(const App& app);
 
-            void SetForce(double leftAngular, double rightAngular);
+        void SetForce(double leftAngular, double rightAngular);
     };
 }
