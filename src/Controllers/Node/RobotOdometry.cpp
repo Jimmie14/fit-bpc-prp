@@ -65,7 +65,7 @@ void RobotOdometry::onEncoders(std_msgs::msg::UInt32MultiArray::SharedPtr msg)
     }
     // Delta ticks since last callback
     const int32_t dTicksLeft = rawLeft - _prevLeft;
-    const int32_t dTicksRight = rawRight - _prevRight;
+    const int32_t dTicksRight = -(rawRight - _prevRight);
 
     _prevLeft = rawLeft;
     _prevRight = rawRight;
@@ -77,14 +77,14 @@ void RobotOdometry::onEncoders(std_msgs::msg::UInt32MultiArray::SharedPtr msg)
     // Integrate pose
     _pose = _kinematics.integrate(_pose, dLeft, dRight);
 
-    _linearVelocity  = (dLeft + dRight) / 2.0;
+    _linearVelocity  = (dLeft + dRight) * 0.5;
     _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
 
     publishOdometry(_node->now());
 }
 
 void RobotOdometry::publishOdometry(const Time& stamp) const {
-    const double halfTheta = _pose.theta / 2.0;
+    const double halfTheta = _pose.theta * 0.5;
     const double qw = std::cos(halfTheta);
     const double qz = std::sin(halfTheta);
 
