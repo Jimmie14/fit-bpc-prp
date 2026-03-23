@@ -5,7 +5,6 @@
 using namespace std;
 
 constexpr float LINE_THRESHOLD = .5;
-constexpr float ALPHA = 0.01f;
 
 LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int minIntensity) {
     _maxIntensity[0] = maxIntensity;
@@ -18,16 +17,10 @@ LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int
 float LineEstimator::NormalizeValue(const unsigned int value, SensorLocation location)
 {
     const auto index = static_cast<int>(location);
-
-    if (value > _maxIntensity[index])
-        _maxIntensity[index] = ALPHA * value + (1 - ALPHA) * _maxIntensity[index];
-    else
-        _maxIntensity[index] = (1 - ALPHA) * _maxIntensity[index];
-
-    if (value < _minIntensity[index])
-        _minIntensity[index] = ALPHA * value + (1 - ALPHA) * _minIntensity[index];
-    else
-        _minIntensity[index] = (1 - ALPHA) * _minIntensity[index];
+    if (_maxIntensity[index] < value)
+        _maxIntensity[index] = value;
+    if (_minIntensity[index] > value)
+        _minIntensity[index] = value;
 
     return (value - _minIntensity[index]) / static_cast<double>(_maxIntensity[index] - _minIntensity[index]);
 }
