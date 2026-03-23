@@ -87,6 +87,10 @@ namespace Manhattan::Core
 
     void RobotOdometry::publishOdometry(const rclcpp::Time& stamp)
     {
+        if ((stamp - _lastPublishTime).seconds() < 0.1) return;
+
+        _lastPublishTime = stamp;
+
         const double halfTheta = _pose.theta * 0.5;
         const double qw = std::cos(halfTheta);
         const double qz = std::sin(halfTheta);
