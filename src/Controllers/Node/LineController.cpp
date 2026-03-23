@@ -14,7 +14,7 @@ namespace Manhattan::Core
 {
     LineController::LineController(const App& app) : BaseController(app),
         _lineEstimator(0, 1000),
-        _linePid(0.03f, 0.0f, 0.0f)
+        _linePid(0.3f, 0.0f, 0.0f)
     {
         const auto subscriber = "/bpc_prp_robot/line_sensors";
 
@@ -47,9 +47,23 @@ namespace Manhattan::Core
 
         const auto estimation = _lineEstimator.EstimateContinuousLinePose(msg->data[0], msg->data[1]);
 
+        // publish current
         msg::Float64 linePose;
         linePose.data = estimation;
         _linePosePublisher->publish(linePose);
+
+        const auto now = _node->now();
+        const auto dt = std::max(1e-3, (now - _lastPidTime).seconds());
+        _lastPidTime = now;
+
+        const auto error = 0.0 - estimation;
+        const auto correction = std::clamp(_linePid.step(error, dt), -_maxCorrection, _maxCorrection);
+
+        const auto leftForce = _baseForce - correction;
+        const auto rightForce = _baseForce + correction;
+
+        _motorController->SetForce(leftForce, rightForce);
+
 
         // auto estimation = _lineEstimator.EstimateDiscrete(msg->data[0], msg->data[1]);
         //

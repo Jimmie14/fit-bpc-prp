@@ -21,9 +21,9 @@ namespace Manhattan::Core
 
         Pid _linePid;
 
-        float _baseForce = 0.75f;
-        float _maxCorrection = 0.45f;
-        float _lastContinuousError = 0.0f;
+        double _baseForce = 0.75f;
+        double _maxCorrection = 0.45f;
+        double _lastContinuousError = 0.0f;
         rclcpp::Time _lastPidTime;
 
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
