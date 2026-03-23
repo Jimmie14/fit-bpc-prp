@@ -14,6 +14,8 @@ namespace Manhattan::Core
         DiscreteLinePose _linePose = DiscreteLinePose::LineNone;
 
         std::shared_ptr<MotorController> _motorController;
+
+        LineEstimator _lineEstimator;
     public:
         explicit LineController(const App& app);
 

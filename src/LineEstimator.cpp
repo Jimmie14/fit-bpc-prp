@@ -1,15 +1,34 @@
 #include "LineEstimator.hpp"
 
-#include <cstdint>
+#include <iostream>
 
 using namespace std;
 
-constexpr uint16_t LINE_THRESHOLD = 100;
+constexpr float LINE_THRESHOLD = .5;
 
-DiscreteLinePose LineEstimator::EstimateDiscrete(unsigned int leftVal, unsigned int rightVal) {
-    // Assuming higher values indicate line presence (e.g., black line, reflective sensor)
-    bool leftDetected = leftVal > LINE_THRESHOLD;
-    bool rightDetected = rightVal > LINE_THRESHOLD;
+LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int minIntensity) {
+    _maxIntensity[0] = maxIntensity;
+    _minIntensity[0] = minIntensity;
+
+    _maxIntensity[1] = maxIntensity;
+    _minIntensity[1] = minIntensity;
+}
+
+float LineEstimator::NormalizeValue(const unsigned int value, SensorLocation location)
+{
+    const auto index = static_cast<int>(location);
+    if (_maxIntensity[index] < value)
+        _maxIntensity[index] = value;
+    if (_minIntensity[index] > value)
+        _minIntensity[index] = value;
+
+    return (value - _minIntensity[index]) / static_cast<double>(_maxIntensity[index] - _minIntensity[index]);
+}
+
+DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, const unsigned int rightVal)
+{
+    const bool leftDetected = NormalizeValue(leftVal, SensorLocation::Left) > LINE_THRESHOLD;
+    const bool rightDetected = NormalizeValue(rightVal, SensorLocation::Right) > LINE_THRESHOLD;
 
     if (leftDetected && rightDetected) {
         return DiscreteLinePose::LineBoth;
