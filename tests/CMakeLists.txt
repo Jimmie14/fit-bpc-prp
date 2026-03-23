@@ -9,3 +9,4 @@ macro(make_unit_test name)
 endmacro()
 
 make_unit_test(kinematics)
+make_unit_test(line_estimation)

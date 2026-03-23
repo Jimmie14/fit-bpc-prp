@@ -3,11 +3,27 @@
 
 namespace Manhattan::Core
 {
-    class BaseController
-    {
-        public:
-            virtual ~BaseController() = default;
+    class App;
 
-            [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
+    class BaseController {
+    protected:
+        const App& _app;
+        const rclcpp::Node::SharedPtr _node;
+
+        bool _enabled = false;
+    public:
+        explicit BaseController(const App& app);
+
+        virtual ~BaseController() = default;
+
+        void Enable() {
+            _enabled = true;
+        }
+
+        void Disable() {
+            _enabled = false;
+        }
+
+        [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
     };
 }

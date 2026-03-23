@@ -13,7 +13,7 @@ namespace Manhattan::Core
     constexpr double MAX_WHEEL_ANGULAR_SPEED = 2.0 * M_PI * ROTATIONS_PER_SECOND;
     constexpr double ANGULAR_TO_SPEED = 1.0 / MAX_WHEEL_ANGULAR_SPEED;
 
-    MotorController::MotorController() : NodeController("MotorController")
+    MotorController::MotorController(const App& app) : BaseController(app)
     {
         _publisher = _node->create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
         _subscriber = _node->create_subscription<msg::UInt32MultiArray>(

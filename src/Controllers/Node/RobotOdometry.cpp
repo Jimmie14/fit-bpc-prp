@@ -1,5 +1,4 @@
 #include "RobotOdometry.hpp"
-#include "Controllers/Node/NodeController.hpp"
 #include <cmath>
 
 using namespace std;
@@ -19,7 +18,7 @@ constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
 
 // ---------------------------------------------------------------------------
 
-RobotOdometry::RobotOdometry() : NodeController("odometry"),
+RobotOdometry::RobotOdometry(const App& app) : BaseController(app),
     _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
     _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(

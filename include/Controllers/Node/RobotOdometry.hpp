@@ -6,15 +6,15 @@
 #include <std_msgs/msg/int32_multi_array.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
+#include "BaseController.h"
 #include "Kinematics.hpp"
-#include "NodeController.hpp"
 
 namespace Manhattan::Core
 {
-    class RobotOdometry : public NodeController
+    class RobotOdometry : public BaseController
     {
     public:
-        RobotOdometry();
+        explicit RobotOdometry(const App& app);
 
         void ApplyCorrection(const Pose2D& correctedPose);
 
