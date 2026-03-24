@@ -1,10 +1,11 @@
 #include "LineEstimator.hpp"
 
 #include <iostream>
+#include <cmath>
 
 using namespace std;
 
-constexpr float LINE_THRESHOLD = .3;
+constexpr float LINE_THRESHOLD = .5;
 constexpr double CONTINUOUS_SUM_EPSILON = 0.001;
 constexpr double CONTINUOUS_EMA_ALPHA = 0.20;
 
@@ -30,7 +31,7 @@ double LineEstimator::NormalizeValue(const unsigned int value, SensorLocation lo
     if (range < 1.0) return 0.0;
 
     const auto normalized = (static_cast<double>(value) - static_cast<double>(_minIntensity[index])) / range;
-    return std::clamp(normalized, 0.0, 1.0);
+    return std::clamp(pow(normalized, .7), 0.0, 1.0);
 }
 
 DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, const unsigned int rightVal)

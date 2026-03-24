@@ -50,7 +50,6 @@ namespace Manhattan::Core
             if (_activeController) _activeController->Disable();
 
             _activeController.reset();
-
             return;
         }
 
