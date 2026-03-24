@@ -17,8 +17,6 @@ namespace Manhattan::Core
 
         Kinematics _kinematics;
 
-        bool _stopped;
-
     public:
         explicit UserInputController(const App& app);
 
@@ -29,8 +27,12 @@ namespace Manhattan::Core
         void Disable() override;
 
     private:
-        void DecodeMessage(const std::string& command, const std::string& value);
+        void DecodeMessage(const std::string& command, const std::vector<std::string>& values);
 
-        void ParseMoveCommand(const std::string& value) const;
+        void DecodeModeCommand(const std::vector<std::string>& values);
+
+        void ParseMoveCommand(const std::vector<std::string>& values) const;
+
+        void ParseLineConfig(const std::vector<std::string>& values) const;
     };
 } // Manhattan::Core

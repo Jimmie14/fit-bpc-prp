@@ -28,9 +28,6 @@ namespace Manhattan::Core
 
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
 
-
-
-
     public:
         explicit LineController(const App& app);
 
@@ -38,6 +35,10 @@ namespace Manhattan::Core
         [[nodiscard]] float GetContinuousLinePose() const;
 
         [[nodiscard]] DiscreteLinePose GetDiscreteLinePose() const;
+
+        [[nodiscard]] Pid& GetPid();
+
+        void SetMaxSpeed(double speed);
 
         void Enable() override;
 

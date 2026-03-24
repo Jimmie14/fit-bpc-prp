@@ -20,6 +20,21 @@ public:
         _integral = 0;
     }
 
+    void SetKp(const double kp)
+    {
+        _kp = kp;
+    }
+
+    void SetKi(const double ki)
+    {
+        _ki = ki;
+    }
+
+    void SetKd(const double kd)
+    {
+        _kd = kd;
+    }
+
 private:
     double _kp;
     double _ki;

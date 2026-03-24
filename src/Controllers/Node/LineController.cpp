@@ -21,6 +21,16 @@ namespace Manhattan::Core
         _motorController = _app.GetController<MotorController>();
     }
 
+    Pid& LineController::GetPid()
+    {
+        return _linePid;
+    }
+
+    void LineController::SetMaxSpeed(const double speed)
+    {
+        _baseForce = speed;
+    }
+
     void LineController::Enable()
     {
         if (_subscriber) return;
@@ -31,8 +41,14 @@ namespace Manhattan::Core
         _motorController = _app.GetController<MotorController>();
 
 
-        _linePosePublisher = _node->create_publisher<std_msgs::msg::Float64>("~/line_pose2", 10);
+        _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose2", 10);
 
+        _lineEstimator = LineEstimator(0, 1000);
+        _linePid.reset();
+
+        _linePid.SetKp(0.3);
+        _linePid.SetKi(0.0);
+        _linePid.SetKd(0.0);
 
         _lastPidTime = _node->now();
         RCLCPP_INFO(_node->get_logger(), "Line controller enabled");
@@ -56,7 +72,7 @@ namespace Manhattan::Core
         return DiscreteLinePose::LineBoth;
     }
 
-    void LineController::OnLineSensorMsg(const std_msgs::msg::UInt16MultiArray::SharedPtr msg)
+    void LineController::OnLineSensorMsg(const msg::UInt16MultiArray::SharedPtr msg)
     {
         if (msg->data.size() != 2) return;
 

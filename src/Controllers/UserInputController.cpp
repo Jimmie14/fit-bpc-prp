@@ -2,11 +2,22 @@
 
 #include "App.h"
 #include "Kinematics.hpp"
+#include "Networking/CommandParser.hpp"
 using namespace std;
 using namespace rclcpp;
 
 namespace Manhattan::Core
 {
+    static std::vector<std::string> SplitBySpace(const std::string& value) {
+        std::istringstream iss(value);
+        std::vector<std::string> tokens;
+        std::string token;
+        while (iss >> token) {
+            tokens.push_back(token);
+        }
+        return tokens;
+    }
+
     UserInputController::UserInputController(const App& app) : BaseController(app), _kinematics(app.GetController<RobotOdometry>()->GetKinematics())
     {
         _tcpServer = app.GetTcpServer();
@@ -29,45 +40,84 @@ namespace Manhattan::Core
         // Remove leading space from value if present
         if (!value.empty() && value[0] == ' ') value.erase(0, 1);
 
-        DecodeMessage(command, value);
+        DecodeMessage(command, SplitBySpace(value));
     }
 
-    void UserInputController::DecodeMessage(const std::string& command, const std::string& value)
+    void UserInputController::DecodeMessage(const std::string& command, const std::vector<std::string>& values)
     {
         if (command == "STOP"){
             _motorController->SetForce(0, 0);
             if (_activeController) _activeController->Disable();
 
             _activeController.reset();
+
+            return;
         }
-        else if (command == "MOVE") {
-            ParseMoveCommand(value);
-        } else if (command == "MODE" && value == "LINE_FOLLOW") {
-            _lineController->Enable();
-            _activeController = std::dynamic_pointer_cast<BaseController>(_lineController);
+
+        if (command == "MOVE") {
+            ParseMoveCommand(values);
+            return;
+        }
+
+        if (command == "MODE")
+        {
+            DecodeModeCommand(values);
+            return;
+        }
+
+        if (command == "CFG" && values[0] == "LINE_FOLLOW") {
+            ParseLineConfig(values);
         }
     }
 
-    void UserInputController::ParseMoveCommand(const std::string& value) const
+    void UserInputController::DecodeModeCommand(const std::vector<std::string>& values)
     {
-        double linear = 0.0, angular = 0.0;
-        std::istringstream vss(value);
-        std::string token;
+        const auto mode = values[0];
 
-        while (vss >> token) {
-            if (const auto pos = token.find('='); pos != std::string::npos) {
-                std::string key = token.substr(0, pos);
-                std::string val = token.substr(pos + 1);
-                const double dVal = std::stod(val);
-                if (key == "linear") linear = dVal;
-                else if (key == "angular") angular = dVal;
-            }
+        if (mode == "LINE_FOLLOW")
+        {
+            _lineController->Enable();
+            _activeController = std::dynamic_pointer_cast<BaseController>(_lineController);
+
+            return;
         }
 
-        const auto robotSpeed = RobotSpeed(linear / 5, angular);
+        if (mode == "CORRIDOR")
+        {
+
+        }
+    }
+
+    void UserInputController::ParseMoveCommand(const std::vector<std::string>& values) const
+    {
+        const auto linear = CommandParser::ParseValue<double>("linear", values).value_or(0);
+        const auto angular = CommandParser::ParseValue<double>("angular", values).value_or(0);
+
+        const auto robotSpeed = RobotSpeed(linear, angular);
         auto [left, right] = _kinematics.inverse(robotSpeed);
 
         _motorController->SetForce(left, right);
+    }
+
+    void UserInputController::ParseLineConfig(const std::vector<std::string>& values) const
+    {
+        const auto maxSpeed = CommandParser::ParseValue<double>("max_speed", values).value_or(0);
+        _lineController->SetMaxSpeed(maxSpeed);
+
+        const auto kp = CommandParser::ParseValue<double>("kp", values);
+        const auto ki = CommandParser::ParseValue<double>("ki", values);
+        const auto kd = CommandParser::ParseValue<double>("kd", values);
+
+        auto& pid = _lineController->GetPid();
+
+        if (kp.has_value())
+            pid.SetKp(kp.value());
+
+        if (ki.has_value())
+            pid.SetKi(ki.value());
+
+        if (kd.has_value())
+            pid.SetKd(kd.value());
     }
 
     void UserInputController::Enable()
