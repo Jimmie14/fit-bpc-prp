@@ -36,10 +36,11 @@ public:
 
     double NormalizeValue(unsigned int value, SensorLocation location);
 private:
-    unsigned int _maxIntensity[2];
-    unsigned int _minIntensity[2];
+    double _maxIntensity[2];
+    double _minIntensity[2];
 
     double _lastContinuousPose = 0.0;
+    DiscreteLinePose _lastDiscretePose = DiscreteLinePose::LineNone;
 
     double _continuousEma = 0.0;
     bool _hasContinuousEma = false;

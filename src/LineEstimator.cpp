@@ -26,10 +26,10 @@ double LineEstimator::NormalizeValue(const unsigned int value, SensorLocation lo
     if (_minIntensity[index] > value)
         _minIntensity[index] = value;
 
-    const auto range = static_cast<double>(_maxIntensity[index] - _minIntensity[index]);
+    const auto range = _maxIntensity[index] - _minIntensity[index];
     if (range < 1.0) return 0.0;
 
-    const auto normalized = (static_cast<double>(value) - static_cast<double>(_minIntensity[index])) / range;
+    const auto normalized = (static_cast<double>(value) - _minIntensity[index]) / range;
     return std::clamp(normalized, 0.0, 1.0);
 }
 
@@ -59,21 +59,46 @@ double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, c
 
     double sum = left + right;
 
-    bool isWhite = left < LINE_THRESHOLD && right < LINE_THRESHOLD;
+    const auto leftDetected = left > LINE_THRESHOLD;
+    const auto rightDetected = right > LINE_THRESHOLD;
+    const auto hasLine = leftDetected || rightDetected;
 
-    double rawPose = _lastContinuousPose;
-    if (!isWhite && sum >= CONTINUOUS_SUM_EPSILON) {
-        rawPose = (right - left) / sum;
-        rawPose = std::clamp(rawPose, -1.0, 1.0);
+    double linePose = _lastContinuousPose;
+    if (hasLine && sum >= CONTINUOUS_SUM_EPSILON) {
+        linePose = std::clamp((right - left) / sum, -1.0, 1.0);
+        _lastContinuousPose = linePose;
 
-        _lastContinuousPose = rawPose;
+        if (leftDetected && rightDetected) _lastDiscretePose = DiscreteLinePose::LineBoth;
+        else if (leftDetected) _lastDiscretePose = DiscreteLinePose::LineOnLeft;
+        else _lastDiscretePose = DiscreteLinePose::LineOnRight;
+
+    } else {
+        auto fallback = _lastContinuousPose;
+        switch (_lastDiscretePose) {
+            case DiscreteLinePose::LineOnLeft:
+                fallback = -1;
+                break;
+            case DiscreteLinePose::LineOnRight:
+                fallback = +1;
+                break;
+            case DiscreteLinePose::LineBoth:
+                fallback = 0.0;
+                break;
+            case DiscreteLinePose::LineNone:
+                fallback = _lastContinuousPose;
+                break;
+        }
+
+        linePose = fallback;
     }
 
+    const auto alpha = hasLine ? 0.25 : 0.08;
+
     if (!_hasContinuousEma) {
-        _continuousEma = rawPose;
+        _continuousEma = linePose;
         _hasContinuousEma = true;
     } else {
-        _continuousEma = CONTINUOUS_EMA_ALPHA * rawPose + (1.0 - CONTINUOUS_EMA_ALPHA) * _continuousEma;
+        _continuousEma = alpha * linePose + (1.0 - alpha) * _continuousEma;
     }
 
     return std::clamp(_continuousEma, -1.0, 1.0);
