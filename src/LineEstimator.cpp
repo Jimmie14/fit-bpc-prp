@@ -4,7 +4,7 @@
 
 using namespace std;
 
-constexpr float LINE_THRESHOLD = .5;
+constexpr float LINE_THRESHOLD = .3;
 constexpr double CONTINUOUS_SUM_EPSILON = 0.001;
 constexpr double CONTINUOUS_EMA_ALPHA = 0.20;
 
@@ -59,15 +59,14 @@ double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, c
 
     double sum = left + right;
 
-    double rawPose = 0.0;
-    if (sum >= CONTINUOUS_SUM_EPSILON) {
+    bool isWhite = left < LINE_THRESHOLD && right < LINE_THRESHOLD;
+
+    double rawPose = _lastContinuousPose;
+    if (!isWhite && sum >= CONTINUOUS_SUM_EPSILON) {
         rawPose = (right - left) / sum;
         rawPose = std::clamp(rawPose, -1.0, 1.0);
 
         _lastContinuousPose = rawPose;
-        _hasContinuousPose = true;
-    } else if (_hasContinuousPose) {
-        rawPose = _lastContinuousPose;
     }
 
     if (!_hasContinuousEma) {

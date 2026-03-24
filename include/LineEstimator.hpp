@@ -34,15 +34,14 @@ public:
 
     double EstimateContinuousLinePose(unsigned int leftValue, unsigned int rightValue);
 
+    double NormalizeValue(unsigned int value, SensorLocation location);
 private:
     unsigned int _maxIntensity[2];
     unsigned int _minIntensity[2];
 
     double _lastContinuousPose = 0.0;
-    bool _hasContinuousPose = false;
 
     double _continuousEma = 0.0;
     bool _hasContinuousEma = false;
 
-    double NormalizeValue(unsigned int value, SensorLocation location);
 };

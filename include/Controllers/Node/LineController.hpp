@@ -3,6 +3,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int16_multi_array.hpp>
 #include <std_msgs/msg/float64.hpp>
+#include <std_msgs/msg/float64_multi_array.hpp>
 
 #include "BaseController.h"
 #include "LineEstimator.hpp"
@@ -26,6 +27,7 @@ namespace Manhattan::Core
         double _lastContinuousError = 0.0f;
         rclcpp::Time _lastPidTime;
 
+        rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr _lineSensorsPublisher;
         rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
 
     public:

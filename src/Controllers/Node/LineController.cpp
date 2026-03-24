@@ -41,7 +41,8 @@ namespace Manhattan::Core
         _motorController = _app.GetController<MotorController>();
 
 
-        _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose2", 10);
+        _lineSensorsPublisher = _node->create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);
+        _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose", 10);
 
         _lineEstimator = LineEstimator(0, 1000);
         _linePid.reset();
@@ -57,6 +58,8 @@ namespace Manhattan::Core
     void LineController::Disable()
     {
         _subscriber.reset();
+
+        _lineSensorsPublisher.reset();
         _linePosePublisher.reset();
 
         RCLCPP_INFO(_node->get_logger(), "Line controller disabled");
@@ -75,6 +78,11 @@ namespace Manhattan::Core
     void LineController::OnLineSensorMsg(const msg::UInt16MultiArray::SharedPtr msg)
     {
         if (msg->data.size() != 2) return;
+
+        msg::Float64MultiArray sensors;
+        sensors.data.push_back(_lineEstimator.NormalizeValue(msg->data[0], SensorLocation::Left));
+        sensors.data.push_back(_lineEstimator.NormalizeValue(msg->data[1], SensorLocation::Right));
+        _lineSensorsPublisher->publish(sensors);
 
         const auto estimation = _lineEstimator.EstimateContinuousLinePose(msg->data[0], msg->data[1]);
 
