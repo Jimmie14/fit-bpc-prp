@@ -16,7 +16,7 @@ namespace Manhattan::Core
 
     LineController::LineController(const App& app) : BaseController(app),
         _lineEstimator(0, 1000),
-        _linePid(0.3f, 0.0f, 0.0f)
+        _linePid(0.36f, 0.03f, 0.02f)
     {
         _motorController = _app.GetController<MotorController>();
     }
@@ -41,15 +41,15 @@ namespace Manhattan::Core
         _motorController = _app.GetController<MotorController>();
 
 
-        _lineSensorsPublisher = _node->create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);
-        _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose", 10);
+        // _lineSensorsPublisher = _node->create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);
+        // _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose", 10);
 
-        _lineEstimator = LineEstimator(0, 1000);
+        // _lineEstimator = LineEstimator(0, 1000);
         _linePid.reset();
 
-        _linePid.SetKp(0.3);
-        _linePid.SetKi(0.0);
-        _linePid.SetKd(0.0);
+        // _linePid.SetKp(0.36);
+        // _linePid.SetKi(0.03);
+        // _linePid.SetKd(0.02);
 
         _lastPidTime = _node->now();
         RCLCPP_INFO(_node->get_logger(), "Line controller enabled");
@@ -59,8 +59,8 @@ namespace Manhattan::Core
     {
         _subscriber.reset();
 
-        _lineSensorsPublisher.reset();
-        _linePosePublisher.reset();
+        // _lineSensorsPublisher.reset();
+        // _linePosePublisher.reset();
 
         RCLCPP_INFO(_node->get_logger(), "Line controller disabled");
     }
@@ -82,14 +82,14 @@ namespace Manhattan::Core
         msg::Float64MultiArray sensors;
         sensors.data.push_back(_lineEstimator.NormalizeValue(msg->data[0], SensorLocation::Left));
         sensors.data.push_back(_lineEstimator.NormalizeValue(msg->data[1], SensorLocation::Right));
-        _lineSensorsPublisher->publish(sensors);
+        // _lineSensorsPublisher->publish(sensors);
 
         const auto estimation = _lineEstimator.EstimateContinuousLinePose(msg->data[0], msg->data[1]);
 
         // publish current
         msg::Float64 linePose;
         linePose.data = estimation;
-        _linePosePublisher->publish(linePose);
+        // _linePosePublisher->publish(linePose);
 
         const auto now = _node->now();
         const auto dt = std::max(1e-3, (now - _lastPidTime).seconds());
