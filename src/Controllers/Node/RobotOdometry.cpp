@@ -128,9 +128,24 @@ namespace Manhattan::Core
         odomMsg.twist.twist.angular.y = 0.0;
         odomMsg.twist.twist.angular.z = _angularVelocity;
 
-        // covariances
-        odomMsg.pose.covariance[0] = 0.05;
-        odomMsg.twist.covariance[0] = 0.1;
+        // Pose covariance (x, y, z, roll, pitch, yaw)
+        odomMsg.pose.covariance = {
+            0.05, 0,    0,    0,    0,    0,
+            0,    0.05, 0,    0,    0,    0,
+            0,    0,    999,  0,    0,    0,
+            0,    0,    0,    999,  0,    0,
+            0,    0,    0,    0,    999,  0,
+            0,    0,    0,    0,    0,    0.2
+        };
+        // Twist covariance (vx, vy, vz, vroll, vpitch, vyaw)
+        odomMsg.twist.covariance = {
+            0.1,  0,    0,    0,    0,    0,
+            0,    0.1,  0,    0,    0,    0,
+            0,    0,    999,  0,    0,    0,
+            0,    0,    0,    999,  0,    0,
+            0,    0,    0,    0,    999,  0,
+            0,    0,    0,    0,    0,    0.2
+        };
 
         _odomPub->publish(odomMsg);
 
