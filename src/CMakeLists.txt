@@ -9,6 +9,6 @@ target_link_libraries(manhattan PUBLIC rclcpp::rclcpp manhattan_libs)
 
 
 
-ament_target_dependencies(manhattan PUBLIC rclcpp std_msgs nav_msgs geometry_msgs sensor_msgs visualization_msgs)
+ament_target_dependencies(manhattan PUBLIC rclcpp std_msgs nav_msgs geometry_msgs sensor_msgs visualization_msgs tf2)
 
 install(TARGETS manhattan DESTINATION lib/${PROJECT_NAME})
