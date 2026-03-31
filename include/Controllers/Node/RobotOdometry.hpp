@@ -20,10 +20,9 @@ namespace Manhattan::Core
 
         [[nodiscard]] Kinematics GetKinematics() const;
 
-        void Enable() override;
+        void OnEnable() override;
 
-        void Disable() override;
-
+        void OnDisable() override;
     private:
         void onEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
@@ -44,9 +43,7 @@ namespace Manhattan::Core
         rclcpp::Time _lastPublishTime{0, 0, RCL_ROS_TIME};
 
         rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
+        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr _odomPub;
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
-        rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
-
-        nav_msgs::msg::Path _path;
     };
 }

@@ -42,9 +42,9 @@ namespace Manhattan::Core
 
         void SetMaxSpeed(double speed);
 
-        void Enable() override;
+        void OnEnable() override;
 
-        void Disable() override;
+        void OnDisable() override;
 
     private:
         void OnLineSensorMsg(std_msgs::msg::UInt16MultiArray::SharedPtr msg);

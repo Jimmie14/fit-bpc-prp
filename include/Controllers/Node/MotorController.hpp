@@ -21,9 +21,9 @@ namespace Manhattan::Core
     public:
         explicit MotorController(const App& app);
 
-        void Enable() override;
+        void OnEnable() override;
 
-        void Disable() override;
+        void OnDisable() override;
 
         void SetForce(double leftAngular, double rightAngular);
     };

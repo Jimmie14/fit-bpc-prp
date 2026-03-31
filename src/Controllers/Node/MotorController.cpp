@@ -24,7 +24,7 @@ namespace Manhattan::Core
         Enable();
     }
 
-    void MotorController::Enable()
+    void MotorController::OnEnable()
     {
         if (_subscriber) return;
 
@@ -39,7 +39,7 @@ namespace Manhattan::Core
         RCLCPP_INFO(_node->get_logger(), "Motor controller enabled");
     }
 
-    void MotorController::Disable()
+    void MotorController::OnDisable()
     {
         _subscriber.reset();
         _timer.reset();

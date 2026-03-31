@@ -21,27 +21,23 @@ namespace Manhattan::Core
     RobotOdometry::RobotOdometry(const App& app) : BaseController(app),
         _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
     {
-        _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
-        _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/path", 10);
-
-        _path.header.frame_id = "odom";
-
         Enable();
+
+        _odomPub = _node->create_publisher<nav_msgs::msg::Odometry>("~/odom", 10);
+        _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
     }
 
-    void RobotOdometry::Enable()
+    void RobotOdometry::OnEnable()
     {
-        if (_encoderSub) return;
-
         _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
             ENCODERS_TOPIC, 10,
             [this](std_msgs::msg::UInt32MultiArray::SharedPtr msg) { onEncoders(std::move(msg)); }
         );
 
-        RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled — encoder topic: %s", ENCODERS_TOPIC);
+        RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
     }
 
-    void RobotOdometry::Disable()
+    void RobotOdometry::OnDisable()
     {
         _encoderSub.reset();
 
@@ -109,27 +105,42 @@ namespace Manhattan::Core
         const double qw = std::cos(halfTheta);
         const double qz = std::sin(halfTheta);
 
+        // nav_msgs/odom
+        nav_msgs::msg::Odometry odomMsg;
+        odomMsg.header.stamp = stamp;
+        odomMsg.header.frame_id = "odom";
+        odomMsg.child_frame_id = "base_link";
+
+        // position
+        odomMsg.pose.pose.position.x = _pose.x;
+        odomMsg.pose.pose.position.y = _pose.y;
+        odomMsg.pose.pose.position.z = 0.0;
+        odomMsg.pose.pose.orientation.x = 0.0;
+        odomMsg.pose.pose.orientation.y = 0.0;
+        odomMsg.pose.pose.orientation.z = qz;
+        odomMsg.pose.pose.orientation.w = qw;
+
+        // velocity
+        odomMsg.twist.twist.linear.x = _linearVelocity;
+        odomMsg.twist.twist.linear.y = 0.0;
+        odomMsg.twist.twist.linear.z = 0.0;
+        odomMsg.twist.twist.angular.x = 0.0;
+        odomMsg.twist.twist.angular.y = 0.0;
+        odomMsg.twist.twist.angular.z = _angularVelocity;
+
+        // covariances
+        odomMsg.pose.covariance[0] = 0.05;
+        odomMsg.twist.covariance[0] = 0.1;
+
+        _odomPub->publish(odomMsg);
+
         // geometry_msgs/PoseStamped
         geometry_msgs::msg::PoseStamped poseMsg;
-        poseMsg.header.stamp    = stamp;
+        poseMsg.header.stamp = stamp;
         poseMsg.header.frame_id = "odom";
-        poseMsg.pose.position.x = _pose.x;
-        poseMsg.pose.position.y = _pose.y;
-        poseMsg.pose.position.z = 0.0;
-        poseMsg.pose.orientation.w = qw;
-        poseMsg.pose.orientation.z = qz;
-        poseMsg.pose.orientation.x = 0.0;
-        poseMsg.pose.orientation.y = 0.0;
+        poseMsg.pose = odomMsg.pose.pose;
 
         _posePub->publish(poseMsg);
-
-        // nav_msgs/Path
-        _path.header.stamp = stamp;
-        _path.poses.push_back(poseMsg);
-        if (_path.poses.size() > 1000)
-            _path.poses.erase(_path.poses.begin());
-
-        _pathPub->publish(_path);
     }
 
 } // namespace Manhattan::Core
