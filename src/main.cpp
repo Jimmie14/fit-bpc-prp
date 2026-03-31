@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.h"
+#include "LidarController.hpp"
 #include "MotorController.hpp"
 #include "RobotOdometry.hpp"
 #include "UserInputController.hpp"
@@ -23,6 +24,7 @@ int main(const int argc, char* argv[]) {
     AddKinematics(app);
 
     app->AddController<Core::LineController>();
+    app->AddController<Core::LidarController>();
 
     app->AddController<Core::UserInputController>();
 
