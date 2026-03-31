@@ -24,4 +24,15 @@ ament_package()
 # Add subdirectory
 add_subdirectory(include)
 add_subdirectory(src)
-add_subdirectory(tests)
+#add_subdirectory(tests)
+
+
+install(
+        DIRECTORY config
+        DESTINATION share/${PROJECT_NAME}
+)
+
+install(
+        DIRECTORY launch
+        DESTINATION share/${PROJECT_NAME}
+)

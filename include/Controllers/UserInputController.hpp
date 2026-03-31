@@ -22,9 +22,9 @@ namespace Manhattan::Core
 
         void ReceiveMessage(const std::vector<uint8_t>& data);
 
-        void Enable() override;
+        void OnEnable() override;
 
-        void Disable() override;
+        void OnDisable() override;
 
     private:
         void DecodeMessage(const std::string& command, const std::vector<std::string>& values);

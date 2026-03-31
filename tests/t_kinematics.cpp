@@ -123,7 +123,7 @@ TEST(KinematicsTest, ForwardAndBackwardSI) {
 
 TEST(KinematicsTest, ForwardAndBackwardEncoderDiff) {
     // Arrange
-    constexpr auto encoders = Encoders(0, 550);
+    constexpr auto encoders = WheelSpeed(0, 550);
 
     const auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
 

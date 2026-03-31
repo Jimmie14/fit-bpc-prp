@@ -119,12 +119,12 @@ namespace Manhattan::Core
             pid.SetKd(kd.value());
     }
 
-    void UserInputController::Enable()
+    void UserInputController::OnEnable()
     {
         _tcpServer->SetDataReceivedCallback([this](const std::vector<uint8_t>& data) { ReceiveMessage(data); });
     }
 
-    void UserInputController::Disable()
+    void UserInputController::OnDisable()
     {
         _tcpServer->ResetDataReceivedCallback();
     }

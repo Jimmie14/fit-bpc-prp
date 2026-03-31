@@ -31,10 +31,8 @@ namespace Manhattan::Core
         _baseForce = speed;
     }
 
-    void LineController::Enable()
+    void LineController::OnEnable()
     {
-        if (_subscriber) return;
-
         _subscriber = _node->create_subscription<std_msgs::msg::UInt16MultiArray>(
             subscriber, 1, std::bind(&LineController::OnLineSensorMsg, this, std::placeholders::_1));
 
@@ -55,7 +53,7 @@ namespace Manhattan::Core
         RCLCPP_INFO(_node->get_logger(), "Line controller enabled");
     }
 
-    void LineController::Disable()
+    void LineController::OnDisable()
     {
         _subscriber.reset();
 

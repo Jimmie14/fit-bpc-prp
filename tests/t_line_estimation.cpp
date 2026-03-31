@@ -6,17 +6,30 @@
 
 TEST(LineEstimator, BasicDiscreteEstimation)
 {
+    // Arrange
     uint16_t left_value = 0;
     uint16_t right_value = 1024;
-    auto result = LineEstimator::EstimateDiscrete(left_value, right_value);
+
+    LineEstimator estimator(1024, 0);
+
+    // Act
+    auto result = estimator.EstimateDiscrete(left_value, right_value);
+
+    // Assert
     EXPECT_EQ(result, DiscreteLinePose::LineOnRight);
 }
 
 TEST(LineEstimator, BasicContinuousEstimation)
 {
+    // Arrange
     uint16_t left_value = 0;
     uint16_t right_value = 1024;
-    auto result = LineEstimator::EstimateContinuousLinePose(left_value, right_value);
+    LineEstimator estimator(1024, 0);
+
+    // Act
+    auto result = estimator.EstimateContinuousLinePose(left_value, right_value);
+
+    // Assert
     EXPECT_EQ(result, 0);
 }
 
