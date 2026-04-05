@@ -68,7 +68,7 @@ namespace Manhattan::Core
             return y * _width + x;
         }
 
-        public:
+    public:
         OccupancyGrid(const Vector2Int size, const double cellSize, const int costSteps = 5, const double inflationPenalty = 5) : _cellSize(cellSize)
         {
             _width = size.x;
@@ -84,6 +84,12 @@ namespace Manhattan::Core
                 _grid.emplace_back(cell);
             }
         }
+
+        int GetWidth() const { return _width; }
+
+        int GetHeight() const { return _height; }
+
+        int GetCellSize() const { return _cellSize; }
 
         Vector2Int WorldToGrid(const Vector2Int &worldPos) const
         {
