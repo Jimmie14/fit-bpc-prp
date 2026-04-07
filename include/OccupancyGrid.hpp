@@ -84,7 +84,7 @@ namespace Manhattan::Core
 
         int GetHeight() const { return _height; }
 
-        int GetCellSize() const { return _cellSize; }
+        double GetCellSize() const { return _cellSize; }
 
         int GetIndex(int x, int y) const {
             return y * _width + x;

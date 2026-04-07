@@ -7,7 +7,7 @@ namespace Manhattan::Core
 {
     SlamController::SlamController(const App& app)
         : BaseController(app),
-        _grid(Vector2Int(100, 100), 0.2, 5),
+        _grid(Vector2Int(200, 200), 0.05, 5),
         _poseMatcher(PoseMatcher(_grid, 5))
     {
         app.GetController<LidarController>()->SetScanCallback(
@@ -47,10 +47,6 @@ namespace Manhattan::Core
 
         PublishPose(_lastPose);
         PublishGrid();
-
-        RCLCPP_INFO(_node->get_logger(),
-            "SLAM update: pose=(%.2f, %.2f), rotation=%.2f",
-            _lastPose.Position.x, _lastPose.Position.y, _lastPose.Rotation);
     }
 
     std::vector<Point> SlamController::TransformPointsLocalToWorld(
@@ -130,9 +126,15 @@ namespace Manhattan::Core
         gridMsg.header.stamp = _node->now();
         gridMsg.header.frame_id = "map";
 
+        gridMsg.info.origin.position.x = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
+        gridMsg.info.origin.position.y = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
+        gridMsg.info.origin.position.z = 0.0;
+
+        gridMsg.info.origin.orientation.w = 1.0;
+
         gridMsg.info.width = _grid.GetWidth();
         gridMsg.info.height = _grid.GetHeight();
-        gridMsg.info.resolution = _grid.GetCellSize();
+        gridMsg.info.resolution = static_cast<float>(_grid.GetCellSize());
 
         const auto size = gridMsg.info.width * gridMsg.info.height;
         gridMsg.data.resize(size);
