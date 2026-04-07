@@ -7,7 +7,7 @@ import os
 
 def generate_launch_description():
 
-    launch_manhattan = LaunchConfiguration('launch_manhattan', default='false')
+    launch_manhattan = LaunchConfiguration('launch_manhattan', default='true')
 
     ekf_config = os.path.join(
         os.getenv('AMENT_PREFIX_PATH').split(':')[0],
@@ -17,7 +17,7 @@ def generate_launch_description():
     nodes = [
         DeclareLaunchArgument(
             'launch_manhattan',
-            default_value='false',
+            default_value='true',
             description='Launch the Manhattan node'
         ), Node(
             package='robot_localization',
