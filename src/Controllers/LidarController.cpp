@@ -27,7 +27,7 @@ namespace Manhattan::Core
     void LidarController::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
     {
         const auto length = msg->ranges.size();
-        const auto angleStep = -M_PI * 2.0 / static_cast<double>(length);
+        const auto angleStep = M_PI * 2.0 / static_cast<double>(length);
         auto angle = M_PI * 0.5; // forward dir
         auto pointIndex = 0;
 

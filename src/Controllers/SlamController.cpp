@@ -20,6 +20,8 @@ namespace Manhattan::Core
         _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 10);
         _gridPub = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", 10);
 
+        _path.header.frame_id = "map";
+
         // _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
         //     "/odometry/filtered",
         //     10,
@@ -123,6 +125,14 @@ namespace Manhattan::Core
         pose_msg.pose.orientation.y = 0.0;
         pose_msg.pose.orientation.z = std::sin(halfRotation);
         pose_msg.pose.orientation.w = std::cos(halfRotation);
+
+
+        _path.poses.push_back(pose_msg);
+        if (_path.poses.size() > 1000)
+            _path.poses.erase(_path.poses.begin());
+
+        _pathPub->publish(_path);
+
 
         _posePub->publish(pose_msg);
     }

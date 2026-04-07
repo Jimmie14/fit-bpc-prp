@@ -26,6 +26,8 @@ namespace Manhattan::Core {
         PoseMatcher _poseMatcher;
         Pose _lastPose;
 
+        nav_msgs::msg::Path _path;
+
         std::mutex _updateMutex;
 
         void Update(const std::vector<Point> &points);
