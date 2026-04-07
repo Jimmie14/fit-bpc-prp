@@ -27,11 +27,11 @@ namespace Manhattan::Core
 
         Point GetWorldPosition() const { return _worldPosition; }
 
-        double Probability() const { return 1.0 - 1.0 / (1.0 + std::exp(_probability)); }
+        double GetProbability() const { return 1.0 - 1.0 / (1.0 + std::exp(_probability)); }
 
-        bool IsFree() const { return Probability() < 0.5f; }
+        bool IsFree() const { return GetProbability() < 0.5f; }
 
-        bool IsOccupied() const { return Probability() >= 0.5f; }
+        bool IsOccupied() const { return GetProbability() >= 0.5f; }
 
         double GetCost() const
         {
@@ -115,7 +115,7 @@ namespace Manhattan::Core
         {
             if (!InBounds(x, y)) return 0.5;
 
-            return _grid[GetIndex(x, y)].Probability();
+            return _grid[GetIndex(x, y)].GetProbability();
         }
 
         void SetFree(const Vector2Int cell, const double dst)

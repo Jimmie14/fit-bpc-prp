@@ -2,7 +2,8 @@
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <nav_msgs/msg/occupancy_grid.hpp>
+#include <grid_map_ros/grid_map_ros.hpp>
+#include <grid_map_msgs/msg/grid_map.hpp>
 
 #include "App.h"
 #include "PoseMatcher.hpp"
@@ -21,6 +22,7 @@ namespace Manhattan::Core {
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
         rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPub;
+        rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPub;
 
         OccupancyGrid _grid;
         PoseMatcher _poseMatcher;
@@ -39,5 +41,7 @@ namespace Manhattan::Core {
         void PublishPose(const Pose& pose);
 
         void PublishGrid();
+        void PublishGridMap();
+
     };
 }

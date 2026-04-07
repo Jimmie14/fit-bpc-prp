@@ -1,5 +1,6 @@
 #include "SlamController.hpp"
 #include "LidarController.hpp"
+#include <grid_map_ros/GridMapRosConverter.hpp>
 
 using namespace std;
 
@@ -7,7 +8,7 @@ namespace Manhattan::Core
 {
     SlamController::SlamController(const App& app)
         : BaseController(app),
-        _grid(Vector2Int(200, 200), 0.05, 5),
+        _grid(Vector2Int(200, 200), 0.05, 5, 20),
         _poseMatcher(PoseMatcher(_grid, 5))
     {
         app.GetController<LidarController>()->SetScanCallback(
@@ -18,7 +19,9 @@ namespace Manhattan::Core
 
         _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 10);
         _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 10);
+
         _gridPub = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", 10);
+        _gridMapPub = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", 10);
 
         _path.header.frame_id = "map";
 
@@ -55,6 +58,7 @@ namespace Manhattan::Core
 
         PublishPose(_lastPose);
         PublishGrid();
+        PublishGridMap();
     }
 
     std::vector<Point> SlamController::TransformPointsLocalToWorld(
@@ -137,6 +141,7 @@ namespace Manhattan::Core
         _posePub->publish(pose_msg);
     }
 
+
     void SlamController::PublishGrid()
     {
         nav_msgs::msg::OccupancyGrid gridMsg;
@@ -161,13 +166,60 @@ namespace Manhattan::Core
 
         for (auto x = 0; x < gridMsg.info.width; x++) {
             for (auto y = 0; y < gridMsg.info.height; y++) {
-                auto probability = _grid.GetProbability(x, y);
-                gridMsg.data[_grid.GetIndex(x, y)] = static_cast<int8_t>(probability * 100.0);
+                auto cell = _grid.GetCell({x, y});
+                auto cost = cell->GetCost();
+
+                gridMsg.data[_grid.GetIndex(x, y)] = static_cast<int8_t>(cell->GetProbability() * 100.0);
             }
         }
 
         _gridPub->publish(gridMsg);
     }
+
+    void SlamController::PublishGridMap()
+    {
+        grid_map::GridMap map;
+
+        const auto width  = _grid.GetWidth();
+        const auto height = _grid.GetHeight();
+        const auto resolution = _grid.GetCellSize();
+
+        const auto size_x = width * resolution;
+        const auto size_y = height * resolution;
+
+        // -----------------------------
+        // Initialize grid map
+        // -----------------------------
+        map.setFrameId("map");
+        map.setGeometry(grid_map::Length(size_x, size_y), resolution, grid_map::Position(0.0, 0.0));
+
+        map.add("probability");
+        map.add("cost");
+
+        // -----------------------------
+        // Fill data
+        // -----------------------------
+        for (auto x = 0; x < width; x++) {
+            for (auto y = 0; y < height; y++) {
+
+                const auto cell = _grid.GetCell({ x, y });
+
+                const auto probability = cell->GetProbability();
+                const auto cost = cell->GetCost();
+
+                const grid_map::Index index(width - 1 - x, height - 1 - y);
+
+                map.at("probability", index) = static_cast<float>(probability);
+                map.at("cost", index) = static_cast<float>(cost);
+            }
+        }
+
+        // -----------------------------
+        // Convert + publish
+        // -----------------------------
+        const auto msg = grid_map::GridMapRosConverter::toMessage(map);
+
+        _gridMapPub->publish(*msg);
+    }
+
 }
-
-
