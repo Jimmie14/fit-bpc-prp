@@ -117,11 +117,12 @@ namespace Manhattan::Core
         pose_msg.pose.position.z = 0.0;
 
         // Convert rotation angle to quaternion
-        double halfRotation = pose.Rotation * 0.5;
-        pose_msg.pose.orientation.w = std::cos(halfRotation);
+        double halfRotation = (pose.Rotation + M_PI * 0.5) * 0.5;
+
         pose_msg.pose.orientation.x = 0.0;
         pose_msg.pose.orientation.y = 0.0;
         pose_msg.pose.orientation.z = std::sin(halfRotation);
+        pose_msg.pose.orientation.w = std::cos(halfRotation);
 
         _posePub->publish(pose_msg);
     }
@@ -136,6 +137,9 @@ namespace Manhattan::Core
         gridMsg.info.origin.position.y = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
         gridMsg.info.origin.position.z = 0.0;
 
+        gridMsg.info.origin.orientation.x = 0.0;
+        gridMsg.info.origin.orientation.y = 0.0;
+        gridMsg.info.origin.orientation.z = 0.0;
         gridMsg.info.origin.orientation.w = 1.0;
 
         gridMsg.info.width = _grid.GetWidth();
