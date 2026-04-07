@@ -33,6 +33,12 @@ namespace Manhattan::Core
 
     void SlamController::Update(const std::vector<Point> &points)
     {
+        const std::unique_lock lock(_updateMutex, std::try_to_lock);
+
+        if (!lock.owns_lock()) {
+            RCLCPP_DEBUG(_node->get_logger(), "SlamController: Update skipped (already running)");
+            return;
+        }
         if (points.empty()) return;
 
         // ResetGridIfNeeded();
