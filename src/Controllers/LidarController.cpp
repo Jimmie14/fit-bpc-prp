@@ -6,57 +6,52 @@ namespace Manhattan::Core
 {
     constexpr auto LIDAR_TOPIC = "/bpc_prp_robot/lidar";
 
-    LidarController::LidarController(const App& app) : BaseController(app), _lidar_filter(.2, 50)
+    static double Median(double a, double b, double c)
+    {
+        return std::max(std::min(a, b), std::min(std::max(a, b), c));
+    }
+
+    static bool IsInRange(const double hit, const double minRange, const double maxRange)
+    {
+        return hit > minRange && hit < maxRange;
+    }
+
+    LidarController::LidarController(const App& app) : BaseController(app)
     {
         _lidar_subscriber = _node->create_subscription<sensor_msgs::msg::LaserScan>(
             LIDAR_TOPIC, 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg)
-            { LidarCallback(msg); }
+            { LidarFilter(msg); }
         );
-
-        _line_publisher = _node->create_publisher<visualization_msgs::msg::Marker>("~/visualization_marker", 10);
     }
 
-    void LidarController::LidarCallback(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
+    void LidarController::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
     {
-        std::vector<Point> points;
-        points.reserve(msg->ranges.size());
+        const auto length = msg->ranges.size();
+        const auto angleStep = -M_PI * 2.0 / static_cast<double>(length);
+        auto angle = M_PI * 0.5; // forward dir
+        auto pointIndex = 0;
 
-        for (size_t i = 0; i < msg->ranges.size(); ++i) {
-            const float range = msg->ranges[i];
-            if (range < msg->range_min || range > msg->range_max) continue;
+        _points.resize(length);
 
-            points.push_back(Point::FromAngle(msg->angle_min + i * msg->angle_increment) * range);
+        if (IsInRange(msg->ranges[0], msg->range_min, msg->range_max))
+            _points[pointIndex++] = Point(0, msg->ranges[0]);
+
+        for (auto i = 1; i < length - 1; ++i) {
+            angle += angleStep;
+
+            const float hit = msg->ranges[i];
+            if (!IsInRange(hit, msg->range_min, msg->range_max)) continue;
+
+            const auto median = Median(msg->ranges[i - 1], hit, msg->ranges[i + 1]);
+            _points[pointIndex++] = Point(std::cos(angle), std::sin(angle)) * median;
         }
 
-        auto lines = _lidar_filter.Filter(points);
+        angle += angleStep;
+        if (IsInRange(msg->ranges[length - 1], msg->range_min, msg->range_max))
+            _points[pointIndex++] = Point(msg->ranges[length - 1] * std::cos(angle), msg->ranges[length - 1] * std::sin(angle));
 
-        std::cout << lines.size() << std::endl;
+        _points.resize(pointIndex);
 
-        visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "lidar";
-        marker.header.stamp = _node->now();
-        marker.ns = "lines";
-        marker.id = 0;
-        marker.type = visualization_msgs::msg::Marker::LINE_LIST;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.scale.x = 0.05; // line width in meters
-        marker.color.r = 1.0;
-        marker.color.g = 0.0;
-        marker.color.b = 0.0;
-        marker.color.a = 1.0;
-
-        for (const auto& line : lines) {
-            geometry_msgs::msg::Point p_start, p_end;
-            p_start.x = line.start.x;
-            p_start.y = line.start.y;
-            p_start.z = 0.0;
-            p_end.x = line.end.x;
-            p_end.y = line.end.y;
-            p_end.z = 0.0;
-            marker.points.push_back(p_start);
-            marker.points.push_back(p_end);
-        }
-
-        _line_publisher->publish(marker);
+        if (_scanCallback) _scanCallback(_points);
     }
 }
