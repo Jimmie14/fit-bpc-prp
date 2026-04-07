@@ -4,6 +4,7 @@
 #include "LidarController.hpp"
 #include "MotorController.hpp"
 #include "RobotOdometry.hpp"
+#include "SlamController.hpp"
 #include "UserInputController.hpp"
 #include "Controllers/Node/LineController.hpp"
 
@@ -27,6 +28,7 @@ int main(const int argc, char* argv[]) {
     app->AddController<Core::LidarController>();
 
     app->AddController<Core::UserInputController>();
+    app->AddController<Core::SlamController>();
 
     app->Run();
 

@@ -63,11 +63,6 @@ namespace Manhattan::Core
 
         const double LogOddsFree = -0.04f;
         const double LogOddsOccupied = 1.85f;
-
-        int GetIndex(int x, int y) const {
-            return y * _width + x;
-        }
-
     public:
         OccupancyGrid(const Vector2Int size, const double cellSize, const int costSteps = 5, const double inflationPenalty = 5) : _cellSize(cellSize)
         {
@@ -91,7 +86,11 @@ namespace Manhattan::Core
 
         int GetCellSize() const { return _cellSize; }
 
-        Vector2Int WorldToGrid(const Vector2Int &worldPos) const
+        int GetIndex(int x, int y) const {
+            return y * _width + x;
+        }
+
+        Vector2Int WorldToGrid(const Point &worldPos) const
         {
             return Vector2Int(
                 std::floor(worldPos.x / _cellSize + _width * 0.5),
