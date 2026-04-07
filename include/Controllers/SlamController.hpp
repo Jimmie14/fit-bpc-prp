@@ -26,6 +26,8 @@ namespace Manhattan::Core {
         PoseMatcher _poseMatcher;
         Pose _lastPose;
 
+        std::mutex _updateMutex;
+
         void Update(const std::vector<Point> &points);
 
         std::vector<Point> TransformPointsLocalToWorld(const std::vector<Point>& localPoints, const Pose& pose) const;
