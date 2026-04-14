@@ -12,7 +12,7 @@ constexpr double avoidanceStrength = 5;
 constexpr double waypointTolerance = 0.15f;
 
 constexpr double maxLinearSpeed = 5;
-constexpr double maxAngularSpeed = 120;
+constexpr double maxAngularSpeed = 20;
 
 constexpr double turnDeceleration = 6.0;
 constexpr double acceleration = 0.1;
@@ -247,8 +247,8 @@ namespace Manhattan::Core {
         );
 
         cout << targetSpeed << " " << turnFactor << " " << angularSpeed * (M_PI / 180.0) << endl;
-        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
-        // _motor->SetForce(speed.left, speed.right);
+        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed * (M_PI / 180.0) });
+        _motor->SetForce(speed.left, speed.right);
     }
 
 

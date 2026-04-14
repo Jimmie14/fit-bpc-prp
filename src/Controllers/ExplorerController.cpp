@@ -29,40 +29,6 @@ namespace Manhattan::Core
         _timer.reset();
     }
 
-    GridCell* ExplorerController::Recenter(GridCell* cell) const
-    {
-        double angle = 0.0;
-        double angleStep = M_PI * 0.5;
-
-        std::vector<RayHit> hits;
-
-        for (int i = 0; i < 4; i++)
-        {
-            Vector2 direction(std::cos(angle), std::sin(angle));
-            RayHit rayHit;
-
-            bool hit = _slamController->RayCast(cell->GetWorldPosition(), direction, rayHit, 20.0);
-
-            angle += angleStep;
-            if (!hit) continue;
-
-            hits.push_back(rayHit);
-        }
-
-        if (hits.empty()) return cell;
-
-        Vector2 acc(0, 0);
-        for (const auto& hit : hits) {
-            acc = acc + hit.normal;
-        }
-
-        Vector2 averageNormal = acc.Normalized();
-        Vector2 centered = cell->GetWorldPosition() + averageNormal * 0.5f;
-
-        GridCell* newCell = _slamController->GetCell(centered);
-        return newCell != nullptr ? newCell : cell;
-    }
-
     std::queue<GridCell*> ExplorerController::Explore(GridCell* startCell) const
     {
         std::map<GridCell*, double> distances;

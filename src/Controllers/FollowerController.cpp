@@ -5,7 +5,7 @@ using namespace std;
 namespace Manhattan::Core
 {
     FollowerController::FollowerController(const App& app) : BaseController(app),
-        _fov(180), _rayDistance(15), _rayCount(7), _avoidanceDistance(0.2f)
+        _fov(180), _rayDistance(3), _rayCount(7), _avoidanceDistance(0.2f)
     {
         _map = app.GetController<SlamController>();
         _navigator = app.GetController<NavigatorController>();
@@ -17,7 +17,11 @@ namespace Manhattan::Core
 
         _timer = _node->create_wall_timer(
             100ms,
-            [this] { Update(); }
+            [this]
+            {
+                sleep(1);
+                Update();
+            }
         );
     }
 
