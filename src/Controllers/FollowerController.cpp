@@ -9,8 +9,6 @@ namespace Manhattan::Core
     {
         _map = app.GetController<SlamController>();
         _navigator = app.GetController<NavigatorController>();
-
-        Enable();
     }
 
     void FollowerController::OnEnable()

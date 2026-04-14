@@ -34,6 +34,8 @@ int main(const int argc, char* argv[]) {
     app->AddController<Core::NavigatorController>();
     app->AddController<Core::FollowerController>();
 
+    app->GetController<Core::FollowerController>()->Enable();
+
     app->Run();
 
     // Shutdown ROS 2

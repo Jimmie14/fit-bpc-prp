@@ -31,7 +31,8 @@ namespace Manhattan::Core {
         _motor = app.GetController<MotorController>();
         _slam = app.GetController<SlamController>();
 
-        _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/desired_path", 10);
+        _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/nav/desired_path", 10);
+        //_rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
 
         _timer = _node->create_wall_timer(
             100ms,
@@ -47,7 +48,7 @@ namespace Manhattan::Core {
         msg.header.stamp = _node->now();
 
         auto temp = path;
-        while (temp.size() > 0) {
+        while (!temp.empty()) {
 
             auto poseMsg = geometry_msgs::msg::PoseStamped();
             poseMsg.header.stamp = _node->now();
@@ -123,7 +124,7 @@ namespace Manhattan::Core {
     }
 
     bool NavigatorController::HasPath() const {
-        return _path.size() > 0;
+        return !_path.empty();
     }
 
     vector<RayHit> NavigatorController::RayCastAround(const Pose &pose) const {
@@ -146,18 +147,58 @@ namespace Manhattan::Core {
         }
 
         return hits;
+
+        visualization_msgs::msg::MarkerArray markerArray;
+
+        visualization_msgs::msg::Marker clearMarker;
+        clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
+        markerArray.markers.push_back(clearMarker);
+
+        int id = 0;
+        for (const auto& rayHit : hits) {
+            visualization_msgs::msg::Marker marker;
+            marker.header.frame_id = "map";
+            marker.header.stamp = _node->now();
+            marker.ns = "raycasts";
+            marker.id = id++;
+            marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+            marker.action = visualization_msgs::msg::Marker::ADD;
+            marker.scale.x = 0.01; // Line width
+
+            geometry_msgs::msg::Point start, end;
+            start.x = pose.position.x;
+            start.y = pose.position.y;
+            start.z = 0.1;
+            end.x = rayHit.hit.x;
+            end.y = rayHit.hit.y;
+            end.z = 0.1;
+
+            marker.points.push_back(start);
+            marker.points.push_back(end);
+
+            marker.color.r = 1.0;
+            marker.color.g = 0.0;
+            marker.color.b = 0.0;
+            marker.color.a = 1.0;
+
+            markerArray.markers.push_back(marker);
+        }
+
+        _rayCastPublisher->publish(markerArray);
+
+        return hits;
     }
 
     Vector2 NavigatorController::GetDirection(const vector<RayHit> &rayHits, const Pose &pose, const Vector2 &desiredDirection) const {
         auto direction = desiredDirection;
-        const auto rayWeight = 1 / rayCount;
+        const auto rayWeight = 1.0 / rayCount;
 
         for (const auto rayHit : rayHits) {
             const auto dst = Vector2::Distance(pose.position, rayHit.hit);
 
             if (dst >= avoidanceDistance) continue;
 
-            const auto proximity = 1 - dst / avoidanceDistance;
+            const auto proximity = 1.0 - dst / avoidanceDistance;
             const auto pushForce = proximity * proximity * avoidanceStrength;
 
             direction = direction + rayHit.normal * (pushForce * rayWeight);
@@ -189,10 +230,10 @@ namespace Manhattan::Core {
         const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
         const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-        const auto angularSpeed = clamp(angleToTarget * 2, -maxAngularSpeed, maxAngularSpeed);
+        const auto angularSpeed = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
 
-        auto distanceFactor = 1;
-        if (rayHits.size() > 0)
+        auto distanceFactor = 1.0;
+        if (!rayHits.empty())
         {
             const auto forwardHit = rayHits[0];
             const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
@@ -200,7 +241,7 @@ namespace Manhattan::Core {
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
 
-        const auto turnFactor = exp(-turnDeceleration * (abs(angleToTarget) / 180));
+        const auto turnFactor = exp(-turnDeceleration * (abs(angleToTarget) / 180.0));
         const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
 
         _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
