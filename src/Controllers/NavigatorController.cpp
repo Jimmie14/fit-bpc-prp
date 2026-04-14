@@ -5,7 +5,7 @@
 using namespace std;
 
 constexpr int rayCount = 64;
-constexpr double rayDistance = 5.78;
+constexpr double rayDistance = 1;
 constexpr double avoidanceDistance = 0.2;
 constexpr double avoidanceStrength = 5;
 
@@ -250,14 +250,14 @@ namespace Manhattan::Core {
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
 
-        const auto turnFactor = exp(-turnDeceleration * (abs(angleToTarget) / 180.0));
+        const auto turnFactor = exp(-turnDeceleration * abs(angleToTarget));
         const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
 
         _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
             (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed
         );
 
-        cout << _currentLinearVelocity << " " << angularSpeed << endl;
+        cout << targetSpeed << " " << turnFactor << " " << angularSpeed * (M_PI / 180.0) << endl;
         const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
         // _motor->SetForce(speed.left, speed.right);
     }

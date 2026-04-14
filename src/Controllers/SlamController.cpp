@@ -257,16 +257,15 @@ namespace Manhattan::Core
             for (auto dir : Vector2Int::Directions()) {
                 const auto nCell = _grid.GetCell(pos + dir);
 
-                const auto isNeighborFree = nCell != nullptr && nCell->IsOccupied();
-                if (isNeighborFree) continue;
+                if (nCell != nullptr && nCell->IsOccupied()) continue;
 
                 normalInt = normalInt + dir;
             }
 
-            if (normalInt != Vector2Int::Down()) {
+            if (normalInt != Vector2Int::Zero()) {
                 rayHit.normal = Vector2(normalInt).Normalized();
 
-                if (Vector2::Dot(rayHit.normal, direction) > 0.0f)
+                if (Vector2::Dot(rayHit.normal, direction) > 0.0)
                     rayHit.normal = -rayHit.normal;
 
                 return true;
@@ -274,7 +273,7 @@ namespace Manhattan::Core
 
             const auto toStart = Vector2(startCell - pos);
 
-            rayHit.normal = toStart.SqrMagnitude() > 0.0f
+            rayHit.normal = toStart.SqrMagnitude() > 0.0
                 ? toStart.Normalized()
                 : -direction.Normalized();
 
