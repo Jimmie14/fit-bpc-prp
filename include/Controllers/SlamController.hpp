@@ -28,6 +28,8 @@ namespace Manhattan::Core {
     private:
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
 
+        rclcpp::TimerBase::SharedPtr _timer;
+
         rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
         rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
         rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPub;
@@ -47,6 +49,7 @@ namespace Manhattan::Core {
 
         void MapScan(const std::vector<Vector2>& worldPoints, const Vector2& robotPosition);
 
+        void Publish();
         void PublishPose(const Pose& pose);
 
         void PublishGrid();
