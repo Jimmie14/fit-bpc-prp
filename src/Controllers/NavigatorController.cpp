@@ -41,28 +41,37 @@ namespace Manhattan::Core {
     }
 
     void NavigatorController::SetPath(std::queue<GridCell*> path) {
-        _path = path;
+        _path = queue(path);
+    }
 
+    void NavigatorController::PublishPath() const {
         nav_msgs::msg::Path msg;
         msg.header.frame_id = "map";
         msg.header.stamp = _node->now();
 
-        auto temp = path;
+        auto poseMsg = geometry_msgs::msg::PoseStamped();
+        poseMsg.header.stamp = msg.header.stamp;
+        poseMsg.header.frame_id = "map";
+
+        auto position = _slam->CurrentPose().position;
+        poseMsg.pose.position.x = position.x;
+        poseMsg.pose.position.y = position.y;
+        poseMsg.pose.position.z = 0.0;
+
+        poseMsg.pose.orientation.x = 0.0;
+        poseMsg.pose.orientation.y = 0.0;
+        poseMsg.pose.orientation.z = 0.0;
+        poseMsg.pose.orientation.w = 1.0;
+
+        msg.poses.push_back(poseMsg);
+
+        auto temp = _path;
         while (!temp.empty()) {
 
-            auto poseMsg = geometry_msgs::msg::PoseStamped();
-            poseMsg.header.stamp = _node->now();
-            poseMsg.header.frame_id = "map";
-
-            auto position = temp.front()->GetWorldPosition();
+            position = temp.front()->GetWorldPosition();
             poseMsg.pose.position.x = position.x;
             poseMsg.pose.position.y = position.y;
             poseMsg.pose.position.z = 0.0;
-
-            poseMsg.pose.orientation.x = 0.0;
-            poseMsg.pose.orientation.y = 0.0;
-            poseMsg.pose.orientation.z = 0.0;
-            poseMsg.pose.orientation.w = 1.0;
 
             msg.poses.push_back(poseMsg);
 
@@ -213,6 +222,8 @@ namespace Manhattan::Core {
             _motor->SetForce(speed.left, speed.right);
             return;
         }
+
+        PublishPath();
 
         auto pose = _slam->CurrentPose();
         auto currentWaypoint = _path.front();
