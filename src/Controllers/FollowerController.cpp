@@ -15,12 +15,15 @@ namespace Manhattan::Core
     {
         _startPosition = _map->CurrentPose().position;
 
-        _timer = _node->create_wall_timer(
-            100ms,
-            [this]
-            {
-                sleep(1);
-                Update();
+        _initialTimer = _node->create_wall_timer(
+            1s,
+            [this]() {
+                _initialTimer->cancel();
+
+                _timer = _node->create_wall_timer(
+                    100ms,
+                    [this] { Update(); }
+                );
             }
         );
     }
@@ -28,6 +31,7 @@ namespace Manhattan::Core
     void FollowerController::OnDisable()
     {
         _timer.reset();
+        _initialTimer.reset();
     }
 
     void FollowerController::FollowCorridor() {

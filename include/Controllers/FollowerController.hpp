@@ -26,6 +26,7 @@ namespace Manhattan::Core {
         double _avoidanceDistance;
 
         rclcpp::TimerBase::SharedPtr _timer;
+        rclcpp::TimerBase::SharedPtr _initialTimer;
 
         std::shared_ptr<SlamController> _map;
         std::shared_ptr<NavigatorController> _navigator;
