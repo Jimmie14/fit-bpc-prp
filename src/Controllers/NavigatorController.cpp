@@ -7,16 +7,16 @@ using namespace std;
 constexpr int rayCount = 16;
 constexpr double rayDistance = 2;
 constexpr double avoidanceDistance = 0.125;
-constexpr double avoidanceStrength = 2;
+constexpr double avoidanceStrength = 50;
 
 constexpr double waypointTolerance = 0.3f;
 
-constexpr double maxLinearSpeed = 1;
-constexpr double maxAngularSpeed = 5;
+constexpr double maxLinearSpeed = 0.05;
+constexpr double maxAngularSpeed = 0.1;
 
 constexpr double turnDeceleration = 8.0;
-constexpr double acceleration = 0.1;
-constexpr double deceleration = 0.8;
+constexpr double acceleration = 0.05;
+constexpr double deceleration = 0.4;
 
 static double MoveTowards(const double current, const double target, const double maxDelta) {
     const auto delta = target - current;
@@ -35,7 +35,7 @@ namespace Manhattan::Core {
         _rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
 
         _timer = _node->create_wall_timer(
-            100ms,
+            10ms,
             [this] { Update(); }
         );
     }
@@ -155,6 +155,10 @@ namespace Manhattan::Core {
             hits.push_back(rayHit);
         }
 
+        return hits;
+    }
+
+    void NavigatorController::PublishRayCast(const vector<RayHit> &hits) {
         visualization_msgs::msg::MarkerArray markerArray;
 
         visualization_msgs::msg::Marker clearMarker;
@@ -192,8 +196,6 @@ namespace Manhattan::Core {
         }
 
         _rayCastPublisher->publish(markerArray);
-
-        return hits;
     }
 
     Vector2 NavigatorController::GetDirection(const vector<RayHit> &rayHits, const Pose &pose, const Vector2 &desiredDirection) const {
@@ -240,6 +242,7 @@ namespace Manhattan::Core {
 
         const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
         const auto angularSpeed = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
+        const auto angularSpeedNormalized = angularSpeed / maxAngularSpeed;
 
         auto distanceFactor = 1.0;
         if (!rayHits.empty())
@@ -250,14 +253,17 @@ namespace Manhattan::Core {
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
 
-        const auto turnFactor = 1; // exp(-turnDeceleration * abs(angleToTarget));
+        const auto turnFactor = angularSpeedNormalized > 0.5 ? 0.0 : 1.0;
         const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
 
         _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
             (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed
         );
 
-        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed * (M_PI / 180.0) });
+        std::cout << "linear: " << _currentLinearVelocity << std::endl;
+        std::cout << "angular: " << angularSpeed << std::endl;
+
+        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
         _motor->SetForce(speed.left, speed.right);
     }
 

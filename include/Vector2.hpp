@@ -111,8 +111,7 @@ namespace Manhattan::Core
             const double dot = Dot(from, to);
             const double det = from.x * to.y - from.y * to.x;
 
-            const double angleRad = std::atan2(det, dot);
-            return angleRad * 180.0f / M_PI;
+            return std::atan2(det, dot);
         }
 
         double SqrMagnitude() const {
