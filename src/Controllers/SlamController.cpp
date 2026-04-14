@@ -32,6 +32,11 @@ namespace Manhattan::Core
         //     }
         // );
 
+        _timer = _node->create_wall_timer(
+            100ms,
+    [this] { Publish(); }
+        );
+
         RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
     }
 
@@ -54,10 +59,6 @@ namespace Manhattan::Core
         MapScan(worldPoints, _lastPose.position);
 
         _grid.RecalculateCosts();
-
-        PublishPose(_lastPose);
-        PublishGrid();
-        PublishGridMap();
     }
 
     std::vector<Vector2> SlamController::TransformPointsLocalToWorld(
@@ -109,6 +110,12 @@ namespace Manhattan::Core
             // Mark the endpoint as occupied
             _grid.SetOccupied(endGridPos);
         }
+    }
+
+    void SlamController::Publish() {
+        PublishPose(_lastPose);
+        PublishGrid();
+        PublishGridMap();
     }
 
     void SlamController::PublishPose(const Pose& pose)
