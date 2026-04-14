@@ -33,6 +33,8 @@ namespace Manhattan::Core
 
         bool IsOccupied() const { return GetProbability() >= 0.5f; }
 
+        bool IsUnknown() const { return std::abs(GetProbability() - 0.5f) < 0.01f; }
+
         double GetCost() const
         {
             if (IsOccupied())
