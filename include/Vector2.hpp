@@ -107,6 +107,14 @@ namespace Manhattan::Core
             return p1.x * p2.x + p1.y * p2.y;
         }
 
+        static double SignedAngle(const Vector2& from, const Vector2& to) {
+            const double dot = Dot(from, to);
+            const double det = from.x * to.y - from.y * to.x;
+
+            const double angleRad = std::atan2(det, dot);
+            return angleRad * 180.0f / M_PI;
+        }
+
         double SqrMagnitude() const {
             return x * x + y * y;
         }

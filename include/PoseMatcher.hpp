@@ -6,8 +6,14 @@ namespace Manhattan::Core
 {
     struct Pose
     {
-        Vector2 Position;
-        double Rotation;
+        Vector2 position;
+        Vector2 forward;
+        double rotation;
+
+        explicit Pose(Vector2 position, double rotation) : position(position), rotation(rotation) {
+            forward = Vector2(std::cos(rotation + M_PI * 0.5), std::sin(rotation + M_PI * 0.5));
+        }
+
     };
 
     class PoseMatcher

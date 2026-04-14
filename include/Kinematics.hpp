@@ -2,14 +2,17 @@
 
 #include <cstdint>
 
-// ----------
-// Data types
-// ----------
-
 struct RobotSpeed
 {
-    double linear = 0.0; // m/s
-    double angular = 0.0; // rad/s
+    /**
+     * Linear speed in m/s.
+     */
+    double linear = 0.0;
+
+    /**
+     * Angular speed in rad/s.
+     */
+    double angular = 0.0;
 };
 
 struct WheelSpeed
@@ -25,18 +28,14 @@ struct Pose2D
     double theta = 0.0;  // rad
 };
 
-// ----------
-// Kinematics
-// ----------
-
 class Kinematics
 {
 public:
     Kinematics(double wheelRadius, double wheelBase, int32_t pulsesPerRotation);
 
-    [[nodiscard]] WheelSpeed inverse(RobotSpeed  speed)  const;
+    [[nodiscard]] WheelSpeed inverse(RobotSpeed speed)  const;
 
-    [[nodiscard]] RobotSpeed  forward(WheelSpeed  speed)  const;
+    [[nodiscard]] RobotSpeed forward(WheelSpeed speed)  const;
 
     [[nodiscard]] double ticksToMeters(int32_t deltaTicks) const;
 

@@ -1,30 +1,81 @@
 #include "NavigatorController.hpp"
 
+#include "RobotOdometry.hpp"
+
 using namespace std;
 
+constexpr int rayCount = 64;
+constexpr double rayDistance = 5.78;
+constexpr double avoidanceDistance = 0.2;
+constexpr double avoidanceStrength = 5;
+
+constexpr double waypointTolerance = 0.15f;
+
+constexpr double maxLinearSpeed = 5;
+constexpr double maxAngularSpeed = 120;
+
+constexpr double turnDeceleration = 6.0;
+constexpr double acceleration = 0.1;
+constexpr double deceleration = 0.8;
+
+static double MoveTowards(const double current, const double target, const double maxDelta) {
+    const auto delta = target - current;
+    if (std::abs(delta) <= maxDelta) return target;
+
+    return current + (delta > 0 ? maxDelta : -maxDelta);
+}
+
 namespace Manhattan::Core {
-    NavigatorController::NavigatorController(const App &app) : BaseController(app) {
+    NavigatorController::NavigatorController(const App &app) : BaseController(app),
+    _kinematics(app.GetController<RobotOdometry>()->GetKinematics()) {
         _motor = app.GetController<MotorController>();
         _slam = app.GetController<SlamController>();
 
         _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/desired_path", 10);
+
+        _timer = _node->create_wall_timer(
+            100ms,
+            [this] { Update(); }
+        );
     }
 
-    void NavigatorController::SetPath(std::vector<GridCell> path) {
+    void NavigatorController::SetPath(std::queue<GridCell*> path) {
         _path = path;
 
         nav_msgs::msg::Path msg;
         msg.header.frame_id = "map";
         msg.header.stamp = _node->now();
 
+        auto temp = path;
+        while (temp.size() > 0) {
 
+            auto poseMsg = geometry_msgs::msg::PoseStamped();
+            poseMsg.header.stamp = _node->now();
+            poseMsg.header.frame_id = "map";
+
+            auto position = temp.front()->GetWorldPosition();
+            poseMsg.pose.position.x = position.x;
+            poseMsg.pose.position.y = position.y;
+            poseMsg.pose.position.z = 0.0;
+
+            poseMsg.pose.orientation.x = 0.0;
+            poseMsg.pose.orientation.y = 0.0;
+            poseMsg.pose.orientation.z = 0.0;
+            poseMsg.pose.orientation.w = 1.0;
+
+            msg.poses.push_back(poseMsg);
+
+            temp.pop();
+        }
+
+        _pathPublisher->publish(msg);
     }
 
-    std::vector<GridCell> NavigatorController::CalculatePath(GridCell* destination) const {
+    std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) const {
         std::unordered_map<GridCell*, GridCell*> previous;
         std::vector<GridCell*> queue;
 
-        auto startCell = _slam->GetCell(_slam->CurrentPose().Position);
+        auto startCell = _slam->GetCell(_slam->CurrentPose().position);
         if (startCell == nullptr) return { };
 
         queue.push_back(startCell);
@@ -34,7 +85,7 @@ namespace Manhattan::Core {
             auto current = queue.front();
             queue.erase(queue.begin());
 
-            if (current.GetGridPosition() == destination.GetGridPosition()) break;
+            if (current == destination) break;
 
             for (GridCell* neighbor : _slam->GetNeighbors(current))
             {
@@ -48,10 +99,10 @@ namespace Manhattan::Core {
             }
         }
 
-        std::vector<GridCell> path;
-        GridCell current = destination;
+        std::vector<GridCell*> path;
+        auto current = destination;
 
-        while (current != *startCell)
+        while (current != startCell)
         {
             path.push_back(current);
 
@@ -62,12 +113,105 @@ namespace Manhattan::Core {
             current = it->second;
         }
 
-        std::reverse(path.begin(), path.end());
-        return path;
+        auto d = deque(path.rbegin(), path.rend());
+
+        return std::queue(d);
     }
 
     void NavigatorController::ClearPath() {
-        _path.clear();
+        _path = {};
     }
+
+    bool NavigatorController::HasPath() const {
+        return _path.size() > 0;
+    }
+
+    vector<RayHit> NavigatorController::RayCastAround(const Pose &pose) const {
+        vector<RayHit> hits;
+
+        auto angle = pose.rotation + M_PI * 0.5f;
+        const auto angleStep = M_PI * 2 / rayCount;
+
+        for (auto i = 0; i < rayCount; i++) {
+            RayHit rayHit;
+            const auto hit = _slam->RayCast(pose.position,
+                Vector2(cos(angle), sin(angle)),
+                rayHit, rayDistance
+            );
+
+            angle += angleStep;
+            if (!hit) continue;
+
+            hits.push_back(rayHit);
+        }
+
+        return hits;
+    }
+
+    Vector2 NavigatorController::GetDirection(const vector<RayHit> &rayHits, const Pose &pose, const Vector2 &desiredDirection) const {
+        auto direction = desiredDirection;
+        const auto rayWeight = 1 / rayCount;
+
+        for (const auto rayHit : rayHits) {
+            const auto dst = Vector2::Distance(pose.position, rayHit.hit);
+
+            if (dst >= avoidanceDistance) continue;
+
+            const auto proximity = 1 - dst / avoidanceDistance;
+            const auto pushForce = proximity * proximity * avoidanceStrength;
+
+            direction = direction + rayHit.normal * (pushForce * rayWeight);
+        }
+
+        return direction.Normalized();
+    }
+
+    void NavigatorController::Update() {
+        if (!HasPath())
+        {
+            const auto speed = _kinematics.inverse(RobotSpeed { 0, 0 });
+
+            _motor->SetForce(speed.left, speed.right);
+            return;
+        }
+
+        auto pose = _slam->CurrentPose();
+        auto currentWaypoint = _path.front();
+        auto directionToWaypoint = (currentWaypoint->GetWorldPosition() - pose.position).Normalized();
+
+        if (Vector2::Distance(pose.position, currentWaypoint->GetWorldPosition()) < waypointTolerance)
+        {
+            _path.pop();
+            return;
+        }
+
+        const auto rayHits = RayCastAround(pose);
+        const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
+
+        const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+        const auto angularSpeed = clamp(angleToTarget * 2, -maxAngularSpeed, maxAngularSpeed);
+
+        auto distanceFactor = 1;
+        if (rayHits.size() > 0)
+        {
+            const auto forwardHit = rayHits[0];
+            const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
+
+            distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
+        }
+
+        const auto turnFactor = exp(-turnDeceleration * (abs(angleToTarget) / 180));
+        const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
+
+        _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
+            (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed
+        );
+
+        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
+        _motor->SetForce(speed.left, speed.right);
+    }
+
+
 }
+
 

@@ -48,11 +48,11 @@ namespace Manhattan::Core
 
         // ResetGridIfNeeded();
 
-        _lastPose = _poseMatcher.Match(points, _lastPose.Position, _lastPose.Rotation);
+        _lastPose = _poseMatcher.Match(points, _lastPose.position, _lastPose.rotation);
 
         auto worldPoints = TransformPointsLocalToWorld(points, _lastPose);
 
-        MapScan(worldPoints, _lastPose.Position);
+        MapScan(worldPoints, _lastPose.position);
 
         _grid.RecalculateCosts();
 
@@ -68,13 +68,13 @@ namespace Manhattan::Core
         std::vector<Vector2> worldPoints;
         worldPoints.reserve(localPoints.size());
 
-        auto cosRot = std::cos(pose.Rotation);
-        auto sinRot = std::sin(pose.Rotation);
+        auto cosRot = std::cos(pose.rotation);
+        auto sinRot = std::sin(pose.rotation);
 
         for (const auto& localPoint : localPoints) {
             Vector2 worldPoint{
-                pose.Position.x + localPoint.x * cosRot - localPoint.y * sinRot,
-                pose.Position.y + localPoint.x * sinRot + localPoint.y * cosRot
+                pose.position.x + localPoint.x * cosRot - localPoint.y * sinRot,
+                pose.position.y + localPoint.x * sinRot + localPoint.y * cosRot
             };
 
             worldPoints.push_back(worldPoint);
@@ -118,12 +118,12 @@ namespace Manhattan::Core
         pose_msg.header.stamp = _node->now();
         pose_msg.header.frame_id = "map";
 
-        pose_msg.pose.position.x = pose.Position.x;
-        pose_msg.pose.position.y = pose.Position.y;
+        pose_msg.pose.position.x = pose.position.x;
+        pose_msg.pose.position.y = pose.position.y;
         pose_msg.pose.position.z = 0.0;
 
         // Convert rotation angle to quaternion
-        double halfRotation = (pose.Rotation + M_PI * 0.5) * 0.5;
+        double halfRotation = (pose.rotation + M_PI * 0.5) * 0.5;
 
         pose_msg.pose.orientation.x = 0.0;
         pose_msg.pose.orientation.y = 0.0;
@@ -247,8 +247,7 @@ namespace Manhattan::Core
 
         rayHit = RayHit();
 
-        for (const auto& pos : OccupancyGrid::Bresenham(startCell, endCell))
-        {
+        for (const auto &pos : OccupancyGrid::Bresenham(startCell, endCell)) {
             const auto cell = _grid.GetCell(pos);
             if (cell == nullptr || !cell->IsOccupied()) continue;
 
@@ -265,8 +264,7 @@ namespace Manhattan::Core
                 normalInt = normalInt + dir;
             }
 
-            if (normalInt != Vector2Int::Down())
-            {
+            if (normalInt != Vector2Int::Down()) {
                 rayHit.normal = Vector2(normalInt).Normalized();
 
                 if (Vector2::Dot(rayHit.normal, direction) > 0.0f)
