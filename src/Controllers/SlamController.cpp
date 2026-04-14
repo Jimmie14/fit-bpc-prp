@@ -34,7 +34,7 @@ namespace Manhattan::Core
 
         _timer = _node->create_wall_timer(
             100ms,
-    [this] { Publish(); }
+        [this] { Publish(); }
         );
 
         RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
@@ -113,6 +113,10 @@ namespace Manhattan::Core
     }
 
     void SlamController::Publish() {
+        const std::unique_lock lock(_updateMutex, std::try_to_lock);
+
+        if (!lock.owns_lock()) return;
+
         PublishPose(_lastPose);
         PublishGrid();
         PublishGridMap();

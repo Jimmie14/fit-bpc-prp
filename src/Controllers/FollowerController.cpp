@@ -19,7 +19,6 @@ namespace Manhattan::Core
             100ms,
             [this]
             {
-                sleep(1);
                 Update();
             }
         );

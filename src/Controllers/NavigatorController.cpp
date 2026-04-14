@@ -259,7 +259,7 @@ namespace Manhattan::Core {
 
         cout << targetSpeed << " " << turnFactor << " " << angularSpeed * (M_PI / 180.0) << endl;
         const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed * (M_PI / 180.0) });
-        _motor->SetForce(speed.left, speed.right);
+        //_motor->SetForce(speed.left, speed.right);
     }
 
 
