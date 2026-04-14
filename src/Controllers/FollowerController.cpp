@@ -15,7 +15,7 @@ namespace Manhattan::Core
 
     void FollowerController::OnEnable()
     {
-        _startPosition = _map->CurrentPose().Position;
+        _startPosition = _map->CurrentPose().position;
 
         _timer = _node->create_wall_timer(
             100ms,
@@ -48,17 +48,17 @@ namespace Manhattan::Core
         auto step = rad / (_rayCount - 1);
 
         auto dst = 0.0;
-        auto pos = pose.Position;
+        auto pos = pose.position;
 
         for (auto i = 0; i < _rayCount; i++) {
             auto ray = RayHit();
-            auto direction = Vector2(cos(pose.Rotation + angle), sin(pose.Rotation + angle));
-            auto hit = _map->RayCast(pose.Position, direction, ray, _rayDistance);
+            auto direction = Vector2(cos(pose.rotation + angle), sin(pose.rotation + angle));
+            auto hit = _map->RayCast(pose.position, direction, ray, _rayDistance);
 
             angle += step;
 
-            auto hitPoint = hit ? ray.hit : pose.Position + direction * _rayDistance;
-            auto dstToHit = Vector2::Distance(pose.Position, hitPoint);
+            auto hitPoint = hit ? ray.hit : pose.position + direction * _rayDistance;
+            auto dstToHit = Vector2::Distance(pose.position, hitPoint);
 
             if (dstToHit <= dst) continue;
             dst = dstToHit;

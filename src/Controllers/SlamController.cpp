@@ -9,13 +9,12 @@ namespace Manhattan::Core
     SlamController::SlamController(const App& app)
         : BaseController(app),
         _grid(Vector2Int(200, 200), 0.05, 5, 20),
-        _poseMatcher(PoseMatcher(_grid, 5))
+        _poseMatcher(PoseMatcher(_grid, 5)),
+        _lastPose(Pose(Vector2(0, 0), 0))
     {
         app.GetController<LidarController>()->SetScanCallback(
         [this](const std::vector<Vector2>& points) { this->Update(points); }
         );
-
-        _lastPose = { Vector2(0, 0), 0 };
 
         _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 10);
         _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 10);

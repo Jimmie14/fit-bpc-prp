@@ -1,8 +1,10 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.h"
+#include "FollowerController.hpp"
 #include "LidarController.hpp"
 #include "MotorController.hpp"
+#include "NavigatorController.hpp"
 #include "RobotOdometry.hpp"
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
@@ -29,6 +31,8 @@ int main(const int argc, char* argv[]) {
 
     app->AddController<Core::UserInputController>();
     app->AddController<Core::SlamController>();
+    app->AddController<Core::NavigatorController>();
+    app->AddController<Core::FollowerController>();
 
     app->Run();
 
