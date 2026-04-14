@@ -32,7 +32,7 @@ namespace Manhattan::Core {
         _slam = app.GetController<SlamController>();
 
         _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/nav/desired_path", 10);
-        //_rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
+        _rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
 
         _timer = _node->create_wall_timer(
             100ms,
@@ -146,8 +146,6 @@ namespace Manhattan::Core {
             hits.push_back(rayHit);
         }
 
-        return hits;
-
         visualization_msgs::msg::MarkerArray markerArray;
 
         visualization_msgs::msg::Marker clearMarker;
@@ -248,8 +246,9 @@ namespace Manhattan::Core {
             (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed
         );
 
+        cout << _currentLinearVelocity << " " << angularSpeed << endl;
         const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
-        _motor->SetForce(speed.left, speed.right);
+        // _motor->SetForce(speed.left, speed.right);
     }
 
 
