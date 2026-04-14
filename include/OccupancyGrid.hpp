@@ -4,7 +4,7 @@
 #include <queue>
 #include <set>
 
-#include "Point.hpp"
+#include "Vector2.hpp"
 
 namespace Manhattan::Core
 {
@@ -13,11 +13,11 @@ namespace Manhattan::Core
         double _probability = 0;
         double _cost = 0;
 
-        Point _worldPosition;
+        Vector2 _worldPosition;
         Vector2Int _gridPosition;
 
     public:
-        GridCell(Vector2Int gridPos, Point worldPos)
+        GridCell(Vector2Int gridPos, Vector2 worldPos)
         {
             _gridPosition = gridPos;
             _worldPosition = worldPos;
@@ -25,7 +25,7 @@ namespace Manhattan::Core
 
         Vector2Int GetGridPosition() const { return _gridPosition; }
 
-        Point GetWorldPosition() const { return _worldPosition; }
+        Vector2 GetWorldPosition() const { return _worldPosition; }
 
         double GetProbability() const { return 1.0 - 1.0 / (1.0 + std::exp(_probability)); }
 
@@ -90,7 +90,7 @@ namespace Manhattan::Core
             return y * _width + x;
         }
 
-        Vector2Int WorldToGrid(const Point &worldPos) const
+        Vector2Int WorldToGrid(const Vector2 &worldPos) const
         {
             return Vector2Int(
                 std::floor(worldPos.x / _cellSize + _width * 0.5),
@@ -98,9 +98,9 @@ namespace Manhattan::Core
             );
         }
 
-        Point GridToWorld(const Vector2Int &gridPos) const
+        Vector2 GridToWorld(const Vector2Int &gridPos) const
         {
-            return Point(
+            return Vector2(
                 (gridPos.x - _width * 0.5) * _cellSize + _cellSize * 0.5,
                 (gridPos.y - _height * 0.5) * _cellSize + _cellSize * 0.5
             );
@@ -132,11 +132,11 @@ namespace Manhattan::Core
             _grid[GetIndex(cell.x, cell.y)].Add(LogOddsOccupied);
         }
 
-        std::optional<GridCell> GetCell(const Vector2Int cell)
+        GridCell* GetCell(const Vector2Int cell)
         {
-            if (!InBounds(cell.x, cell.y)) return std::nullopt;
+            if (!InBounds(cell.x, cell.y)) return nullptr;
 
-            return _grid[GetIndex(cell.x, cell.y)];
+            return &_grid[GetIndex(cell.x, cell.y)];
         }
 
         void RecalculateCosts()

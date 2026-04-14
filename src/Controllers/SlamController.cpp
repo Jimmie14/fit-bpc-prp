@@ -12,10 +12,10 @@ namespace Manhattan::Core
         _poseMatcher(PoseMatcher(_grid, 5))
     {
         app.GetController<LidarController>()->SetScanCallback(
-        [this](const std::vector<Point>& points) { this->Update(points); }
+        [this](const std::vector<Vector2>& points) { this->Update(points); }
         );
 
-        _lastPose = { Point(0, 0), 0 };
+        _lastPose = { Vector2(0, 0), 0 };
 
         _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 10);
         _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 10);
@@ -36,7 +36,7 @@ namespace Manhattan::Core
         RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
     }
 
-    void SlamController::Update(const std::vector<Point> &points)
+    void SlamController::Update(const std::vector<Vector2> &points)
     {
         const std::unique_lock lock(_updateMutex, std::try_to_lock);
 
@@ -61,18 +61,18 @@ namespace Manhattan::Core
         PublishGridMap();
     }
 
-    std::vector<Point> SlamController::TransformPointsLocalToWorld(
-        const std::vector<Point>& localPoints,
+    std::vector<Vector2> SlamController::TransformPointsLocalToWorld(
+        const std::vector<Vector2>& localPoints,
         const Pose& pose) const
     {
-        std::vector<Point> worldPoints;
+        std::vector<Vector2> worldPoints;
         worldPoints.reserve(localPoints.size());
 
         auto cosRot = std::cos(pose.Rotation);
         auto sinRot = std::sin(pose.Rotation);
 
         for (const auto& localPoint : localPoints) {
-            Point worldPoint{
+            Vector2 worldPoint{
                 pose.Position.x + localPoint.x * cosRot - localPoint.y * sinRot,
                 pose.Position.y + localPoint.x * sinRot + localPoint.y * cosRot
             };
@@ -84,8 +84,8 @@ namespace Manhattan::Core
     }
 
     void SlamController::MapScan(
-        const std::vector<Point>& worldPoints,
-        const Point& robotPosition)
+        const std::vector<Vector2>& worldPoints,
+        const Vector2& robotPosition)
     {
         // Convert robot position to grid coordinates
         auto startGridPos = _grid.WorldToGrid(robotPosition);
@@ -222,4 +222,69 @@ namespace Manhattan::Core
         _gridMapPub->publish(*msg);
     }
 
+    GridCell* SlamController::GetCell(const Vector2 &position) {
+        return _grid.GetCell(_grid.WorldToGrid(position));
+    }
+
+
+    std::vector<GridCell*> SlamController::GetNeighbors(const GridCell* cell) {
+        auto neighbours = std::vector<GridCell*>();
+
+        for (auto direction : Vector2Int::Directions()) {
+            auto neighbourCell = _grid.GetCell(cell->GetGridPosition() + direction);
+            if (neighbourCell == nullptr) continue;
+
+            neighbours.push_back(neighbourCell);
+        }
+
+        return neighbours;
+    }
+
+    bool SlamController::RayCast(const Vector2 &worldPosition, const Vector2 &direction, RayHit &rayHit, double maxDistance) {
+        const auto startCell = _grid.WorldToGrid(worldPosition);
+        const auto endWorldPosition = worldPosition + direction.Normalized() * maxDistance;
+        const auto endCell = _grid.WorldToGrid(endWorldPosition);
+
+        rayHit = RayHit();
+
+        for (const auto& pos : OccupancyGrid::Bresenham(startCell, endCell))
+        {
+            const auto cell = _grid.GetCell(pos);
+            if (cell == nullptr || !cell->IsOccupied()) continue;
+
+            rayHit.hit = _grid.GridToWorld(pos);
+
+            auto normalInt = Vector2Int::Zero();
+
+            for (auto dir : Vector2Int::Directions()) {
+                const auto nCell = _grid.GetCell(pos + dir);
+
+                const auto isNeighborFree = nCell != nullptr && nCell->IsOccupied();
+                if (isNeighborFree) continue;
+
+                normalInt = normalInt + dir;
+            }
+
+            if (normalInt != Vector2Int::Down())
+            {
+                rayHit.normal = Vector2(normalInt).Normalized();
+
+                if (Vector2::Dot(rayHit.normal, direction) > 0.0f)
+                    rayHit.normal = -rayHit.normal;
+
+                return true;
+            }
+
+            const auto toStart = Vector2(startCell - pos);
+
+            rayHit.normal = toStart.SqrMagnitude() > 0.0f
+                ? toStart.Normalized()
+                : -direction.Normalized();
+
+            return true;
+        }
+
+        return false;
+
+    }
 }

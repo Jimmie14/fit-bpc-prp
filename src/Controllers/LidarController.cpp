@@ -1,6 +1,6 @@
 #include "LidarController.hpp"
 
-#include "Point.hpp"
+#include "Vector2.hpp"
 
 namespace Manhattan::Core
 {
@@ -34,7 +34,7 @@ namespace Manhattan::Core
         _points.resize(length);
 
         if (IsInRange(msg->ranges[0], msg->range_min, msg->range_max))
-            _points[pointIndex++] = Point(0, msg->ranges[0]);
+            _points[pointIndex++] = Vector2(0, msg->ranges[0]);
 
         for (auto i = 1; i < length - 1; ++i) {
             angle += angleStep;
@@ -43,12 +43,12 @@ namespace Manhattan::Core
             if (!IsInRange(hit, msg->range_min, msg->range_max)) continue;
 
             const auto median = Median(msg->ranges[i - 1], hit, msg->ranges[i + 1]);
-            _points[pointIndex++] = Point(std::cos(angle), std::sin(angle)) * median;
+            _points[pointIndex++] = Vector2(std::cos(angle), std::sin(angle)) * median;
         }
 
         angle += angleStep;
         if (IsInRange(msg->ranges[length - 1], msg->range_min, msg->range_max))
-            _points[pointIndex++] = Point(msg->ranges[length - 1] * std::cos(angle), msg->ranges[length - 1] * std::sin(angle));
+            _points[pointIndex++] = Vector2(msg->ranges[length - 1] * std::cos(angle), msg->ranges[length - 1] * std::sin(angle));
 
         _points.resize(pointIndex);
 

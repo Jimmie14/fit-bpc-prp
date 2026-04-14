@@ -8,13 +8,20 @@
 #include "App.h"
 #include "PoseMatcher.hpp"
 #include "OccupancyGrid.hpp"
-#include "Point.hpp"
+#include "Vector2.hpp"
 
 
 namespace Manhattan::Core {
     class SlamController final : public BaseController {
     public:
         explicit SlamController(const App& app);
+        GridCell* GetCell(const Vector2 &position);
+        std::vector<GridCell*> GetNeighbors(const GridCell* cell);
+        bool RayCast(const Vector2 &worldPosition, const Vector2 &direction, RayHit &rayHit, double maxDistance = 100);
+
+        [[nodiscard]] Pose CurrentPose() const {
+            return _lastPose;
+        }
 
     private:
         rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
@@ -32,11 +39,11 @@ namespace Manhattan::Core {
 
         std::mutex _updateMutex;
 
-        void Update(const std::vector<Point> &points);
+        void Update(const std::vector<Vector2> &points);
 
-        std::vector<Point> TransformPointsLocalToWorld(const std::vector<Point>& localPoints, const Pose& pose) const;
+        [[nodiscard]] std::vector<Vector2> TransformPointsLocalToWorld(const std::vector<Vector2>& localPoints, const Pose& pose) const;
 
-        void MapScan(const std::vector<Point>& worldPoints, const Point& robotPosition);
+        void MapScan(const std::vector<Vector2>& worldPoints, const Vector2& robotPosition);
 
         void PublishPose(const Pose& pose);
 

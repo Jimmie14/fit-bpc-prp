@@ -1,12 +1,12 @@
 #pragma once
 #include "OccupancyGrid.hpp"
-#include "Point.hpp"
+#include "Vector2.hpp"
 
 namespace Manhattan::Core
 {
     struct Pose
     {
-        Point Position;
+        Vector2 Position;
         double Rotation;
     };
 
@@ -21,9 +21,9 @@ namespace Manhattan::Core
               _numIterations(numIterations)
         { }
 
-        Pose Match(const std::vector<Point>& scanPoints, Point estimatedPos, double estimatedRot) const
+        Pose Match(const std::vector<Vector2>& scanPoints, Vector2 estimatedPos, double estimatedRot) const
         {
-            Point pos = estimatedPos;
+            Vector2 pos = estimatedPos;
             double rot = estimatedRot;
 
             for (int iter = 0; iter < _numIterations; iter++)
@@ -40,7 +40,7 @@ namespace Manhattan::Core
                     // Note: Change p.x and p.y if your Point struct uses uppercase X and Y
                     double tx = p.x * cos_val - p.y * sin_val;
                     double ty = p.x * sin_val + p.y * cos_val;
-                    auto world = Point(pos.x + tx, pos.y + ty);
+                    auto world = Vector2(pos.x + tx, pos.y + ty);
 
                     auto cellOffset = GridOffsetForInterpolation(world);
                     int x0 = std::get<0>(cellOffset);
@@ -124,7 +124,7 @@ namespace Manhattan::Core
         }
 
     private:
-        std::tuple<int, int, double, double> GridOffsetForInterpolation(const Point& worldPos) const
+        std::tuple<int, int, double, double> GridOffsetForInterpolation(const Vector2& worldPos) const
         {
             // Subtract 0.5f so integer boundaries align with the exact centers of the cells
             double gridFloatX = (worldPos.x / _grid.GetCellSize()) + (_grid.GetWidth() * 0.5) - 0.5;
