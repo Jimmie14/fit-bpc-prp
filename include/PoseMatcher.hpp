@@ -43,7 +43,6 @@ namespace Manhattan::Core
 
                 for (const auto& p : scanPoints)
                 {
-                    // Note: Change p.x and p.y if your Point struct uses uppercase X and Y
                     double tx = p.x * cos_val - p.y * sin_val;
                     double ty = p.x * sin_val + p.y * cos_val;
                     auto world = Vector2(pos.x + tx, pos.y + ty);
