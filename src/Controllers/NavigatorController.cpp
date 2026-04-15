@@ -155,10 +155,12 @@ namespace Manhattan::Core {
             hits.push_back(rayHit);
         }
 
+        PublishRayCast(hits, pose);
+
         return hits;
     }
 
-    void NavigatorController::PublishRayCast(const vector<RayHit> &hits) {
+    void NavigatorController::PublishRayCast(const vector<RayHit> &hits, const Pose &pose) const {
         visualization_msgs::msg::MarkerArray markerArray;
 
         visualization_msgs::msg::Marker clearMarker;
