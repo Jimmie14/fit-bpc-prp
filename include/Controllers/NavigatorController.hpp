@@ -39,6 +39,10 @@ namespace Manhattan::Core {
         std::vector<RayHit> RayCastAround(const Pose &pose) const;
         Vector2 GetDirection(const std::vector<RayHit> &rayHits, const Pose &pose, const Vector2 &desiredDirection) const;
 
+        std::vector<GridCell*> SmoothPath(const std::vector<GridCell*>& pathList) const;
+        bool HasLineOfSight(GridCell* start, GridCell* end) const;
+        bool IsBlocking(const Vector2& position) const;
+
         void PublishPath() const;
         void PublishRayCast(const std::vector<RayHit> &hits, const Pose &pose, const Vector2 &desiredDirection) const;
         void Update();

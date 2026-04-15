@@ -162,6 +162,55 @@ namespace Manhattan::Core {
         return result;
     }
 
+    std::vector<GridCell*> NavigatorController::SmoothPath(const std::vector<GridCell*>& pathList) const {
+        std::vector<GridCell*> smoothedPath;
+        if (pathList.empty()) return smoothedPath;
+
+        smoothedPath.push_back(pathList.front());
+        size_t currentIndex = 0;
+
+        for (size_t i = 1; i < pathList.size(); ++i) {
+            if (HasLineOfSight(pathList[currentIndex], pathList[i])) continue;
+
+            smoothedPath.push_back(pathList[i - 1]);
+            currentIndex = i - 1;
+        }
+
+        if (smoothedPath.back() != pathList.back()) {
+            smoothedPath.push_back(pathList.back());
+        }
+
+        return smoothedPath;
+    }
+
+    bool NavigatorController::HasLineOfSight(GridCell* start, GridCell* end) const {
+        const auto startPos = start->GetWorldPosition();
+        const auto endPos = end->GetWorldPosition();
+        const auto distance = Vector2::Distance(startPos, endPos);
+        const auto direction = (endPos - startPos).Normalized();
+
+        // 0.03 is grid cell size
+        const auto step = 0.03 / 2.0;
+        const auto perpendicular = Vector2(-direction.y, direction.x) * 0.1;
+
+        for (double d = step; d < distance; d += step) {
+            const auto centerPos = startPos + direction * d;
+
+            if (IsBlocking(centerPos) ||
+                IsBlocking(centerPos + perpendicular) ||
+                IsBlocking(centerPos - perpendicular)) {
+                return false;
+                }
+        }
+        return true;
+    }
+
+    bool NavigatorController::IsBlocking(const Vector2& position) const {
+        const auto cell = _slam->GetCell(position);
+        return cell == nullptr || cell->IsOccupied();
+    }
+
+
     void NavigatorController::ClearPath() {
         _path = {};
     }
