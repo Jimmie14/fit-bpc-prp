@@ -11,7 +11,13 @@ constexpr double avoidanceStrength = 20;
 
 constexpr double waypointTolerance = 0.25;
 
-constexpr double maxLinearSpeed = 0.35;
+constexpr int lookAheadWaypoints = 3;
+constexpr double cornerSlowMinFactor = 0.25;
+constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
+constexpr double cornerSlowAngleMax = M_PI / 2.0;
+
+
+constexpr double maxLinearSpeed = 0.4;
 constexpr double maxAngularSpeed = 0.2;
 
 constexpr double turnDeceleration = 8.0;
@@ -153,6 +159,7 @@ namespace Manhattan::Core {
         }
 
         std::reverse(path.begin(), path.end());
+        path = SmoothPath(path);
 
         std::queue<GridCell*> result;
         for (auto* cell : path) {
@@ -328,6 +335,39 @@ namespace Manhattan::Core {
         return direction.Normalized();
     }
 
+    double NavigatorController::GetCornerSlowFactor(const Pose& pose) const {
+        if (_path.empty()) return 1.0;
+
+        std::vector<Vector2> points;
+        points.reserve(lookAheadWaypoints + 1);
+
+        points.push_back(pose.position);
+
+        auto temp = _path;
+        for (int i = 0; i < lookAheadWaypoints && !temp.empty(); ++i) {
+            points.push_back(temp.front()->GetWorldPosition());
+            temp.pop();
+        }
+
+        if (points.size() < 3) return 1.0;
+
+        double worstAngle = 0.0;
+
+        for (size_t i = 0; i + 2 < points.size(); ++i) {
+            const auto a = (points[i + 1] - points[i]).Normalized();
+            const auto b = (points[i + 2] - points[i + 1]).Normalized();
+            const auto angle = std::abs(Vector2::SignedAngle(a, b));
+            worstAngle = std::max(worstAngle, angle);
+        }
+
+        if (worstAngle <= cornerSlowAngleThreshold) return 1.0;
+
+        const auto t = clamp((worstAngle - cornerSlowAngleThreshold) / (cornerSlowAngleMax - cornerSlowAngleThreshold),
+            0.0, 1.0);
+
+        return 1.0 - t * (1.0 - cornerSlowMinFactor);
+    }
+
     void NavigatorController::Update() {
         if (!HasPath())
         {
@@ -363,13 +403,15 @@ namespace Manhattan::Core {
         if (!rayHits.empty())
         {
             const auto forwardHit = rayHits[0];
-            const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position) + 0.2;
+            const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
 
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
 
         const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
-        const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
+        const auto cornerFactor = GetCornerSlowFactor(pose);
+
+        const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor * cornerFactor;
 
         _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
             (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed

@@ -45,6 +45,7 @@ namespace Manhattan::Core {
 
         void PublishPath() const;
         void PublishRayCast(const std::vector<RayHit> &hits, const Pose &pose, const Vector2 &desiredDirection) const;
+        double GetCornerSlowFactor(const Pose& pose) const;
         void Update();
     };
 
