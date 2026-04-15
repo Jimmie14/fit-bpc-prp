@@ -6,12 +6,12 @@ using namespace std;
 
 constexpr int rayCount = 16;
 constexpr double rayDistance = 2;
-constexpr double avoidanceDistance = 0.125;
-constexpr double avoidanceStrength = 50;
+constexpr double avoidanceDistance = 0.3;
+constexpr double avoidanceStrength = 5;
 
-constexpr double waypointTolerance = 0.3f;
+constexpr double waypointTolerance = 0.15;
 
-constexpr double maxLinearSpeed = 0.05;
+constexpr double maxLinearSpeed = 0.2;
 constexpr double maxAngularSpeed = 0.1;
 
 constexpr double turnDeceleration = 8.0;
@@ -155,12 +155,10 @@ namespace Manhattan::Core {
             hits.push_back(rayHit);
         }
 
-        PublishRayCast(hits, pose);
-
         return hits;
     }
 
-    void NavigatorController::PublishRayCast(const vector<RayHit> &hits, const Pose &pose) const {
+    void NavigatorController::PublishRayCast(const vector<RayHit> &hits, const Pose &pose, const Vector2 &desiredDirection) const {
         visualization_msgs::msg::MarkerArray markerArray;
 
         visualization_msgs::msg::Marker clearMarker;
@@ -189,13 +187,42 @@ namespace Manhattan::Core {
             marker.points.push_back(start);
             marker.points.push_back(end);
 
-            marker.color.r = 1.0;
+            auto isClose = Vector2::Distance(pose.position, rayHit.hit) < avoidanceDistance;
+
+            marker.color.r = isClose ? 1.0 : 0.0;
             marker.color.g = 0.0;
-            marker.color.b = 0.0;
+            marker.color.b = isClose ? 0.0 : 1.0;
             marker.color.a = 1.0;
 
             markerArray.markers.push_back(marker);
         }
+
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "map";
+        marker.header.stamp = _node->now();
+        marker.ns = "raycasts";
+        marker.id = id++;
+        marker.type = visualization_msgs::msg::Marker::LINE_LIST;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.scale.x = 0.01; // Line width
+
+        geometry_msgs::msg::Point start, end;
+        start.x = pose.position.x;
+        start.y = pose.position.y;
+        start.z = 0.1;
+        end.x = pose.position.x + desiredDirection.x;
+        end.y = pose.position.y + desiredDirection.y;
+        end.z = 0.1;
+
+        marker.points.push_back(start);
+        marker.points.push_back(end);
+
+        marker.color.r = 1.0;
+        marker.color.g = 1.0;
+        marker.color.b = 0.0;
+        marker.color.a = 1.0;
+
+        markerArray.markers.push_back(marker);
 
         _rayCastPublisher->publish(markerArray);
     }
@@ -242,6 +269,9 @@ namespace Manhattan::Core {
         const auto rayHits = RayCastAround(pose);
         const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
+        PublishRayCast(rayHits, pose, desiredDirection);
+
+
         const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
         const auto angularSpeed = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
         const auto angularSpeedNormalized = angularSpeed / maxAngularSpeed;
@@ -251,11 +281,12 @@ namespace Manhattan::Core {
         {
             const auto forwardHit = rayHits[0];
             const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
+            cout << "distanceAhead: " << distanceAhead << endl;
 
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
 
-        const auto turnFactor = angularSpeedNormalized > 0.5 ? 0.0 : 1.0;
+        const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
         const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor;
 
         _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
@@ -263,10 +294,10 @@ namespace Manhattan::Core {
         );
 
         std::cout << "linear: " << _currentLinearVelocity << std::endl;
-        std::cout << "angular: " << angularSpeed << std::endl;
+        std::cout << "angularNorm: " << angularSpeedNormalized << std::endl;
 
         const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
-        _motor->SetForce(speed.left, speed.right);
+        //_motor->SetForce(speed.left, speed.right);
     }
 
 

@@ -36,7 +36,7 @@ namespace Manhattan::Core {
         Vector2 GetDirection(const std::vector<RayHit> &rayHits, const Pose &pose, const Vector2 &desiredDirection) const;
 
         void PublishPath() const;
-        void PublishRayCast(const std::vector<RayHit> &hits, const Pose &pose) const;
+        void PublishRayCast(const std::vector<RayHit> &hits, const Pose &pose, const Vector2 &desiredDirection) const;
         void Update();
     };
 
