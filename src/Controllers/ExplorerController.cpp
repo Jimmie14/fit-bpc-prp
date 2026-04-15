@@ -17,6 +17,7 @@ namespace Manhattan::Core
     void ExplorerController::OnEnable()
     {
         _startCell = _slamController->GetCell(_slamController->CurrentPose().position);
+        _state = ExplorerState::Exploring;
 
         _timer = _node->create_wall_timer(
             100ms,
@@ -96,8 +97,13 @@ namespace Manhattan::Core
         ranges::reverse(pathList);
 
         std::queue<GridCell*> pathQueue;
+        long i = 0;
         for (auto* cell : pathList) {
             pathQueue.push(cell);
+            i++;
+
+            if (i >= pathList.size() - 5)
+                break;
         }
 
         return pathQueue;
@@ -124,8 +130,8 @@ namespace Manhattan::Core
                     break;
                 }
 
-                _state = ExplorerState::Returning;
-                _navigatorController->SetPath(_navigatorController->CalculatePath(_startCell));
+                // _state = ExplorerState::Returning;
+                // _navigatorController->SetPath(_navigatorController->CalculatePath(_startCell));
 
                 break;
             }

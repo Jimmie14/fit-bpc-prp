@@ -9,6 +9,7 @@
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
 #include "Controllers/Node/LineController.hpp"
+#include "ExplorerController.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -33,8 +34,10 @@ int main(const int argc, char* argv[]) {
     app->AddController<Core::SlamController>();
     app->AddController<Core::NavigatorController>();
     app->AddController<Core::FollowerController>();
+    app->AddController<Core::ExplorerController>();
 
-    app->GetController<Core::FollowerController>()->Enable();
+    // app->GetController<Core::FollowerController>()->Enable();
+    app->GetController<Core::ExplorerController>()->Enable();
 
     app->Run();
 
