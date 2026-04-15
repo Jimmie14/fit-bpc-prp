@@ -180,7 +180,7 @@ namespace Manhattan::Core
                     if (!InBounds(neighbour.x, neighbour.y) || visited.contains(neighbour))
                         continue;
 
-                    double penalty = _inflationPenalty / (double)currentStep;
+                    auto penalty = _inflationPenalty / static_cast<double>(currentStep);
 
                     auto& neighbourCell = _grid[GetIndex(neighbour.x, neighbour.y)];
                     neighbourCell.SetCost(std::max(neighbourCell.GetCost(), penalty));

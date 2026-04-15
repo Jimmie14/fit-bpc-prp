@@ -7,16 +7,21 @@ using namespace std;
 constexpr int rayCount = 16;
 constexpr double rayDistance = 2;
 constexpr double avoidanceDistance = 0.3;
-constexpr double avoidanceStrength = 5;
+constexpr double avoidanceStrength = 20;
 
-constexpr double waypointTolerance = 0.15;
+constexpr double waypointTolerance = 0.2;
 
 constexpr double maxLinearSpeed = 0.2;
-constexpr double maxAngularSpeed = 0.1;
+constexpr double maxAngularSpeed = 0.2;
 
 constexpr double turnDeceleration = 8.0;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
+constexpr double updateDeltaTime = 0.01;
+
+constexpr double angularKp = 0.2;
+constexpr double angularKi = 0.01;
+constexpr double angularKd = 0.0;
 
 static double MoveTowards(const double current, const double target, const double maxDelta) {
     const auto delta = target - current;
@@ -27,7 +32,9 @@ static double MoveTowards(const double current, const double target, const doubl
 
 namespace Manhattan::Core {
     NavigatorController::NavigatorController(const App &app) : BaseController(app),
-    _kinematics(app.GetController<RobotOdometry>()->GetKinematics()) {
+    _kinematics(app.GetController<RobotOdometry>()->GetKinematics()),
+    _angularPid(angularKp, angularKi, angularKd) {
+
         _motor = app.GetController<MotorController>();
         _slam = app.GetController<SlamController>();
 
@@ -35,7 +42,7 @@ namespace Manhattan::Core {
         _rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
 
         _timer = _node->create_wall_timer(
-            10ms,
+            10ms, // todo: timer frequency config duplication
             [this] { Update(); }
         );
     }
@@ -82,50 +89,77 @@ namespace Manhattan::Core {
     }
 
     std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) const {
-        std::unordered_map<GridCell*, GridCell*> previous;
-        std::vector<GridCell*> queue;
+        struct QueueItem {
+            GridCell* cell;
+            double distance;
 
-        auto startCell = _slam->GetCell(_slam->CurrentPose().position);
-        if (startCell == nullptr) return { };
+            bool operator>(const QueueItem& other) const {
+                return distance > other.distance;
+            }
+        };
 
-        queue.push_back(startCell);
+        std::map<GridCell*, double> distances;
+        std::map<GridCell*, GridCell*> previous;
+        std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<>> openSet;
+        std::unordered_set<GridCell*> visited;
 
-        while (!queue.empty())
-        {
-            auto current = queue.front();
-            queue.erase(queue.begin());
+        const auto startCell = _slam->GetCell(_slam->CurrentPose().position);
+        if (startCell == nullptr || destination == nullptr) return {};
+
+        if (startCell == destination) return {};
+
+        distances[startCell] = 0.0;
+        openSet.push({startCell, 0.0});
+
+        while (!openSet.empty()) {
+            const auto current = openSet.top().cell;
+            openSet.pop();
+
+            if (current == nullptr) continue;
+            if (visited.contains(current)) continue;
+            visited.insert(current);
 
             if (current == destination) break;
 
-            for (GridCell* neighbor : _slam->GetNeighbors(current))
-            {
-                if (previous.contains(neighbor)) continue;
-                previous.emplace(neighbor, current);
-
-                if (ranges::find(queue, neighbor) != queue.end()) continue;
+            for (GridCell* neighbor : _slam->GetNeighbors(current)) {
+                if (neighbor == nullptr) continue;
                 if (neighbor->IsOccupied()) continue;
 
-                queue.push_back(neighbor);
+                const auto alt = distances[current] + neighbor->GetCost();
+
+                const auto distIterator = distances.find(neighbor);
+                if (distIterator != distances.end() && alt >= distIterator->second) continue;
+
+                distances[neighbor] = alt;
+                previous[neighbor] = current;
+                openSet.push({neighbor, alt});
             }
         }
+
+        if (!distances.contains(destination)) return {};
 
         std::vector<GridCell*> path;
         auto current = destination;
 
-        while (current != startCell)
-        {
+        while (current != nullptr && current != startCell) {
             path.push_back(current);
 
-            auto it = previous.find(current);
-            if (it == previous.end())
-                break;
+            const auto it = previous.find(current);
+            if (it == previous.end()) {
+                return {};
+            }
 
             current = it->second;
         }
 
-        auto d = deque(path.rbegin(), path.rend());
+        std::reverse(path.begin(), path.end());
 
-        return std::queue(d);
+        std::queue<GridCell*> result;
+        for (auto* cell : path) {
+            result.push(cell);
+        }
+
+        return result;
     }
 
     void NavigatorController::ClearPath() {
@@ -273,15 +307,14 @@ namespace Manhattan::Core {
 
 
         const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-        const auto angularSpeed = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
-        const auto angularSpeedNormalized = angularSpeed / maxAngularSpeed;
+        const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, updateDeltaTime), -maxAngularSpeed, maxAngularSpeed);
+        _currentAngularVelocity = angularSpeedTarget;
 
         auto distanceFactor = 1.0;
         if (!rayHits.empty())
         {
             const auto forwardHit = rayHits[0];
             const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
-            cout << "distanceAhead: " << distanceAhead << endl;
 
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }
@@ -293,11 +326,8 @@ namespace Manhattan::Core {
             (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed
         );
 
-        std::cout << "linear: " << _currentLinearVelocity << std::endl;
-        std::cout << "angularNorm: " << angularSpeedNormalized << std::endl;
-
-        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, angularSpeed });
-        //_motor->SetForce(speed.left, speed.right);
+        const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
+        _motor->SetForce(speed.left, speed.right);
     }
 
 

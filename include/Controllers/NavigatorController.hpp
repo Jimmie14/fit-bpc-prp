@@ -8,6 +8,7 @@
 #include "Kinematics.hpp"
 #include "SlamController.hpp"
 #include "MotorController.hpp"
+#include "Pid.hpp"
 
 namespace Manhattan::Core {
     class NavigatorController final : public BaseController {
@@ -21,8 +22,11 @@ namespace Manhattan::Core {
         std::queue<GridCell*> CalculatePath(GridCell* destination) const; // todo: move this to somewhere else
 
     private:
+        double _currentAngularVelocity = 0.0;
         double _currentLinearVelocity = 0.0;
+
         Kinematics _kinematics;
+        Pid _angularPid;
 
         rclcpp::TimerBase::SharedPtr _timer;
         std::shared_ptr<MotorController> _motor; // todo: change naming of MotorController

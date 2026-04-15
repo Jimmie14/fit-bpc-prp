@@ -5,7 +5,7 @@ using namespace std;
 namespace Manhattan::Core
 {
     FollowerController::FollowerController(const App& app) : BaseController(app),
-        _fov(180), _rayDistance(2), _rayCount(7), _avoidanceDistance(0.1f)
+        _fov(180), _rayDistance(2), _rayCount(7), _avoidanceDistance(0.25f)
     {
         _map = app.GetController<SlamController>();
         _navigator = app.GetController<NavigatorController>();
