@@ -4,14 +4,14 @@
 
 using namespace std;
 
-constexpr int rayCount = 16;
+constexpr int rayCount = 32;
 constexpr double rayDistance = 2;
-constexpr double avoidanceDistance = 0.3;
+constexpr double avoidanceDistance = 0.22;
 constexpr double avoidanceStrength = 20;
 
-constexpr double waypointTolerance = 0.2;
+constexpr double waypointTolerance = 0.25;
 
-constexpr double maxLinearSpeed = 0.2;
+constexpr double maxLinearSpeed = 0.35;
 constexpr double maxAngularSpeed = 0.2;
 
 constexpr double turnDeceleration = 8.0;
@@ -20,8 +20,8 @@ constexpr double deceleration = 0.4;
 constexpr double updateDeltaTime = 0.01;
 
 constexpr double angularKp = 0.2;
-constexpr double angularKi = 0.01;
-constexpr double angularKd = 0.0;
+constexpr double angularKi = 0.012;
+constexpr double angularKd = 0.001;
 
 static double MoveTowards(const double current, const double target, const double maxDelta) {
     const auto delta = target - current;
@@ -314,7 +314,7 @@ namespace Manhattan::Core {
         if (!rayHits.empty())
         {
             const auto forwardHit = rayHits[0];
-            const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
+            const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position) + 0.2;
 
             distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
         }

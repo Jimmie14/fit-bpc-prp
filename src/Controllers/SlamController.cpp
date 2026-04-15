@@ -8,7 +8,7 @@ namespace Manhattan::Core
 {
     SlamController::SlamController(const App& app)
         : BaseController(app),
-        _grid(Vector2Int(200, 200), 0.05, 5, 20),
+        _grid(Vector2Int(200, 200), 0.05, 8, 20),
         _poseMatcher(PoseMatcher(_grid, 5)),
         _lastPose(Pose(Vector2(0, 0), 0))
     {
