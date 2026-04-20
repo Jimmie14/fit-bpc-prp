@@ -1,6 +1,8 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.h"
+#include "Controllers/Node/LineController.hpp"
+#include "ExplorerController.hpp"
 #include "FollowerController.hpp"
 #include "LidarController.hpp"
 #include "MotorController.hpp"
@@ -8,8 +10,6 @@
 #include "RobotOdometry.hpp"
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
-#include "Controllers/Node/LineController.hpp"
-#include "ExplorerController.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -20,7 +20,8 @@ void AddKinematics(const shared_ptr<Core::App>& app)
     const auto odometry = app->AddController<Core::RobotOdometry>();
 }
 
-int main(const int argc, char* argv[]) {
+int main(const int argc, char* argv[])
+{
     rclcpp::init(argc, argv);
 
     const auto app = make_shared<Core::App>();
@@ -37,7 +38,7 @@ int main(const int argc, char* argv[]) {
     app->AddController<Core::ExplorerController>();
 
     app->GetController<Core::FollowerController>()->Enable();
-    //app->GetController<Core::ExplorerController>()->Enable();
+    // app->GetController<Core::ExplorerController>()->Enable();
 
     app->Run();
 

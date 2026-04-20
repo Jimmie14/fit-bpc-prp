@@ -6,25 +6,23 @@
 
 #include "BaseController.h"
 
-namespace Manhattan::Core
-{
-    class MotorController final : public BaseController
-    {
-        rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
-        rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
+namespace Manhattan::Core {
+class MotorController final : public BaseController {
+    rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
+    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
-        rclcpp::TimerBase::SharedPtr _timer;
-        std_msgs::msg::UInt8MultiArray _msg;
+    rclcpp::TimerBase::SharedPtr _timer;
+    std_msgs::msg::UInt8MultiArray _msg;
 
-        void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
+    void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
 
-    public:
-        explicit MotorController(const App& app);
+public:
+    explicit MotorController(const App& app);
 
-        void OnEnable() override;
+    void OnEnable() override;
 
-        void OnDisable() override;
+    void OnDisable() override;
 
-        void SetForce(double leftAngular, double rightAngular);
-    };
-}
+    void SetForce(double leftAngular, double rightAngular);
+};
+} // namespace Manhattan::Core

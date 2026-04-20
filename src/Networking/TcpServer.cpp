@@ -1,120 +1,126 @@
 #include "Networking/TcpServer.h"
 #include <iostream>
-#include <sys/socket.h>
 #include <netinet/in.h>
+#include <sys/socket.h>
 #include <unistd.h>
 
 #include "App.h"
 
-namespace Manhattan::Core
+namespace Manhattan::Core {
+TcpServer::TcpServer(int port)
+    : _serverSocket(-1)
+    , _port(port)
+    , _running(false)
 {
-    TcpServer::TcpServer(int port) : _serverSocket(-1), _port(port), _running(false)
-    {
+}
+
+TcpServer::~TcpServer()
+{
+    Stop();
+}
+
+void TcpServer::Start()
+{
+    if (_running)
+        return;
+
+    _serverSocket = socket(AF_INET, SOCK_STREAM, 0);
+    if (_serverSocket < 0) {
+        std::cerr << "Error creating socket" << std::endl;
+        return;
     }
 
-    TcpServer::~TcpServer() {
-        Stop();
+    int opt = 1;
+    if (setsockopt(_serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
+        perror("setsockopt");
+        close(_serverSocket);
+        return;
     }
 
-    void TcpServer::Start() {
-        if (_running) return;
+    sockaddr_in address;
+    address.sin_family = AF_INET;
+    address.sin_addr.s_addr = INADDR_ANY;
+    address.sin_port = htons(_port);
 
-        _serverSocket = socket(AF_INET, SOCK_STREAM, 0);
-        if (_serverSocket < 0) {
-            std::cerr << "Error creating socket" << std::endl;
-            return;
-        }
-
-        int opt = 1;
-        if (setsockopt(_serverSocket, SOL_SOCKET, SO_REUSEADDR, &opt, sizeof(opt))) {
-            perror("setsockopt");
-            close(_serverSocket);
-            return;
-        }
-
-        sockaddr_in address;
-        address.sin_family = AF_INET;
-        address.sin_addr.s_addr = INADDR_ANY;
-        address.sin_port = htons(_port);
-
-        if (bind(_serverSocket, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
-            perror("bind failed");
-            close(_serverSocket);
-            return;
-        }
-
-        if (listen(_serverSocket, 3) < 0) {
-            perror("listen");
-            close(_serverSocket);
-            return;
-        }
-
-        _running = true;
-        _serverThread = std::thread(&TcpServer::ServerLoop, this);
-        std::cout << "TCP Server started on port " << _port << std::endl;
+    if (bind(_serverSocket, reinterpret_cast<sockaddr*>(&address), sizeof(address)) < 0) {
+        perror("bind failed");
+        close(_serverSocket);
+        return;
     }
 
-    void TcpServer::Stop() {
-        _running = false;
-        if (_serverThread.joinable()) {
-            _serverThread.join();
-        }
-        if (_serverSocket != -1) {
-            close(_serverSocket);
-            _serverSocket = -1;
-        }
+    if (listen(_serverSocket, 3) < 0) {
+        perror("listen");
+        close(_serverSocket);
+        return;
     }
 
-    void TcpServer::ServerLoop() const
-    {
-        while (_running) {
-            sockaddr_in address;
-            int addrlen = sizeof(address);
+    _running = true;
+    _serverThread = std::thread(&TcpServer::ServerLoop, this);
+    std::cout << "TCP Server started on port " << _port << std::endl;
+}
 
-            // Use select to implement non-blocking accept or timeout
-            fd_set readfds;
-            FD_ZERO(&readfds);
-            FD_SET(_serverSocket, &readfds);
-
-            timeval timeout;
-            timeout.tv_sec = 1;
-            timeout.tv_usec = 0;
-
-            int activity = select(_serverSocket + 1, &readfds, nullptr, nullptr, &timeout);
-
-            if (activity < 0 && errno != EINTR) {
-                std::cerr << "Select error" << std::endl;
-                break;
-            }
-
-            if (activity > 0 && FD_ISSET(_serverSocket, &readfds)) {
-                int new_socket = accept(_serverSocket, (struct sockaddr*)&address, (socklen_t*)&addrlen);
-                if (new_socket < 0) {
-                    if (_running) perror("accept");
-                    continue;
-                }
-
-                // Keep connection open and read multiple messages
-                while (_running) {
-                    char buffer[1024] = {};
-                    const ssize_t valRead = read(new_socket, buffer, sizeof(buffer));
-
-                    if (valRead > 0) {
-                        if (_dataReceivedCallback) {
-                            _dataReceivedCallback({buffer, buffer + valRead});
-                        }
-                    } else if (valRead == 0) {
-                        // Client closed connection
-                        break;
-                    } else {
-                        // Error or interrupted
-                        perror("read");
-                        break;
-                    }
-                }
-                close(new_socket);
-            }
-        }
+void TcpServer::Stop()
+{
+    _running = false;
+    if (_serverThread.joinable()) {
+        _serverThread.join();
+    }
+    if (_serverSocket != -1) {
+        close(_serverSocket);
+        _serverSocket = -1;
     }
 }
 
+void TcpServer::ServerLoop() const
+{
+    while (_running) {
+        sockaddr_in address;
+        int addrlen = sizeof(address);
+
+        // Use select to implement non-blocking accept or timeout
+        fd_set readfds;
+        FD_ZERO(&readfds);
+        FD_SET(_serverSocket, &readfds);
+
+        timeval timeout;
+        timeout.tv_sec = 1;
+        timeout.tv_usec = 0;
+
+        int activity = select(_serverSocket + 1, &readfds, nullptr, nullptr, &timeout);
+
+        if (activity < 0 && errno != EINTR) {
+            std::cerr << "Select error" << std::endl;
+            break;
+        }
+
+        if (activity > 0 && FD_ISSET(_serverSocket, &readfds)) {
+            int new_socket = accept(_serverSocket, (struct sockaddr*)&address, (socklen_t*)&addrlen);
+            if (new_socket < 0) {
+                if (_running)
+                    perror("accept");
+                continue;
+            }
+
+            // Keep connection open and read multiple messages
+            while (_running) {
+                char buffer[1024] = {};
+                const ssize_t valRead = read(new_socket, buffer, sizeof(buffer));
+
+                if (valRead > 0) {
+                    if (_dataReceivedCallback) {
+                        _dataReceivedCallback({ buffer, buffer + valRead });
+                    }
+                } else if (valRead == 0) {
+                    // Client closed connection
+                    break;
+                } else {
+                    // Error or interrupted
+                    perror("read");
+                    break;
+                }
+            }
+            close(new_socket);
+        }
+    }
+}
+} // namespace Manhattan::Core

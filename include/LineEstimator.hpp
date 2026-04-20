@@ -9,19 +9,29 @@ enum class DiscreteLinePose {
     LineBoth,
 };
 
-inline std::ostream& operator<<(std::ostream& os, DiscreteLinePose pose) {
+inline std::ostream& operator<<(std::ostream& os, DiscreteLinePose pose)
+{
     switch (pose) {
-    case DiscreteLinePose::LineBoth:    os << "LineBoth"; break;
-    case DiscreteLinePose::LineOnRight: os << "LineOnRight"; break;
-    case DiscreteLinePose::LineOnLeft:  os << "LineOnLeft"; break;
-    case DiscreteLinePose::LineNone:    os << "LineNone"; break;
-    default:                            os << "Unknown"; break;
+    case DiscreteLinePose::LineBoth:
+        os << "LineBoth";
+        break;
+    case DiscreteLinePose::LineOnRight:
+        os << "LineOnRight";
+        break;
+    case DiscreteLinePose::LineOnLeft:
+        os << "LineOnLeft";
+        break;
+    case DiscreteLinePose::LineNone:
+        os << "LineNone";
+        break;
+    default:
+        os << "Unknown";
+        break;
     }
     return os;
 }
 
-enum class SensorLocation
-{
+enum class SensorLocation {
     Left = 0,
     Right = 1,
 };
@@ -35,6 +45,7 @@ public:
     double EstimateContinuousLinePose(unsigned int leftValue, unsigned int rightValue);
 
     double NormalizeValue(unsigned int value, SensorLocation location);
+
 private:
     double _maxIntensity[2];
     double _minIntensity[2];
@@ -44,5 +55,4 @@ private:
 
     double _continuousEma = 0.0;
     bool _hasContinuousEma = false;
-
 };

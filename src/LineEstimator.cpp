@@ -1,7 +1,7 @@
 #include "LineEstimator.hpp"
 
-#include <iostream>
 #include <cmath>
+#include <iostream>
 
 using namespace std;
 
@@ -9,7 +9,8 @@ constexpr float LINE_THRESHOLD = .65;
 constexpr double CONTINUOUS_SUM_EPSILON = 0.001;
 constexpr double CONTINUOUS_EMA_ALPHA = 0.20;
 
-LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int minIntensity) {
+LineEstimator::LineEstimator(const unsigned int maxIntensity, const unsigned int minIntensity)
+{
     _maxIntensity[0] = maxIntensity;
     _minIntensity[0] = minIntensity;
 
@@ -28,7 +29,8 @@ double LineEstimator::NormalizeValue(const unsigned int value, SensorLocation lo
         _minIntensity[index] = value;
 
     const auto range = _maxIntensity[index] - _minIntensity[index];
-    if (range < 1.0) return 0.0;
+    if (range < 1.0)
+        return 0.0;
 
     const auto normalized = (static_cast<double>(value) - _minIntensity[index]) / range;
     return std::clamp(pow(normalized, .6), 0.0, 1.0);
@@ -54,7 +56,8 @@ DiscreteLinePose LineEstimator::EstimateDiscrete(const unsigned int leftVal, con
     return DiscreteLinePose::LineNone;
 }
 
-double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, const unsigned int rightValue) {
+double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, const unsigned int rightValue)
+{
     const double left = NormalizeValue(leftValue, SensorLocation::Left);
     const double right = NormalizeValue(rightValue, SensorLocation::Right);
 
@@ -69,25 +72,27 @@ double LineEstimator::EstimateContinuousLinePose(const unsigned int leftValue, c
         linePose = std::clamp((right - left) / sum, -1.0, 1.0);
         _lastContinuousPose = linePose;
 
-        if (leftDetected && rightDetected) _lastDiscretePose = DiscreteLinePose::LineBoth;
-        else if (leftDetected) _lastDiscretePose = DiscreteLinePose::LineOnLeft;
-        else _lastDiscretePose = DiscreteLinePose::LineOnRight;
-
+        if (leftDetected && rightDetected)
+            _lastDiscretePose = DiscreteLinePose::LineBoth;
+        else if (leftDetected)
+            _lastDiscretePose = DiscreteLinePose::LineOnLeft;
+        else
+            _lastDiscretePose = DiscreteLinePose::LineOnRight;
     } else {
         auto fallback = _lastContinuousPose;
         switch (_lastDiscretePose) {
-            case DiscreteLinePose::LineOnLeft:
-                fallback = -1;
-                break;
-            case DiscreteLinePose::LineOnRight:
-                fallback = +1;
-                break;
-            case DiscreteLinePose::LineBoth:
-                fallback = 0.0;
-                break;
-            case DiscreteLinePose::LineNone:
-                fallback = _lastContinuousPose;
-                break;
+        case DiscreteLinePose::LineOnLeft:
+            fallback = -1;
+            break;
+        case DiscreteLinePose::LineOnRight:
+            fallback = +1;
+            break;
+        case DiscreteLinePose::LineBoth:
+            fallback = 0.0;
+            break;
+        case DiscreteLinePose::LineNone:
+            fallback = _lastContinuousPose;
+            break;
         }
 
         linePose = fallback;

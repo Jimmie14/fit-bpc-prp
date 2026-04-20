@@ -4,150 +4,135 @@
 using namespace std;
 using namespace rclcpp;
 
-namespace Manhattan::Core
+namespace Manhattan::Core {
+// todo: code duplication with MotorController.cpp
+constexpr double WHEEL_RADIUS = 0.033;
+constexpr double WHEEL_BASE = 0.12;
+constexpr int32_t PULSES_PER_ROTATION = 550;
+
+constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
+
+RobotOdometry::RobotOdometry(const App& app)
+    : BaseController(app)
+    , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
-    // todo: code duplication with MotorController.cpp
-    constexpr double WHEEL_RADIUS = 0.033;
-    constexpr double WHEEL_BASE = 0.12;
-    constexpr int32_t PULSES_PER_ROTATION = 550;
+    Enable();
 
-    constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
+    _odomPub = _node->create_publisher<nav_msgs::msg::Odometry>("~/odom", 10);
+    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
+}
 
-    RobotOdometry::RobotOdometry(const App& app) : BaseController(app),
-        _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
-    {
-        Enable();
+void RobotOdometry::OnEnable()
+{
+    _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
+        ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
 
-        _odomPub = _node->create_publisher<nav_msgs::msg::Odometry>("~/odom", 10);
-        _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
+    RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
+}
+
+void RobotOdometry::OnDisable()
+{
+    _encoderSub.reset();
+
+    RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
+}
+
+void RobotOdometry::ApplyCorrection(const Pose2D& correctedPose)
+{
+    _pose = correctedPose;
+}
+
+Kinematics RobotOdometry::GetKinematics() const
+{
+    return _kinematics;
+}
+
+void RobotOdometry::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
+{
+    if (msg->data.size() < 2) {
+        RCLCPP_WARN_ONCE(_node->get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
+        return;
     }
 
-    void RobotOdometry::OnEnable()
-    {
-        _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
-            ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
-                OnEncoders(msg);
-            }
-        );
+    const int32_t rawLeft = msg->data[0];
+    const int32_t rawRight = msg->data[1];
 
-        RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
-    }
-
-    void RobotOdometry::OnDisable()
-    {
-        _encoderSub.reset();
-
-        RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
-    }
-
-    void RobotOdometry::ApplyCorrection(const Pose2D& correctedPose)
-    {
-        _pose = correctedPose;
-    }
-
-    Kinematics RobotOdometry::GetKinematics() const {
-        return _kinematics;
-    }
-
-    void RobotOdometry::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr &msg)
-    {
-        if (msg->data.size() < 2)
-        {
-            RCLCPP_WARN_ONCE(_node->get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
-            return;
-        }
-
-        const int32_t rawLeft  = msg->data[0];
-        const int32_t rawRight = msg->data[1];
-
-        if (!_initialized)
-        {
-            _prevLeft = rawLeft;
-            _prevRight = rawRight;
-            _initialized = true;
-            return;
-        }
-        // Delta ticks since last callback
-        const int32_t dTicksLeft = rawLeft - _prevLeft;
-        const int32_t dTicksRight = -(rawRight - _prevRight);
-
+    if (!_initialized) {
         _prevLeft = rawLeft;
         _prevRight = rawRight;
-
-        // Convert to wheel linear distances (m)
-        const double dLeft = _kinematics.ticksToMeters(dTicksLeft);
-        const double dRight = _kinematics.ticksToMeters(dTicksRight);
-
-        // Integrate pose
-        _pose = _kinematics.integrate(_pose, dLeft, dRight);
-
-        _linearVelocity  = (dLeft + dRight) * 0.5;
-        _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
-
-        publishOdometry(_node->now());
+        _initialized = true;
+        return;
     }
+    // Delta ticks since last callback
+    const int32_t dTicksLeft = rawLeft - _prevLeft;
+    const int32_t dTicksRight = -(rawRight - _prevRight);
 
-    void RobotOdometry::publishOdometry(const Time& stamp)
-    {
-        if ((stamp - _lastPublishTime).seconds() < 0.1) return;
+    _prevLeft = rawLeft;
+    _prevRight = rawRight;
 
-        _lastPublishTime = stamp;
+    // Convert to wheel linear distances (m)
+    const double dLeft = _kinematics.ticksToMeters(dTicksLeft);
+    const double dRight = _kinematics.ticksToMeters(dTicksRight);
 
-        const double halfTheta = _pose.theta * 0.5;
-        const double qw = std::cos(halfTheta);
-        const double qz = std::sin(halfTheta);
+    // Integrate pose
+    _pose = _kinematics.integrate(_pose, dLeft, dRight);
 
-        // nav_msgs/odom
-        nav_msgs::msg::Odometry odomMsg;
-        odomMsg.header.stamp = stamp;
-        odomMsg.header.frame_id = "odom";
-        odomMsg.child_frame_id = "base_link";
+    _linearVelocity = (dLeft + dRight) * 0.5;
+    _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
 
-        // position
-        odomMsg.pose.pose.position.x = _pose.x;
-        odomMsg.pose.pose.position.y = _pose.y;
-        odomMsg.pose.pose.position.z = 0.0;
-        odomMsg.pose.pose.orientation.x = 0.0;
-        odomMsg.pose.pose.orientation.y = 0.0;
-        odomMsg.pose.pose.orientation.z = qz;
-        odomMsg.pose.pose.orientation.w = qw;
+    publishOdometry(_node->now());
+}
 
-        // velocity
-        odomMsg.twist.twist.linear.x = _linearVelocity;
-        odomMsg.twist.twist.linear.y = 0.0;
-        odomMsg.twist.twist.linear.z = 0.0;
-        odomMsg.twist.twist.angular.x = 0.0;
-        odomMsg.twist.twist.angular.y = 0.0;
-        odomMsg.twist.twist.angular.z = _angularVelocity;
+void RobotOdometry::publishOdometry(const Time& stamp)
+{
+    if ((stamp - _lastPublishTime).seconds() < 0.1)
+        return;
 
-        // Pose covariance (x, y, z, roll, pitch, yaw)
-        odomMsg.pose.covariance = {
-            0.05, 0,    0,    0,    0,    0,
-            0,    0.05, 0,    0,    0,    0,
-            0,    0,    999,  0,    0,    0,
-            0,    0,    0,    999,  0,    0,
-            0,    0,    0,    0,    999,  0,
-            0,    0,    0,    0,    0,    0.2
-        };
-        // Twist covariance (vx, vy, vz, vroll, vpitch, vyaw)
-        odomMsg.twist.covariance = {
-            0.1,  0,    0,    0,    0,    0,
-            0,    0.1,  0,    0,    0,    0,
-            0,    0,    999,  0,    0,    0,
-            0,    0,    0,    999,  0,    0,
-            0,    0,    0,    0,    999,  0,
-            0,    0,    0,    0,    0,    0.2
-        };
+    _lastPublishTime = stamp;
 
-        _odomPub->publish(odomMsg);
+    const double halfTheta = _pose.theta * 0.5;
+    const double qw = std::cos(halfTheta);
+    const double qz = std::sin(halfTheta);
 
-        // geometry_msgs/PoseStamped
-        geometry_msgs::msg::PoseStamped poseMsg;
-        poseMsg.header.stamp = stamp;
-        poseMsg.header.frame_id = "odom";
-        poseMsg.pose = odomMsg.pose.pose;
+    // nav_msgs/odom
+    nav_msgs::msg::Odometry odomMsg;
+    odomMsg.header.stamp = stamp;
+    odomMsg.header.frame_id = "odom";
+    odomMsg.child_frame_id = "base_link";
 
-        _posePub->publish(poseMsg);
-    }
+    // position
+    odomMsg.pose.pose.position.x = _pose.x;
+    odomMsg.pose.pose.position.y = _pose.y;
+    odomMsg.pose.pose.position.z = 0.0;
+    odomMsg.pose.pose.orientation.x = 0.0;
+    odomMsg.pose.pose.orientation.y = 0.0;
+    odomMsg.pose.pose.orientation.z = qz;
+    odomMsg.pose.pose.orientation.w = qw;
+
+    // velocity
+    odomMsg.twist.twist.linear.x = _linearVelocity;
+    odomMsg.twist.twist.linear.y = 0.0;
+    odomMsg.twist.twist.linear.z = 0.0;
+    odomMsg.twist.twist.angular.x = 0.0;
+    odomMsg.twist.twist.angular.y = 0.0;
+    odomMsg.twist.twist.angular.z = _angularVelocity;
+
+    // Pose covariance (x, y, z, roll, pitch, yaw)
+    odomMsg.pose.covariance = { 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
+        0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };
+    // Twist covariance (vx, vy, vz, vroll, vpitch, vyaw)
+    odomMsg.twist.covariance = { 0.1, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
+        0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };
+
+    _odomPub->publish(odomMsg);
+
+    // geometry_msgs/PoseStamped
+    geometry_msgs::msg::PoseStamped poseMsg;
+    poseMsg.header.stamp = stamp;
+    poseMsg.header.frame_id = "odom";
+    poseMsg.pose = odomMsg.pose.pose;
+
+    _posePub->publish(poseMsg);
+}
 
 } // namespace Manhattan::Core

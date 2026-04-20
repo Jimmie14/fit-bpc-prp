@@ -1,6 +1,6 @@
-#include <gtest/gtest.h>
 #include "Kinematics.hpp"
 #include <cmath>
+#include <gtest/gtest.h>
 
 constexpr float ERROR = 0.001;
 constexpr float WHEEL_BASE = 0.12;
@@ -8,7 +8,8 @@ constexpr float WHEEL_RADIUS = 0.033;
 constexpr float WHEEL_CIRCUMFERENCE = 2 * M_PI * WHEEL_RADIUS;
 constexpr int32_t PULSES_PER_ROTATION = 550;
 
-TEST(KinematicsTest, BackwardZeroVelocitySI) {
+TEST(KinematicsTest, BackwardZeroVelocitySI)
+{
     // Arrange
     const float linear = 0;
     const float angular = 0;
@@ -18,14 +19,15 @@ TEST(KinematicsTest, BackwardZeroVelocitySI) {
     auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
 
     // Act
-    auto result = kinematics.inverse(RobotSpeed {linear, angular});
+    auto result = kinematics.inverse(RobotSpeed { linear, angular });
 
     // Assert
     EXPECT_NEAR(result.left, expected_l, ERROR);
     EXPECT_NEAR(result.right, expected_r, ERROR);
 }
 
-TEST(KinematicsTest, BackwardPositiveLinearVelocitySI) {
+TEST(KinematicsTest, BackwardPositiveLinearVelocitySI)
+{
     // Arrange
     const auto robotSpeed = RobotSpeed(1.0, 0.0);
     const float expected_l = 1.0 / WHEEL_CIRCUMFERENCE * 2 * M_PI;
@@ -41,7 +43,8 @@ TEST(KinematicsTest, BackwardPositiveLinearVelocitySI) {
     EXPECT_NEAR(result.right, expected_r, ERROR);
 }
 
-TEST(KinematicsTest, BackwardPositiveAngularVelocitySI) {
+TEST(KinematicsTest, BackwardPositiveAngularVelocitySI)
+{
     // Arrange
     constexpr auto robotSpeed = RobotSpeed(0, 1.0);
     constexpr float expectedLeft = -(0.5 * WHEEL_BASE) / WHEEL_CIRCUMFERENCE * (2 * M_PI);
@@ -57,7 +60,8 @@ TEST(KinematicsTest, BackwardPositiveAngularVelocitySI) {
     EXPECT_NEAR(result.right, expectedRight, ERROR);
 }
 
-TEST(KinematicsTest, ForwardZeroWheelSpeedSI) {
+TEST(KinematicsTest, ForwardZeroWheelSpeedSI)
+{
     // Arrange
     constexpr auto wheelSpeed = WheelSpeed(0, 0);
     constexpr auto expected_linear = 0.0;
@@ -73,11 +77,12 @@ TEST(KinematicsTest, ForwardZeroWheelSpeedSI) {
     EXPECT_NEAR(result.angular, expected_angular, ERROR);
 }
 
-TEST(KinematicsTest, ForwardEqualWheelSpeedsSI) {
+TEST(KinematicsTest, ForwardEqualWheelSpeedsSI)
+{
     // Arrange
     constexpr auto wheelSpeed = WheelSpeed(1, 1);
     constexpr auto expected_l = WHEEL_RADIUS;
-    constexpr auto expected_a= 0.0;
+    constexpr auto expected_a = 0.0;
 
     auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
 
@@ -89,11 +94,12 @@ TEST(KinematicsTest, ForwardEqualWheelSpeedsSI) {
     EXPECT_NEAR(result.angular, expected_a, ERROR);
 }
 
-TEST(KinematicsTest, ForwardOppositeWheelSpeedsSI) {
+TEST(KinematicsTest, ForwardOppositeWheelSpeedsSI)
+{
     // Arrange
     constexpr auto wheelSpeed = WheelSpeed(-1, 1);
     constexpr auto expectedLinear = 0;
-    constexpr auto expectedAngular= (WHEEL_RADIUS / (0.5 * WHEEL_BASE));
+    constexpr auto expectedAngular = (WHEEL_RADIUS / (0.5 * WHEEL_BASE));
 
     auto kinematics = Kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION);
 
@@ -102,10 +108,12 @@ TEST(KinematicsTest, ForwardOppositeWheelSpeedsSI) {
 
     // Assert
     EXPECT_NEAR(result.linear, expectedLinear, ERROR);
-    EXPECT_NEAR(result.angular, expectedAngular, ERROR);;
+    EXPECT_NEAR(result.angular, expectedAngular, ERROR);
+    ;
 }
 
-TEST(KinematicsTest, ForwardAndBackwardSI) {
+TEST(KinematicsTest, ForwardAndBackwardSI)
+{
     // Arrange
     constexpr auto wheelSpeed = WheelSpeed(1, -0.5);
 
@@ -120,8 +128,8 @@ TEST(KinematicsTest, ForwardAndBackwardSI) {
     EXPECT_NEAR(result.right, wheelSpeed.right, ERROR);
 }
 
-
-TEST(KinematicsTest, ForwardAndBackwardEncoderDiff) {
+TEST(KinematicsTest, ForwardAndBackwardEncoderDiff)
+{
     // Arrange
     constexpr auto encoders = WheelSpeed(0, 550);
 
@@ -136,7 +144,8 @@ TEST(KinematicsTest, ForwardAndBackwardEncoderDiff) {
     EXPECT_NEAR(result.right, encoders.right, 1);
 }
 
-int main(int argc, char **argv) {
+int main(int argc, char** argv)
+{
     testing::InitGoogleTest(&argc, argv);
 
     return RUN_ALL_TESTS();

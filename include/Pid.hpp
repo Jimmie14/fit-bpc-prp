@@ -3,9 +3,16 @@
 class Pid {
 public:
     Pid(const double kp, const double ki, const double kd)
-        : _kp(kp), _ki(ki), _kd(kd), _prevError(0), _integral(0) {}
+        : _kp(kp)
+        , _ki(ki)
+        , _kd(kd)
+        , _prevError(0)
+        , _integral(0)
+    {
+    }
 
-    double step(const double error, const double dt) {
+    double step(const double error, const double dt)
+    {
         _integral += error * dt;
 
         const auto derivative = (error - _prevError) / dt;
@@ -15,7 +22,8 @@ public:
         return output;
     }
 
-    void reset() {
+    void reset()
+    {
         _prevError = 0;
         _integral = 0;
     }

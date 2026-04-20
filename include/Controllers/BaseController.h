@@ -1,31 +1,37 @@
 #pragma once
 #include <rclcpp/rclcpp.hpp>
 
-namespace Manhattan::Core
-{
-    class App;
+namespace Manhattan::Core {
+class App;
 
-    class BaseController {
-    private:
-        bool _enabled = false;
+class BaseController {
+private:
+    bool _enabled = false;
 
-    protected:
-        const App& _app;
-        const rclcpp::Node::SharedPtr _node;
+protected:
+    const App& _app;
+    const rclcpp::Node::SharedPtr _node;
 
-        virtual void OnEnable() { }
+    virtual void OnEnable()
+    {
+    }
 
-        virtual void OnDisable() { }
+    virtual void OnDisable()
+    {
+    }
 
-    public:
-        explicit BaseController(const App& app);
+public:
+    explicit BaseController(const App& app);
 
-        virtual ~BaseController() = default;
+    virtual ~BaseController() = default;
 
-        void Enable();
+    void Enable();
 
-        void Disable();
+    void Disable();
 
-        [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const { return nullptr; }
-    };
-}
+    [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const
+    {
+        return nullptr;
+    }
+};
+} // namespace Manhattan::Core

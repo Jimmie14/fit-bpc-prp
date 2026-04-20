@@ -2,8 +2,7 @@
 
 #include <cstdint>
 
-struct RobotSpeed
-{
+struct RobotSpeed {
     /**
      * Linear speed in m/s.
      */
@@ -15,39 +14,39 @@ struct RobotSpeed
     double angular = 0.0;
 };
 
-struct WheelSpeed
-{
-    double left = 0.0;   // rad/s
-    double right = 0.0;  // rad/s
+struct WheelSpeed {
+    double left = 0.0; // rad/s
+    double right = 0.0; // rad/s
 };
 
-struct Pose2D
-{
-    double x = 0.0;      // m
-    double y = 0.0;      // m
-    double theta = 0.0;  // rad
+struct Pose2D {
+    double x = 0.0; // m
+    double y = 0.0; // m
+    double theta = 0.0; // rad
 };
 
-class Kinematics
-{
+class Kinematics {
 public:
     Kinematics(double wheelRadius, double wheelBase, int32_t pulsesPerRotation);
 
-    [[nodiscard]] WheelSpeed inverse(RobotSpeed speed)  const;
+    [[nodiscard]] WheelSpeed inverse(RobotSpeed speed) const;
 
-    [[nodiscard]] RobotSpeed forward(WheelSpeed speed)  const;
+    [[nodiscard]] RobotSpeed forward(WheelSpeed speed) const;
 
     [[nodiscard]] double ticksToMeters(int32_t deltaTicks) const;
 
     [[nodiscard]] Pose2D integrate(Pose2D pose, double leftLinear, double rightLinear) const;
 
-    [[nodiscard]] double wheelRadius() const {
+    [[nodiscard]] double wheelRadius() const
+    {
         return _wheelRadius;
     }
-    [[nodiscard]] double wheelBase() const {
+    [[nodiscard]] double wheelBase() const
+    {
         return _wheelBase;
     }
-    [[nodiscard]] int32_t pulsesPerRotation() const {
+    [[nodiscard]] int32_t pulsesPerRotation() const
+    {
         return _pulsesPerRotation;
     }
 
@@ -56,4 +55,3 @@ private:
     double _wheelBase;
     int32_t _pulsesPerRotation;
 };
-

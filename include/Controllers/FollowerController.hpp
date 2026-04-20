@@ -7,34 +7,34 @@
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
-    class FollowerController final : public BaseController {
-    public:
-        explicit FollowerController(const App& app);
+class FollowerController final : public BaseController {
+public:
+    explicit FollowerController(const App& app);
 
-        void OnEnable() override;
+    void OnEnable() override;
 
-        void OnDisable() override;
+    void OnDisable() override;
 
-    private:
-        std::vector<RayHit> _rayHits;
-        Vector2 _startPosition;
+private:
+    std::vector<RayHit> _rayHits;
+    Vector2 _startPosition;
 
-        double _fov;
-        double _rayDistance;
-        int _rayCount;
+    double _fov;
+    double _rayDistance;
+    int _rayCount;
 
-        double _avoidanceDistance;
+    double _avoidanceDistance;
 
-        rclcpp::TimerBase::SharedPtr _timer;
-        rclcpp::TimerBase::SharedPtr _initialTimer;
+    rclcpp::TimerBase::SharedPtr _timer;
+    rclcpp::TimerBase::SharedPtr _initialTimer;
 
-        std::shared_ptr<SlamController> _map;
-        std::shared_ptr<NavigatorController> _navigator;
+    std::shared_ptr<SlamController> _map;
+    std::shared_ptr<NavigatorController> _navigator;
 
-        Vector2 GetTarget(const Pose& pose) const;
+    Vector2 GetTarget(const Pose& pose) const;
 
-        void FollowCorridor();
+    void FollowCorridor();
 
-        void Update();
-    };
-}
+    void Update();
+};
+} // namespace Manhattan::Core

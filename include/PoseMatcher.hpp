@@ -2,191 +2,193 @@
 #include "OccupancyGrid.hpp"
 #include "Vector2.hpp"
 
-namespace Manhattan::Core
-{
-    struct Pose {
-        Vector2 position;
-        Vector2 forward;
-        double rotation;
+namespace Manhattan::Core {
+struct Pose {
+    Vector2 position;
+    Vector2 forward;
+    double rotation;
 
-        Pose() : position(Vector2::Zero()),
-            forward(Vector2(std::cos(M_PI * 0.5), std::sin(M_PI * 0.5))),
-            rotation(0.0) {
+    Pose()
+        : position(Vector2::Zero())
+        , forward(Vector2(std::cos(M_PI * 0.5), std::sin(M_PI * 0.5)))
+        , rotation(0.0)
+    {
+    }
 
-        }
+    explicit Pose(const Vector2 position, const double rotation)
+        : position(position)
+        , rotation(rotation)
+    {
+        forward = Vector2(std::cos(rotation + M_PI * 0.5), std::sin(rotation + M_PI * 0.5));
+    }
 
-        explicit Pose(const Vector2 position, const double rotation) : position(position), rotation(rotation) {
-            forward = Vector2(std::cos(rotation + M_PI * 0.5), std::sin(rotation + M_PI * 0.5));
-        }
+    Pose operator-(const Pose& other) const
+    {
+        return Pose(position - other.position, rotation - other.rotation);
+    }
 
-        Pose operator-(const Pose &other) const {
-            return Pose(position - other.position, rotation - other.rotation);
-        }
+    Pose operator+(const Pose& other) const
+    {
+        return Pose(position + other.position, rotation + other.rotation);
+    }
 
-        Pose operator+(const Pose &other) const {
-            return Pose(position + other.position, rotation + other.rotation);
-        }
+    static Pose Zero()
+    {
+        return Pose(Vector2::Zero(), 0.0);
+    }
 
-        static Pose Zero() {
-            return Pose(Vector2::Zero(), 0.0);
-        }
+    static Pose Identity()
+    {
+        return Pose(Vector2::Zero(), 0.0);
+    }
 
-        static Pose Identity() {
-            return Pose(Vector2::Zero(), 0.0);
-        }
+    [[nodiscard]] std::string ToString() const
+    {
+        return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
+    }
+};
 
-        [[nodiscard]] std::string ToString() const {
-            return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
-        }
+struct PoseResult {
+    Pose pose { Vector2 {}, 0.0 };
+    double confidence { 0.0 };
+};
 
-    };
+class PoseMatcher {
+public:
+    // Gauss-Newton Optimization
+    explicit PoseMatcher(const OccupancyGrid& grid, const int numIterations = 5)
+        : _grid(grid)
+        , _numIterations(numIterations)
+    {
+    }
 
-    struct PoseResult {
-        Pose pose { Vector2 { }, 0.0 };
-        double confidence { 0.0 };
-    };
+    [[nodiscard]] PoseResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
+    {
+        auto pos = estimatedPose.position;
+        auto rot = estimatedPose.rotation;
 
-    class PoseMatcher {
-    public:
+        auto totalProbability = 0.0;
+        auto totalCount = 0;
 
-        // Gauss-Newton Optimization
-        explicit PoseMatcher(const OccupancyGrid &grid, const int numIterations = 5)
-            : _grid(grid),
-              _numIterations(numIterations)
-        { }
+        for (int iter = 0; iter < _numIterations; iter++) {
+            totalProbability = 0.0;
+            totalCount = 0;
 
-        [[nodiscard]]
-        PoseResult Match(const std::vector<Vector2> &scanPoints, const Pose &estimatedPose) const
-        {
-            auto pos = estimatedPose.position;
-            auto rot = estimatedPose.rotation;
+            // Initialize 3x3 Hessian matrix and 3x1 boundary vector with zeros
+            double h[3][3] = { {} };
+            double b[3] = {};
 
-            auto totalProbability = 0.0;
-            auto totalCount = 0;
+            auto cosVal = std::cos(rot);
+            auto sinVal = std::sin(rot);
 
-            for (int iter = 0; iter < _numIterations; iter++)
-            {
-                totalProbability = 0.0;
-                totalCount = 0;
+            for (const auto& p : scanPoints) {
+                const auto tx = p.x * cosVal - p.y * sinVal;
+                const auto ty = p.x * sinVal + p.y * cosVal;
+                auto world = Vector2(pos.x + tx, pos.y + ty);
 
-                // Initialize 3x3 Hessian matrix and 3x1 boundary vector with zeros
-                double h[3][3] = { {} };
-                double b[3] = {};
+                auto cellOffset = GridOffsetForInterpolation(world);
+                const auto x0 = std::get<0>(cellOffset);
+                const auto y0 = std::get<1>(cellOffset);
+                const auto fx = std::get<2>(cellOffset);
+                const auto fy = std::get<3>(cellOffset);
 
-                auto cosVal = std::cos(rot);
-                auto sinVal = std::sin(rot);
+                const auto x1 = x0 + 1;
+                const auto y1 = y0 + 1;
 
-                for (const auto& p : scanPoints)
-                {
-                    const auto tx = p.x * cosVal - p.y * sinVal;
-                    const auto ty = p.x * sinVal + p.y * cosVal;
-                    auto world = Vector2(pos.x + tx, pos.y + ty);
+                if (!_grid.InBounds(x0, y0) || !_grid.InBounds(x1, y1))
+                    continue;
 
-                    auto cellOffset = GridOffsetForInterpolation(world);
-                    const auto x0 = std::get<0>(cellOffset);
-                    const auto y0 = std::get<1>(cellOffset);
-                    const auto fx = std::get<2>(cellOffset);
-                    const auto fy = std::get<3>(cellOffset);
+                const auto p00 = _grid.GetProbability(x0, y0);
+                const auto p10 = _grid.GetProbability(x1, y0);
+                const auto p01 = _grid.GetProbability(x0, y1);
+                const auto p11 = _grid.GetProbability(x1, y1);
 
-                    const auto x1 = x0 + 1;
-                    const auto y1 = y0 + 1;
+                if (p00 <= 0.5 && p10 <= 0.5 && p01 <= 0.5 && p11 <= 0.5)
+                    continue;
 
-                    if (!_grid.InBounds(x0, y0) || !_grid.InBounds(x1, y1))
-                        continue;
+                const auto m = (p00 * (1.0 - fx) * (1.0 - fy)) + (p10 * fx * (1.0 - fy)) + (p01 * (1.0 - fx) * fy) + (p11 * fx * fy);
 
-                    const auto p00 = _grid.GetProbability(x0, y0);
-                    const auto p10 = _grid.GetProbability(x1, y0);
-                    const auto p01 = _grid.GetProbability(x0, y1);
-                    const auto p11 = _grid.GetProbability(x1, y1);
+                const auto dx = ((p10 - p00) * (1.0 - fy) + (p11 - p01) * fy) / _grid.GetCellSize();
+                const auto dy = ((p01 - p00) * (1.0 - fx) + (p11 - p10) * fx) / _grid.GetCellSize();
 
-                    if (p00 <= 0.5 && p10 <= 0.5 && p01 <= 0.5 && p11 <= 0.5)
-                        continue;
+                const auto jThetaX = -ty;
+                const auto jThetaY = tx;
 
-                    const auto m = (p00 * (1.0 - fx) * (1.0 - fy)) +
-                               (p10 * fx * (1.0 - fy)) +
-                               (p01 * (1.0 - fx) * fy) +
-                               (p11 * fx * fy);
+                const auto gX = dx;
+                const auto gY = dy;
+                const auto gTheta = dx * jThetaX + dy * jThetaY;
 
-                    const auto dx = ((p10 - p00) * (1.0 - fy) + (p11 - p01) * fy) / _grid.GetCellSize();
-                    const auto dy = ((p01 - p00) * (1.0 - fx) + (p11 - p10) * fx) / _grid.GetCellSize();
+                const auto error = 1.0 - m;
 
-                    const auto jThetaX = -ty;
-                    const auto jThetaY = tx;
+                h[0][0] += gX * gX;
+                h[0][1] += gX * gY;
+                h[0][2] += gX * gTheta;
+                h[1][0] += gY * gX;
+                h[1][1] += gY * gY;
+                h[1][2] += gY * gTheta;
+                h[2][0] += gTheta * gX;
+                h[2][1] += gTheta * gY;
+                h[2][2] += gTheta * gTheta;
 
-                    const auto gX = dx;
-                    const auto gY = dy;
-                    const auto gTheta = dx * jThetaX + dy * jThetaY;
+                b[0] += gX * error;
+                b[1] += gY * error;
+                b[2] += gTheta * error;
 
-                    const auto error = 1.0 - m;
-
-                    h[0][0] += gX * gX; h[0][1] += gX * gY; h[0][2] += gX * gTheta;
-                    h[1][0] += gY * gX; h[1][1] += gY * gY; h[1][2] += gY * gTheta;
-                    h[2][0] += gTheta * gX; h[2][1] += gTheta * gY; h[2][2] += gTheta * gTheta;
-
-                    b[0] += gX * error;
-                    b[1] += gY * error;
-                    b[2] += gTheta * error;
-
-                    totalProbability += m;
-                    totalCount++;
-                }
-
-                const auto det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1])
-                           - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0])
-                           + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
-
-                auto dPosMx = 0.0, dPosMy = 0.0, dRotM = 0.0;
-
-                if (std::abs(det) > 1e-6)
-                {
-                    const auto invDet = 1.0 / det;
-
-                    const auto i00 = (h[1][1] * h[2][2] - h[1][2] * h[2][1]) * invDet;
-                    const auto i01 = (h[0][2] * h[2][1] - h[0][1] * h[2][2]) * invDet;
-                    const auto i02 = (h[0][1] * h[1][2] - h[0][2] * h[1][1]) * invDet;
-
-                    const auto i10 = (h[1][2] * h[2][0] - h[1][0] * h[2][2]) * invDet;
-                    const auto i11 = (h[0][0] * h[2][2] - h[0][2] * h[2][0]) * invDet;
-                    const auto i12 = (h[0][2] * h[1][0] - h[0][0] * h[1][2]) * invDet;
-
-                    const auto i20 = (h[1][0] * h[2][1] - h[1][1] * h[2][0]) * invDet;
-                    const auto i21 = (h[0][1] * h[2][0] - h[0][0] * h[2][1]) * invDet;
-                    const auto i22 = (h[0][0] * h[1][1] - h[0][1] * h[1][0]) * invDet;
-
-                    dPosMx = i00 * b[0] + i01 * b[1] + i02 * b[2];
-                    dPosMy = i10 * b[0] + i11 * b[1] + i12 * b[2];
-                    dRotM = i20 * b[0] + i21 * b[1] + i22 * b[2];
-                }
-
-                pos.x += std::clamp(dPosMx, -0.1, 0.1);
-                pos.y += std::clamp(dPosMy, -0.1, 0.1);
-                rot += std::clamp(dRotM, -0.05, 0.05);
+                totalProbability += m;
+                totalCount++;
             }
 
-            const auto confidence = totalCount > 0
-                ? std::clamp(totalProbability / totalCount, 0.0, 1.0)
-                : 0.0;
+            const auto det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1]) - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0]) + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
 
-            return { Pose(pos, rot), confidence };
+            auto dPosMx = 0.0, dPosMy = 0.0, dRotM = 0.0;
+
+            if (std::abs(det) > 1e-6) {
+                const auto invDet = 1.0 / det;
+
+                const auto i00 = (h[1][1] * h[2][2] - h[1][2] * h[2][1]) * invDet;
+                const auto i01 = (h[0][2] * h[2][1] - h[0][1] * h[2][2]) * invDet;
+                const auto i02 = (h[0][1] * h[1][2] - h[0][2] * h[1][1]) * invDet;
+
+                const auto i10 = (h[1][2] * h[2][0] - h[1][0] * h[2][2]) * invDet;
+                const auto i11 = (h[0][0] * h[2][2] - h[0][2] * h[2][0]) * invDet;
+                const auto i12 = (h[0][2] * h[1][0] - h[0][0] * h[1][2]) * invDet;
+
+                const auto i20 = (h[1][0] * h[2][1] - h[1][1] * h[2][0]) * invDet;
+                const auto i21 = (h[0][1] * h[2][0] - h[0][0] * h[2][1]) * invDet;
+                const auto i22 = (h[0][0] * h[1][1] - h[0][1] * h[1][0]) * invDet;
+
+                dPosMx = i00 * b[0] + i01 * b[1] + i02 * b[2];
+                dPosMy = i10 * b[0] + i11 * b[1] + i12 * b[2];
+                dRotM = i20 * b[0] + i21 * b[1] + i22 * b[2];
+            }
+
+            pos.x += std::clamp(dPosMx, -0.1, 0.1);
+            pos.y += std::clamp(dPosMy, -0.1, 0.1);
+            rot += std::clamp(dRotM, -0.05, 0.05);
         }
 
-    private:
-        const OccupancyGrid &_grid;
-        int _numIterations;
+        const auto confidence = totalCount > 0 ? std::clamp(totalProbability / totalCount, 0.0, 1.0) : 0.0;
 
-        [[nodiscard]] std::tuple<int, int, double, double> GridOffsetForInterpolation(const Vector2 &worldPos) const
-        {
-            // Subtract 0.5f so integer boundaries align with the exact centers of the cells
-            const auto gridFloatX = (worldPos.x / _grid.GetCellSize()) + (_grid.GetWidth() * 0.5) - 0.5;
-            const auto gridFloatY = (worldPos.y / _grid.GetCellSize()) + (_grid.GetHeight() * 0.5) - 0.5;
+        return { Pose(pos, rot), confidence };
+    }
 
-            const auto cellX = static_cast<int>(std::floor(gridFloatX));
-            const auto cellY = static_cast<int>(std::floor(gridFloatY));
+private:
+    const OccupancyGrid& _grid;
+    int _numIterations;
 
-            const auto fractionX = gridFloatX - cellX;
-            const auto fractionY = gridFloatY - cellY;
+    [[nodiscard]] std::tuple<int, int, double, double> GridOffsetForInterpolation(const Vector2& worldPos) const
+    {
+        // Subtract 0.5f so integer boundaries align with the exact centers of the cells
+        const auto gridFloatX = (worldPos.x / _grid.GetCellSize()) + (_grid.GetWidth() * 0.5) - 0.5;
+        const auto gridFloatY = (worldPos.y / _grid.GetCellSize()) + (_grid.GetHeight() * 0.5) - 0.5;
 
-            return { cellX, cellY, fractionX, fractionY };
-        }
-    };
-}
+        const auto cellX = static_cast<int>(std::floor(gridFloatX));
+        const auto cellY = static_cast<int>(std::floor(gridFloatY));
+
+        const auto fractionX = gridFloatX - cellX;
+        const auto fractionY = gridFloatY - cellY;
+
+        return { cellX, cellY, fractionX, fractionY };
+    }
+};
+} // namespace Manhattan::Core

@@ -1,49 +1,48 @@
 #pragma once
 
-#include <rclcpp/rclcpp.hpp>
+#include <geometry_msgs/msg/pose_stamped.hpp>
 #include <nav_msgs/msg/odometry.hpp>
 #include <nav_msgs/msg/path.hpp>
-#include <geometry_msgs/msg/pose_stamped.hpp>
+#include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
 #include "BaseController.h"
 #include "Kinematics.hpp"
 
-namespace Manhattan::Core
-{
-    class RobotOdometry final : public BaseController
-    {
-    public:
-        explicit RobotOdometry(const App &app);
+namespace Manhattan::Core {
+class RobotOdometry final : public BaseController {
+public:
+    explicit RobotOdometry(const App& app);
 
-        void ApplyCorrection(const Pose2D &correctedPose);
+    void ApplyCorrection(const Pose2D& correctedPose);
 
-        [[nodiscard]] Kinematics GetKinematics() const;
+    [[nodiscard]] Kinematics GetKinematics() const;
 
-        void OnEnable() override;
+    void OnEnable() override;
 
-        void OnDisable() override;
-    private:
-        void OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr &msg);
+    void OnDisable() override;
 
-        void publishOdometry(const rclcpp::Time &stamp);
+private:
+    void OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
-        // -----------------------------------------------------------------------
-        Kinematics _kinematics;
+    void publishOdometry(const rclcpp::Time& stamp);
 
-        Pose2D _pose = { };
-        double _linearVelocity = 0.0;
-        double _angularVelocity = 0.0;
+    // -----------------------------------------------------------------------
+    Kinematics _kinematics;
 
-        // Previous cumulative encoder counts
-        int32_t _prevLeft = 0;
-        int32_t _prevRight = 0;
-        bool _initialized = false;
+    Pose2D _pose = {};
+    double _linearVelocity = 0.0;
+    double _angularVelocity = 0.0;
 
-        rclcpp::Time _lastPublishTime{0, 0, RCL_ROS_TIME};
+    // Previous cumulative encoder counts
+    int32_t _prevLeft = 0;
+    int32_t _prevRight = 0;
+    bool _initialized = false;
 
-        rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
-        rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr _odomPub;
-        rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
-    };
-}
+    rclcpp::Time _lastPublishTime { 0, 0, RCL_ROS_TIME };
+
+    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
+    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr _odomPub;
+    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
+};
+} // namespace Manhattan::Core

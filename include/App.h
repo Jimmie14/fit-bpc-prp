@@ -4,44 +4,49 @@
 #include "Controllers/BaseController.h"
 #include "Networking/TcpServer.h"
 
-namespace Manhattan::Core
-{
-    class App {
-        std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> _executor;
-        std::shared_ptr<TcpServer> _tcpServer;
+namespace Manhattan::Core {
+class App {
+    std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> _executor;
+    std::shared_ptr<TcpServer> _tcpServer;
 
-        std::unordered_map<std::type_index, std::shared_ptr<BaseController>> _controllers;
+    std::unordered_map<std::type_index, std::shared_ptr<BaseController>> _controllers;
 
-        rclcpp::Node::SharedPtr _node;
-    public:
-        App();
+    rclcpp::Node::SharedPtr _node;
 
-        std::shared_ptr<TcpServer> GetTcpServer() const { return _tcpServer; }
+public:
+    App();
 
-        void Run() const;
+    std::shared_ptr<TcpServer> GetTcpServer() const
+    {
+        return _tcpServer;
+    }
 
-        rclcpp::Node::SharedPtr GetNode() const { return _node; }
+    void Run() const;
 
-        template<typename T>
-        requires std::is_base_of_v<BaseController, T>
-        std::shared_ptr<T> GetController() const
-        {
-            auto it = _controllers.find(typeid(T));
-            if (it != _controllers.end()) {
-                return std::static_pointer_cast<T>(it->second);
-            }
+    rclcpp::Node::SharedPtr GetNode() const
+    {
+        return _node;
+    }
 
-            return nullptr;
+    template <typename T>
+    requires std::is_base_of_v<BaseController, T> std::shared_ptr<T> GetController()
+    const
+    {
+        auto it = _controllers.find(typeid(T));
+        if (it != _controllers.end()) {
+            return std::static_pointer_cast<T>(it->second);
         }
 
-        template<typename T, typename... Args>
-        requires std::is_base_of_v<BaseController, T>
-        std::shared_ptr<T> AddController(Args&&... args)
-        {
-            auto controller = std::make_shared<T>(*this, std::forward<Args>(args)...);
-            _controllers[typeid(T)] = controller;
+        return nullptr;
+    }
 
-            return controller;
-        }
-    };
-}
+    template <typename T, typename... Args>
+    requires std::is_base_of_v<BaseController, T> std::shared_ptr<T> AddController(Args&&... args)
+    {
+        auto controller = std::make_shared<T>(*this, std::forward<Args>(args)...);
+        _controllers[typeid(T)] = controller;
+
+        return controller;
+    }
+};
+} // namespace Manhattan::Core
