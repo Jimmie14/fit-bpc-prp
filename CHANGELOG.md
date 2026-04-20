@@ -1,4 +1,4 @@
-## [unreleased]
+## [1.1.0] - 2026-04-20
 
 ### 🚀 Features
 
@@ -46,6 +46,8 @@
 - Add generate CHANGELOG workflow
 - Update changelog
 - *(cliff)* Update cliff config to ignore save commits
+- Update changelog
+- Bump version to 1.1.0
 ## [1.0.0] - 2026-03-24
 
 ### 🚀 Features
