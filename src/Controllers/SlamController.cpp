@@ -12,8 +12,7 @@ namespace Manhattan::Core
         _poseMatcher(PoseMatcher(_grid, 5)),
         _lastStablePose(Pose::Identity()),
         _lastOdomPose(Pose::Identity()),
-        _odomPoseDelta(Pose::Zero()),
-        _odomLock(false)
+        _odomPoseDelta(Pose::Zero())
     {
         app.GetController<LidarController>()->SetScanCallback(
             [this](const std::vector<Vector2> &points) {
