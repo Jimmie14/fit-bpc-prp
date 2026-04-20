@@ -114,22 +114,27 @@ namespace Manhattan::Core
             return std::atan2(det, dot);
         }
 
-        double SqrMagnitude() const {
+        [[nodiscard]] double SqrMagnitude() const {
             return x * x + y * y;
         }
 
-        double Magnitude() const {
+        [[nodiscard]] double Magnitude() const {
             return std::sqrt(SqrMagnitude());
         }
 
-        Vector2 Normalized() const {
+        [[nodiscard]] Vector2 Normalized() const {
             const auto c = Magnitude();
 
             return Vector2(x / c, y / c);
         }
 
-        double getX() const { return x; }
-        double getY() const { return y; }
+        static Vector2 Zero() {
+            return Vector2(0, 0);
+        }
+
+        [[nodiscard]] std::string ToString() const {
+            return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
+        }
     };
 
     struct RayHit

@@ -6,17 +6,12 @@ using namespace rclcpp;
 
 namespace Manhattan::Core
 {
-
-    // ---------------------------------------------------------------------------
-    // Robot constants — keep in sync with MotorController.cpp
-    // ---------------------------------------------------------------------------
+    // todo: code duplication with MotorController.cpp
     constexpr double WHEEL_RADIUS = 0.033;
     constexpr double WHEEL_BASE = 0.12;
     constexpr int32_t PULSES_PER_ROTATION = 550;
 
     constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
-
-    // ---------------------------------------------------------------------------
 
     RobotOdometry::RobotOdometry(const App& app) : BaseController(app),
         _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
@@ -30,8 +25,9 @@ namespace Manhattan::Core
     void RobotOdometry::OnEnable()
     {
         _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
-            ENCODERS_TOPIC, 10,
-            [this](std_msgs::msg::UInt32MultiArray::SharedPtr msg) { onEncoders(std::move(msg)); }
+            ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
+                OnEncoders(msg);
+            }
         );
 
         RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
@@ -53,11 +49,7 @@ namespace Manhattan::Core
         return _kinematics;
     }
 
-    // ---------------------------------------------------------------------------
-    // Private
-    // ---------------------------------------------------------------------------
-
-    void RobotOdometry::onEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
+    void RobotOdometry::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr &msg)
     {
         if (msg->data.size() < 2)
         {
@@ -159,4 +151,3 @@ namespace Manhattan::Core
     }
 
 } // namespace Manhattan::Core
-

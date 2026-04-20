@@ -22,7 +22,7 @@ namespace Manhattan::Core {
         bool RayCast(const Vector2 &worldPosition, const Vector2 &direction, RayHit &rayHit, double maxDistance = 100);
 
         [[nodiscard]] Pose CurrentPose() const {
-            return _lastPose;
+            return _lastStablePose;
         }
 
     private:
@@ -37,13 +37,21 @@ namespace Manhattan::Core {
 
         OccupancyGrid _grid;
         PoseMatcher _poseMatcher;
-        Pose _lastPose;
+
+        Pose _lastOdomPose;
+        Pose _odomPoseDelta;
+
+        Pose _lastStablePose;
+
 
         nav_msgs::msg::Path _path;
 
-        std::mutex _updateMutex;
+        std::mutex _lidarLock;
+        std::mutex _odomLock;
 
-        void Update(const std::vector<Vector2> &points);
+        void OnOdometry(const nav_msgs::msg::Odometry::SharedPtr &msg);
+
+        void OnLidar(const std::vector<Vector2> &points);
 
         [[nodiscard]] std::vector<Vector2> TransformPointsLocalToWorld(const std::vector<Vector2>& localPoints, const Pose& pose) const;
 

@@ -10,10 +10,15 @@ namespace Manhattan::Core
         : BaseController(app),
         _grid(Vector2Int(200, 200), 0.05, 8, 20),
         _poseMatcher(PoseMatcher(_grid, 5)),
-        _lastPose(Pose(Vector2(0, 0), 0))
+        _lastStablePose(Pose::Identity()),
+        _lastOdomPose(Pose::Identity()),
+        _odomPoseDelta(Pose::Zero()),
+        _odomLock(false)
     {
         app.GetController<LidarController>()->SetScanCallback(
-        [this](const std::vector<Vector2>& points) { this->Update(points); }
+            [this](const std::vector<Vector2> &points) {
+                this->OnLidar(points);
+            }
         );
 
         _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 10);
@@ -24,39 +29,76 @@ namespace Manhattan::Core
 
         _path.header.frame_id = "map";
 
-        // _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
-        //     "/odometry/filtered",
-        //     10,
-        //     [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
-        //         // Handle odometry updates if needed
-        //     }
-        // );
+        _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
+            "/odometry/filtered", 10,
+            [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+                this->OnOdometry(msg);
+            }
+        );
 
         _timer = _node->create_wall_timer(
-            100ms,
-        [this] { Publish(); }
+            100ms, [this] {
+                Publish();
+            }
         );
 
         RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
     }
 
-    void SlamController::Update(const std::vector<Vector2> &points)
+    void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr &msg) {
+        const auto current = Pose(
+            Vector2(msg->pose.pose.position.x, msg->pose.pose.position.y),
+            2.0 * std::atan2(
+                msg->pose.pose.orientation.z,
+                msg->pose.pose.orientation.w
+            ) - M_PI * 0.5
+        );
+
+        {
+            std::lock_guard guard(_odomLock);
+
+            const auto delta = current - _lastOdomPose;
+            _odomPoseDelta = _odomPoseDelta + delta;
+
+            _lastOdomPose = current;
+        }
+    }
+
+    void SlamController::OnLidar(const std::vector<Vector2> &points)
     {
-        const std::unique_lock lock(_updateMutex, std::try_to_lock);
+        const std::unique_lock lock(_lidarLock, std::try_to_lock);
 
         if (!lock.owns_lock()) {
-            RCLCPP_DEBUG(_node->get_logger(), "SlamController: Update skipped (already running)");
+            RCLCPP_DEBUG(_node->get_logger(), "SlamController: OnLidar skipped");
             return;
         }
         if (points.empty()) return;
 
-        // ResetGridIfNeeded();
+        // todo: support ResetGridIfNeeded() if robot leaves grid
 
-        _lastPose = _poseMatcher.Match(points, _lastPose.position, _lastPose.rotation);
+        const auto result = _poseMatcher.Match(points, _lastStablePose);
 
-        auto worldPoints = TransformPointsLocalToWorld(points, _lastPose);
+        const auto matcherDelta = result.pose - _lastStablePose;
+        Pose odomDelta;
 
-        MapScan(worldPoints, _lastPose.position);
+        {
+            std::lock_guard guard(_odomLock);
+
+            odomDelta = _odomPoseDelta;
+
+            _odomPoseDelta = Pose::Zero();
+            _lastStablePose = result.pose;
+        }
+
+        std::cout << "Matcher delta  : " << matcherDelta.ToString() << std::endl;
+        std::cout << "Odometry delta : " << odomDelta.ToString() << std::endl;
+
+        std::cout << "Matcher confidence: " << result.confidence << std::endl;
+
+
+        const auto worldPoints = TransformPointsLocalToWorld(points, _lastStablePose);
+
+        MapScan(worldPoints, _lastStablePose.position);
 
         _grid.RecalculateCosts();
     }
@@ -113,11 +155,11 @@ namespace Manhattan::Core
     }
 
     void SlamController::Publish() {
-        const std::unique_lock lock(_updateMutex, std::try_to_lock);
+        const std::unique_lock lock(_lidarLock, std::try_to_lock);
 
         if (!lock.owns_lock()) return;
 
-        PublishPose(_lastPose);
+        PublishPose(_lastStablePose);
         PublishGrid();
         PublishGridMap();
     }
