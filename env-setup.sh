@@ -1,5 +1,7 @@
 #!/bin/sh
 
+# This file contains only part what should be installed to achieve working environment
+
 sudo apt update
 sudo apt install ros-humble-grid-map-msgs
 sudo apt install ros-humble-grid-map-core
