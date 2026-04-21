@@ -10,6 +10,7 @@
 #include "RobotOdometry.hpp"
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
+#include "ImuComponent.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -27,6 +28,8 @@ int main(const int argc, char* argv[])
     const auto app = make_shared<Core::App>();
 
     AddKinematics(app);
+
+    app->AddController<Core::ImuComponent>()->Enable();
 
     app->AddController<Core::LineController>();
     app->AddController<Core::LidarController>();

@@ -3,14 +3,21 @@
 ### 🚀 Features
 
 - Improve pose matching confidence response in SlamController
+- Add ImuComponent republishing imu with covariance and correct frame
 
 ### 🐛 Bug Fixes
 
 - Recalculate cost in separete thread
 - Recalculate cost in separate thread
 
+### 🚜 Refactor
+
+- Replace path queue with vector in ExplorerController and NavigatorController
+
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
+- Update changelog
 - Update changelog
 - Update changelog
 ## [1.1.0] - 2026-04-20
