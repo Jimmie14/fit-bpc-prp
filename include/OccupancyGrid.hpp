@@ -15,13 +15,15 @@ class GridCell {
     Vector2Int _gridPosition;
 
 public:
-    GridCell(Vector2Int gridPos, Vector2 worldPos)
+
+    GridCell(const Vector2Int gridPos, const Vector2 worldPos)
+        : _worldPosition(worldPos)
+        , _gridPosition(gridPos)
     {
-        _gridPosition = gridPos;
-        _worldPosition = worldPos;
+
     }
 
-    Vector2Int GetGridPosition() const
+    [[nodiscard]] Vector2Int GetGridPosition() const
     {
         return _gridPosition;
     }
@@ -59,7 +61,7 @@ public:
         return _cost;
     }
 
-    void SetCost(double cost)
+    void SetCost(const double cost)
     {
         _cost = cost;
     }
@@ -117,7 +119,7 @@ public:
         return _cellSize;
     }
 
-    int GetIndex(int x, int y) const
+    int GetIndex(const int x, const int y) const
     {
         return y * _width + x;
     }
@@ -139,7 +141,7 @@ public:
         return x >= 0 && x < _width && y >= 0 && y < _height;
     }
 
-    double GetProbability(int x, int y) const
+    double GetProbability(const int x, const int y) const
     {
         if (!InBounds(x, y))
             return 0.5;
@@ -152,7 +154,7 @@ public:
         if (!InBounds(cell.x, cell.y))
             return;
 
-        _grid[GetIndex(cell.x, cell.y)].Add(LogOddsFree * std::exp(-dst * 0.5f));
+        _grid[GetIndex(cell.x, cell.y)].Add(LogOddsFree);
     }
 
     void SetOccupied(const Vector2Int cell)

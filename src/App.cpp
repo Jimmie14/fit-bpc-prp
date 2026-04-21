@@ -6,7 +6,7 @@ using namespace rclcpp;
 namespace Manhattan::Core {
 App::App()
 {
-    _executor = make_shared<executors::MultiThreadedExecutor>();
+    _executor = make_shared<executors::MultiThreadedExecutor>(ExecutorOptions(), 16);
     _tcpServer = make_shared<TcpServer>(12345);
 
     _node = make_shared<Node>("manhattan");

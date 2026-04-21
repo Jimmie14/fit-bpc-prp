@@ -51,6 +51,10 @@ struct Pose {
 struct PoseResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };
+
+    [[nodiscard]] static PoseResult Combine(const PoseResult& left, const PoseResult& right) {
+        return left.confidence > right.confidence ? left : right;
+    }
 };
 
 class PoseMatcher {
@@ -66,13 +70,13 @@ public:
     {
         auto pos = estimatedPose.position;
         auto rot = estimatedPose.rotation;
+        const auto pointsCount = static_cast<double>(scanPoints.size());
 
         auto totalProbability = 0.0;
-        auto totalCount = 0;
+        auto totalObservability = 0.0;
 
         for (int iter = 0; iter < _numIterations; iter++) {
             totalProbability = 0.0;
-            totalCount = 0;
 
             // Initialize 3x3 Hessian matrix and 3x1 boundary vector with zeros
             double h[3][3] = { {} };
@@ -103,8 +107,8 @@ public:
                 const auto p01 = _grid.GetProbability(x0, y1);
                 const auto p11 = _grid.GetProbability(x1, y1);
 
-                if (p00 <= 0.5 && p10 <= 0.5 && p01 <= 0.5 && p11 <= 0.5)
-                    continue;
+                // if (p00 <= 0.5 && p10 <= 0.5 && p01 <= 0.5 && p11 <= 0.5)
+                //     continue;
 
                 const auto m = (p00 * (1.0 - fx) * (1.0 - fy)) + (p10 * fx * (1.0 - fy)) + (p01 * (1.0 - fx) * fy) + (p11 * fx * fy);
 
@@ -135,7 +139,6 @@ public:
                 b[2] += gTheta * error;
 
                 totalProbability += m;
-                totalCount++;
             }
 
             const auto det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1]) - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0]) + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
@@ -160,6 +163,16 @@ public:
                 dPosMx = i00 * b[0] + i01 * b[1] + i02 * b[2];
                 dPosMy = i10 * b[0] + i11 * b[1] + i12 * b[2];
                 dRotM = i20 * b[0] + i21 * b[1] + i22 * b[2];
+
+                const auto quality = std::log(std::abs(det) + 1.0);
+                const auto qualityNorm = quality / (quality + 1.0);
+
+                const auto trace = h[0][0] + h[1][1] + h[2][2];
+                const auto traceAvg = trace / pointsCount;
+                const auto traceNorm = traceAvg / (traceAvg + 1.0); // todo: calculate k over sliding mediat window
+
+                // weighted average of determinant quality and constraint magnitude
+                totalObservability += (qualityNorm * 0.6 + traceNorm * 0.4) / static_cast<double>(_numIterations);
             }
 
             pos.x += std::clamp(dPosMx, -0.1, 0.1);
@@ -167,7 +180,11 @@ public:
             rot += std::clamp(dRotM, -0.05, 0.05);
         }
 
-        const auto confidence = totalCount > 0 ? std::clamp(totalProbability / totalCount, 0.0, 1.0) : 0.0;
+        const auto coverage = scanPoints.empty()
+            ? 0.0
+            : totalProbability / static_cast<double>(scanPoints.size());
+
+        const auto confidence = std::clamp(coverage, 0.0, 1.0);
 
         return { Pose(pos, rot), confidence };
     }

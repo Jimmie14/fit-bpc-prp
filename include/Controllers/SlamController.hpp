@@ -45,17 +45,14 @@ private:
 
     nav_msgs::msg::Path _path;
 
-    std::mutex _lidarLock;
+    std::mutex _mapLock;
     std::mutex _odomLock;
 
     void OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg);
 
     void OnLidar(const std::vector<Vector2>& points);
 
-    [[nodiscard]] std::vector<Vector2> TransformPointsLocalToWorld(const std::vector<Vector2>& localPoints,
-        const Pose& pose) const;
-
-    void MapScan(const std::vector<Vector2>& worldPoints, const Vector2& robotPosition);
+    void MapScan(const std::vector<Vector2> &points);
 
     void Publish();
     void PublishPose(const Pose& pose);

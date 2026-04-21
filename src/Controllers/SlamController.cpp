@@ -14,20 +14,24 @@ SlamController::SlamController(const App& app)
     , _odomPoseDelta(Pose::Zero())
 {
     app.GetController<LidarController>()->SetScanCallback(
-        [this](const std::vector<Vector2>& points) { this->OnLidar(points); });
+        [this](const std::vector<Vector2>& points) {
+            this->OnLidar(points);
+        });
 
-    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 10);
-    _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 10);
+    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 5);
+    _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 5);
 
-    _gridPub = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", 10);
-    _gridMapPub = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", 10);
+    _gridPub = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", 1);
+    _gridMapPub = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", 1);
 
     _path.header.frame_id = "map";
 
     _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) { this->OnOdometry(msg); });
+        "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+            this->OnOdometry(msg);
+        });
 
-    _timer = _node->create_wall_timer(100ms, [this] { Publish(); });
+    _timer = _node->create_wall_timer(200ms, [this] { Publish(); });
 
     RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
 }
@@ -41,6 +45,8 @@ void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
         std::lock_guard guard(_odomLock);
 
         const auto delta = current - _lastOdomPose;
+        std::cout << "odom  : " << delta.ToString() << std::endl;
+
         _odomPoseDelta = _odomPoseDelta + delta;
 
         _lastOdomPose = current;
@@ -49,20 +55,13 @@ void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
 
 void SlamController::OnLidar(const std::vector<Vector2>& points)
 {
-    const std::unique_lock lock(_lidarLock, std::try_to_lock);
-
-    if (!lock.owns_lock()) {
-        RCLCPP_DEBUG(_node->get_logger(), "SlamController: OnLidar skipped");
-        return;
-    }
     if (points.empty())
         return;
 
+    std::lock_guard lock(_mapLock);
+
     // todo: support ResetGridIfNeeded() if robot leaves grid
 
-    const auto result = _poseMatcher.Match(points, _lastStablePose);
-
-    const auto matcherDelta = result.pose - _lastStablePose;
     Pose odomDelta;
 
     {
@@ -71,55 +70,50 @@ void SlamController::OnLidar(const std::vector<Vector2>& points)
         odomDelta = _odomPoseDelta;
 
         _odomPoseDelta = Pose::Zero();
-        _lastStablePose = result.pose;
     }
 
-    std::cout << "Matcher delta  : " << matcherDelta.ToString() << std::endl;
-    std::cout << "Odometry delta : " << odomDelta.ToString() << std::endl;
+    const auto stableResult = _poseMatcher.Match(points, _lastStablePose);
+    const auto odomResult = _poseMatcher.Match(points, _lastOdomPose + odomDelta);
+    std::cout << "odomDelta  : " << odomDelta.ToString() << std::endl;
+
+    const auto result = PoseResult::Combine(stableResult, odomResult);
+
+    _lastStablePose = result.pose;
 
     std::cout << "Matcher confidence: " << result.confidence << std::endl;
 
-    const auto worldPoints = TransformPointsLocalToWorld(points, _lastStablePose);
+    if (result.confidence < 0.5)
+        return;
 
-    MapScan(worldPoints, _lastStablePose.position);
+    MapScan(points);
 
-    _grid.RecalculateCosts();
+    // _grid.RecalculateCosts();
 }
 
-std::vector<Vector2> SlamController::TransformPointsLocalToWorld(const std::vector<Vector2>& localPoints,
-    const Pose& pose) const
-{
-    std::vector<Vector2> worldPoints;
-    worldPoints.reserve(localPoints.size());
-
-    auto cosRot = std::cos(pose.rotation);
-    auto sinRot = std::sin(pose.rotation);
-
-    for (const auto& localPoint : localPoints) {
-        Vector2 worldPoint { pose.position.x + localPoint.x * cosRot - localPoint.y * sinRot,
-            pose.position.y + localPoint.x * sinRot + localPoint.y * cosRot };
-
-        worldPoints.push_back(worldPoint);
-    }
-
-    return worldPoints;
-}
-
-void SlamController::MapScan(const std::vector<Vector2>& worldPoints, const Vector2& robotPosition)
+void SlamController::MapScan(const std::vector<Vector2>& points)
 {
     // Convert robot position to grid coordinates
-    auto startGridPos = _grid.WorldToGrid(robotPosition);
+    const auto startGridPos = _grid.WorldToGrid(_lastStablePose.position);
+
+    const auto cosRot = std::cos(_lastStablePose.rotation);
+    const auto sinRot = std::sin(_lastStablePose.rotation);
 
     // For each point in the scan
-    for (const auto& point : worldPoints) {
+    for (const auto& p : points) {
+
+        const auto point = Vector2(
+            _lastStablePose.position.x + p.x * cosRot - p.y * sinRot,
+            _lastStablePose.position.y + p.x * sinRot + p.y * cosRot
+        );
+
         // Convert to grid coordinates
-        auto endGridPos = _grid.WorldToGrid(point);
+        const auto endGridPos = _grid.WorldToGrid(point);
 
         // Mark all cells along the line as free (using Bresenham algorithm)
-        auto bresenhamCells = OccupancyGrid::Bresenham(startGridPos, endGridPos);
+        const auto bresenhamCells = OccupancyGrid::Bresenham(startGridPos, endGridPos);
         for (const auto& cell : bresenhamCells) {
             // Mark as free with distance-based cost
-            auto distance = std::sqrt((point.x - robotPosition.x) * (point.x - robotPosition.x) + (point.y - robotPosition.y) * (point.y - robotPosition.y));
+            const auto distance = std::sqrt((point.x - _lastStablePose.position.x) * (point.x - _lastStablePose.position.x) + (point.y - _lastStablePose.position.y) * (point.y - _lastStablePose.position.y));
 
             _grid.SetFree(cell, distance);
         }
@@ -131,8 +125,7 @@ void SlamController::MapScan(const std::vector<Vector2>& worldPoints, const Vect
 
 void SlamController::Publish()
 {
-    const std::unique_lock lock(_lidarLock, std::try_to_lock);
-
+    const std::unique_lock lock(_mapLock, std::try_to_lock);
     if (!lock.owns_lock())
         return;
 
