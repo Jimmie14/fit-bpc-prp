@@ -1,10 +1,16 @@
 
 #include "ImuComponent.hpp"
 
+#include "RobotOdometry.hpp"
+
+#include <nav_msgs/msg/detail/grid_cells__builder.hpp>
+
 using namespace std;
 
 constexpr auto baseImuTopic = "/bpc_prp_robot/imu";
 constexpr auto imuTopic = "~/imu";
+
+constexpr auto imuOrientationCovariance = 0.01;
 constexpr auto imuAngularCovariance = 0.01;
 constexpr auto imuLinearCovariance = 0.01;
 

@@ -1,10 +1,8 @@
 #pragma once
 
-
+#include "BaseController.h"
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
-#include "BaseController.h"
-
 
 namespace Manhattan::Core {
 class ImuComponent final : public BaseController {
