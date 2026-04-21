@@ -28,6 +28,7 @@ private:
     double _currentLinearVelocity = 0.0;
 
     double _t = 0.0;
+    std::chrono::steady_clock::time_point _lastTime;
 
     Kinematics _kinematics;
     Pid _angularPid;

@@ -17,13 +17,12 @@ constexpr double cornerSlowMinFactor = 0.25;
 constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
 constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
-constexpr double maxLinearSpeed = 0.4;
+constexpr double maxLinearSpeed = 0.5;
 constexpr double maxAngularSpeed = 0.2;
 
-constexpr double turnDeceleration = 8.0;
-constexpr double acceleration = 0.05;
-constexpr double deceleration = 0.4;
-constexpr double updateDeltaTime = 0.01;
+constexpr double turnDeceleration = 4.0;
+constexpr double acceleration = 0.1;
+constexpr double deceleration = 0.3;
 
 constexpr double angularKp = 0.2;
 constexpr double angularKi = 0.012;
@@ -42,7 +41,8 @@ namespace Manhattan::Core {
 NavigatorController::NavigatorController(const App& app)
     : BaseController(app)
     , _kinematics(app.GetController<RobotOdometry>()->GetKinematics())
-    , _angularPid(angularKp, angularKi, angularKd)
+    , _angularPid(angularKp, angularKi, angularKd),
+    _lastTime(std::chrono::steady_clock::now())
 {
 
     _motor = app.GetController<MotorController>();
@@ -86,7 +86,7 @@ void NavigatorController::PublishPath() const
 
     msg.poses.push_back(poseMsg);
 
-    for (auto seg : _path.GetSegments())
+    for (const auto& seg : _path.GetSegments())
     {
         for (int i = 1; i <= 60; i++)
         {
@@ -248,7 +248,7 @@ void NavigatorController::ClearPath()
 
 bool NavigatorController::IsInDestination() const
 {
-    return _t > 0.9;
+    return _t > 0.9 || !_path.HasPath();
 }
 
 vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
@@ -347,7 +347,7 @@ Vector2 NavigatorController::GetDirection(const vector<RayHit>& rayHits, const P
     const Vector2& desiredDirection) const
 {
     auto direction = desiredDirection;
-    const auto rayWeight = 1.0 / rayCount;
+    constexpr auto rayWeight = 1.0 / rayCount;
 
     for (const auto rayHit : rayHits) {
         const auto dst = Vector2::Distance(pose.position, rayHit.hit);
@@ -400,6 +400,12 @@ double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double c
 
 void NavigatorController::Update()
 {
+    const auto now = std::chrono::steady_clock::now();
+    const std::chrono::duration<double> delta = now - _lastTime;
+    auto deltaTime = delta.count();
+
+    _lastTime = now;
+
     if (!_path.HasPath()) {
         const auto speed = _kinematics.inverse(RobotSpeed { 0, 0 });
 
@@ -429,12 +435,14 @@ void NavigatorController::Update()
     // }
 
     const auto rayHits = RayCastAround(pose);
-    const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
+    // const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
-    PublishRayCast(rayHits, pose, desiredDirection);
+    // PublishRayCast(rayHits, pose, desiredDirection);
 
-    const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-    const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, updateDeltaTime), -maxAngularSpeed, maxAngularSpeed);
+    // const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+    const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
+
+    const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
     _currentAngularVelocity = angularSpeedTarget;
 
     auto distanceFactor = 1.0;
@@ -442,7 +450,7 @@ void NavigatorController::Update()
         const auto forwardHit = rayHits[0];
         const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
 
-        distanceFactor = clamp(distanceAhead / rayDistance, 0.0, 1.0);
+        distanceFactor = 1 - exp(-distanceAhead * rayDistance); // clamp(, 0.0, 1.0);
     }
 
     const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
@@ -451,7 +459,7 @@ void NavigatorController::Update()
     const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor * cornerFactor;
 
     _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
-        (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * 0.1 * maxLinearSpeed);
+        (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * maxLinearSpeed * deltaTime);
 
     const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
