@@ -3,6 +3,7 @@
 ### 🚀 Features
 
 - Improve pose matching confidence response in SlamController
+- Add ImuComponent republishing imu with covariance and correct frame
 
 ### 🐛 Bug Fixes
 
@@ -15,6 +16,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
