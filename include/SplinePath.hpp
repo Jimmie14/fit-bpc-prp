@@ -103,7 +103,7 @@ namespace Manhattan::Core
             double DistanceToPathSq{};
         };
 
-        bool HasPath() const { return !segments.empty(); }
+        [[nodiscard]] bool HasPath() const { return !segments.empty(); }
 
         void Initialize(const std::vector<Vector2>& waypoints) {
             segments.clear();

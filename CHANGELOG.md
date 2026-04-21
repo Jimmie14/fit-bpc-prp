@@ -14,9 +14,13 @@
 
 - Replace path queue with vector in ExplorerController and NavigatorController
 - Rename HasPath to IsInDestination and update related logic
+- Adjust speed parameters and improve time delta calculation in NavigatorController
+- Adjust navigation parameters and improve path evaluation logic
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog

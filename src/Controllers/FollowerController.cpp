@@ -7,7 +7,7 @@ FollowerController::FollowerController(const App& app)
     : BaseController(app)
     , _fov(180)
     , _rayDistance(2)
-    , _rayCount(11)
+    , _rayCount(7)
     , _avoidanceDistance(0.2)
 {
     _map = app.GetController<SlamController>();
