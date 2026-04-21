@@ -15,12 +15,10 @@ class GridCell {
     Vector2Int _gridPosition;
 
 public:
-
     GridCell(const Vector2Int gridPos, const Vector2 worldPos)
         : _worldPosition(worldPos)
         , _gridPosition(gridPos)
     {
-
     }
 
     [[nodiscard]] Vector2Int GetGridPosition() const

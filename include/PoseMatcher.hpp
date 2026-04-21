@@ -52,7 +52,8 @@ struct PoseResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };
 
-    [[nodiscard]] static PoseResult Combine(const PoseResult& left, const PoseResult& right) {
+    [[nodiscard]] static PoseResult Combine(const PoseResult& left, const PoseResult& right)
+    {
         return left.confidence > right.confidence ? left : right;
     }
 };
