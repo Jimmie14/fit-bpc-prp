@@ -16,9 +16,11 @@
 - Rename HasPath to IsInDestination and update related logic
 - Adjust speed parameters and improve time delta calculation in NavigatorController
 - Adjust navigation parameters and improve path evaluation logic
+- Adjust ray count and distance parameters in FollowerController and NavigatorController
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
