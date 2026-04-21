@@ -1,6 +1,7 @@
 #include "NavigatorController.hpp"
 
 #include "RobotOdometry.hpp"
+#include "SplinePath.hpp"
 
 using namespace std;
 
@@ -54,9 +55,13 @@ NavigatorController::NavigatorController(const App& app)
         [this] { Update(); });
 }
 
-void NavigatorController::SetPath(std::queue<GridCell*> path)
+void NavigatorController::SetPath(const std::vector<GridCell*>& path)
 {
-    _path = queue(path);
+    std::vector<Vector2> waypoints;
+    for (const auto waypoint : path)
+        waypoints.push_back(waypoint->GetWorldPosition());
+
+    _path.Initialize(waypoints);
 }
 
 void NavigatorController::PublishPath() const
@@ -81,23 +86,24 @@ void NavigatorController::PublishPath() const
 
     msg.poses.push_back(poseMsg);
 
-    auto temp = _path;
-    while (!temp.empty()) {
+    for (auto seg : _path.GetSegments())
+    {
+        for (int i = 1; i <= 60; i++)
+        {
+            position = seg.Evaluate(i / 60.0);
 
-        position = temp.front()->GetWorldPosition();
-        poseMsg.pose.position.x = position.x;
-        poseMsg.pose.position.y = position.y;
-        poseMsg.pose.position.z = 0.0;
+            poseMsg.pose.position.x = position.x;
+            poseMsg.pose.position.y = position.y;
+            poseMsg.pose.position.z = 0.0;
 
-        msg.poses.push_back(poseMsg);
-
-        temp.pop();
+            msg.poses.push_back(poseMsg);
+        }
     }
 
     _pathPublisher->publish(msg);
 }
 
-std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) const
+void NavigatorController::SetDestination(GridCell* destination)
 {
     struct QueueItem {
         GridCell* cell;
@@ -116,10 +122,10 @@ std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) 
 
     const auto startCell = _slam->GetCell(_slam->CurrentPose().position);
     if (startCell == nullptr || destination == nullptr)
-        return {};
+        return SetPath({});
 
     if (startCell == destination)
-        return {};
+        return SetPath({});
 
     distances[startCell] = 0.0;
     openSet.push({ startCell, 0.0 });
@@ -156,7 +162,7 @@ std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) 
     }
 
     if (!distances.contains(destination))
-        return {};
+        return SetPath({});
 
     std::vector<GridCell*> path;
     auto current = destination;
@@ -166,82 +172,82 @@ std::queue<GridCell*> NavigatorController::CalculatePath(GridCell* destination) 
 
         const auto it = previous.find(current);
         if (it == previous.end()) {
-            return {};
+            return SetPath({});
         }
 
         current = it->second;
     }
 
-    std::reverse(path.begin(), path.end());
-    path = SmoothPath(path);
+    ranges::reverse(path);
+    // path = SmoothPath(path);
 
-    std::queue<GridCell*> result;
-    for (auto* cell : path) {
-        result.push(cell);
-    }
+    // std::queue<GridCell*> result;
+    // for (auto* cell : path) {
+    //     result.push(cell);
+    // }
 
-    return result;
+    SetPath(path);
 }
 
-std::vector<GridCell*> NavigatorController::SmoothPath(const std::vector<GridCell*>& pathList) const
-{
-    std::vector<GridCell*> smoothedPath;
-    if (pathList.empty())
-        return smoothedPath;
-
-    smoothedPath.push_back(pathList.front());
-    size_t currentIndex = 0;
-
-    for (size_t i = 1; i < pathList.size(); ++i) {
-        if (HasLineOfSight(pathList[currentIndex], pathList[i]))
-            continue;
-
-        smoothedPath.push_back(pathList[i - 1]);
-        currentIndex = i - 1;
-    }
-
-    if (smoothedPath.back() != pathList.back()) {
-        smoothedPath.push_back(pathList.back());
-    }
-
-    return smoothedPath;
-}
-
-bool NavigatorController::HasLineOfSight(GridCell* start, GridCell* end) const
-{
-    const auto startPos = start->GetWorldPosition();
-    const auto endPos = end->GetWorldPosition();
-    const auto distance = Vector2::Distance(startPos, endPos);
-    const auto direction = (endPos - startPos).Normalized();
-
-    // 0.03 is grid cell size
-    const auto step = 0.03 / 2.0;
-    const auto perpendicular = Vector2(-direction.y, direction.x) * 0.1;
-
-    for (double d = step; d < distance; d += step) {
-        const auto centerPos = startPos + direction * d;
-
-        if (IsBlocking(centerPos) || IsBlocking(centerPos + perpendicular) || IsBlocking(centerPos - perpendicular)) {
-            return false;
-        }
-    }
-    return true;
-}
-
-bool NavigatorController::IsBlocking(const Vector2& position) const
-{
-    const auto cell = _slam->GetCell(position);
-    return cell == nullptr || cell->IsOccupied();
-}
+// std::vector<GridCell*> NavigatorController::SmoothPath(const std::vector<GridCell*>& pathList) const
+// {
+//     std::vector<GridCell*> smoothedPath;
+//     if (pathList.empty())
+//         return smoothedPath;
+//
+//     smoothedPath.push_back(pathList.front());
+//     size_t currentIndex = 0;
+//
+//     for (size_t i = 1; i < pathList.size(); ++i) {
+//         if (HasLineOfSight(pathList[currentIndex], pathList[i]))
+//             continue;
+//
+//         smoothedPath.push_back(pathList[i - 1]);
+//         currentIndex = i - 1;
+//     }
+//
+//     if (smoothedPath.back() != pathList.back()) {
+//         smoothedPath.push_back(pathList.back());
+//     }
+//
+//     return smoothedPath;
+// }
+//
+// bool NavigatorController::HasLineOfSight(GridCell* start, GridCell* end) const
+// {
+//     const auto startPos = start->GetWorldPosition();
+//     const auto endPos = end->GetWorldPosition();
+//     const auto distance = Vector2::Distance(startPos, endPos);
+//     const auto direction = (endPos - startPos).Normalized();
+//
+//     // 0.03 is grid cell size
+//     const auto step = 0.03 / 2.0;
+//     const auto perpendicular = Vector2(-direction.y, direction.x) * 0.1;
+//
+//     for (double d = step; d < distance; d += step) {
+//         const auto centerPos = startPos + direction * d;
+//
+//         if (IsBlocking(centerPos) || IsBlocking(centerPos + perpendicular) || IsBlocking(centerPos - perpendicular)) {
+//             return false;
+//         }
+//     }
+//     return true;
+// }
+//
+// bool NavigatorController::IsBlocking(const Vector2& position) const
+// {
+//     const auto cell = _slam->GetCell(position);
+//     return cell == nullptr || cell->IsOccupied();
+// }
 
 void NavigatorController::ClearPath()
 {
-    _path = {};
+    _path.Initialize({});
 }
 
 bool NavigatorController::HasPath() const
 {
-    return !_path.empty();
+    return _path.HasPath();
 }
 
 vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
@@ -357,20 +363,19 @@ Vector2 NavigatorController::GetDirection(const vector<RayHit>& rayHits, const P
     return direction.Normalized();
 }
 
-double NavigatorController::GetCornerSlowFactor(const Pose& pose) const
+double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double currentT) const
 {
-    if (_path.empty())
+    if (!_path.HasPath())
         return 1.0;
 
     std::vector<Vector2> points;
     points.reserve(lookAheadWaypoints + 1);
-
     points.push_back(pose.position);
 
-    auto temp = _path;
-    for (int i = 0; i < lookAheadWaypoints && !temp.empty(); ++i) {
-        points.push_back(temp.front()->GetWorldPosition());
-        temp.pop();
+    auto t = currentT;
+    for (int i = 0; i < lookAheadWaypoints && t < 1.0; ++i) {
+        points.push_back(_path.GetPointAtDistance(t * _path.GetTotalLength()));
+        t = std::clamp(t + waypointTolerance, 0.0, 1.0);
     }
 
     if (points.size() < 3)
@@ -388,8 +393,7 @@ double NavigatorController::GetCornerSlowFactor(const Pose& pose) const
     if (worstAngle <= cornerSlowAngleThreshold)
         return 1.0;
 
-    const auto t = clamp((worstAngle - cornerSlowAngleThreshold) / (cornerSlowAngleMax - cornerSlowAngleThreshold), 0.0, 1.0);
-
+    t = clamp((worstAngle - cornerSlowAngleThreshold) / (cornerSlowAngleMax - cornerSlowAngleThreshold), 0.0, 1.0);
     return 1.0 - t * (1.0 - cornerSlowMinFactor);
 }
 
@@ -405,13 +409,23 @@ void NavigatorController::Update()
     PublishPath();
 
     auto pose = _slam->CurrentPose();
-    auto currentWaypoint = _path.front();
-    auto directionToWaypoint = (currentWaypoint->GetWorldPosition() - pose.position).Normalized();
+    auto result = _path.FindClosestPoint(pose.position);
 
-    if (Vector2::Distance(pose.position, currentWaypoint->GetWorldPosition()) < waypointTolerance) {
-        _path.pop();
+    if (_path.GetTotalLength() <= 0)
         return;
-    }
+
+    auto t = std::clamp((result.DistanceAlongPath + waypointTolerance) / _path.GetTotalLength(), 0.0, 1.0);
+
+    auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
+    auto directionToWaypoint = (aimPoint - pose.position).Normalized();
+
+    // auto currentWaypoint = _path.front();
+    // auto directionToWaypoint = (currentWaypoint->GetWorldPosition() - pose.position).Normalized();
+    //
+    // if (Vector2::Distance(pose.position, currentWaypoint->GetWorldPosition()) < waypointTolerance) {
+    //     _path.pop();
+    //     return;
+    // }
 
     const auto rayHits = RayCastAround(pose);
     const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
@@ -431,7 +445,7 @@ void NavigatorController::Update()
     }
 
     const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
-    const auto cornerFactor = GetCornerSlowFactor(pose);
+    const auto cornerFactor = GetCornerSlowFactor(pose, t);
 
     const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor * cornerFactor;
 

@@ -26,7 +26,7 @@ void ExplorerController::OnDisable()
     _timer.reset();
 }
 
-std::queue<GridCell*> ExplorerController::Explore(GridCell* startCell) const
+std::vector<GridCell*> ExplorerController::Explore(GridCell* startCell) const
 {
     std::map<GridCell*, double> distances;
     std::map<GridCell*, GridCell*> previous;
@@ -90,17 +90,18 @@ std::queue<GridCell*> ExplorerController::Explore(GridCell* startCell) const
     }
     ranges::reverse(pathList);
 
-    std::queue<GridCell*> pathQueue;
-    long i = 0;
-    for (auto* cell : pathList) {
-        pathQueue.push(cell);
-        i++;
-
-        if (i >= pathList.size() - 5)
-            break;
-    }
-
-    return pathQueue;
+    return pathList;
+    // std::queue<GridCell*> pathQueue;
+    // long i = 0;
+    // for (auto* cell : pathList) {
+    //     pathQueue.push(cell);
+    //     i++;
+    //
+    //     if (i >= pathList.size() - 5)
+    //         break;
+    // }
+    //
+    // return pathQueue;
 }
 
 void ExplorerController::Update()
@@ -117,7 +118,7 @@ void ExplorerController::Update()
         if (startCell == nullptr)
             return;
 
-        std::queue<GridCell*> path = Explore(startCell);
+        auto path = Explore(startCell);
         if (!path.empty()) {
             _navigatorController->SetPath(path);
             break;
