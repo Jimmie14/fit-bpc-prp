@@ -13,9 +13,11 @@
 ### 🚜 Refactor
 
 - Replace path queue with vector in ExplorerController and NavigatorController
+- Rename HasPath to IsInDestination and update related logic
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
