@@ -31,7 +31,8 @@ SlamController::SlamController(const App& app)
             this->OnOdometry(msg);
         });
 
-    _timer = _node->create_wall_timer(200ms, [this] { Publish(); });
+    _publishTimer = _node->create_wall_timer(200ms, [this] { Publish(); });
+    _costUpdateTimer = _node->create_wall_timer(1000ms, [this] { _grid.RecalculateCosts(); });
 
     RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
 }
@@ -86,8 +87,6 @@ void SlamController::OnLidar(const std::vector<Vector2>& points)
         return;
 
     MapScan(points);
-
-    // _grid.RecalculateCosts();
 }
 
 void SlamController::MapScan(const std::vector<Vector2>& points)
@@ -103,8 +102,7 @@ void SlamController::MapScan(const std::vector<Vector2>& points)
 
         const auto point = Vector2(
             _lastStablePose.position.x + p.x * cosRot - p.y * sinRot,
-            _lastStablePose.position.y + p.x * sinRot + p.y * cosRot
-        );
+            _lastStablePose.position.y + p.x * sinRot + p.y * cosRot);
 
         // Convert to grid coordinates
         const auto endGridPos = _grid.WorldToGrid(point);

@@ -28,7 +28,8 @@ public:
 private:
     rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
 
-    rclcpp::TimerBase::SharedPtr _timer;
+    rclcpp::TimerBase::SharedPtr _publishTimer;
+    rclcpp::TimerBase::SharedPtr _costUpdateTimer;
 
     rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPub;
@@ -52,7 +53,7 @@ private:
 
     void OnLidar(const std::vector<Vector2>& points);
 
-    void MapScan(const std::vector<Vector2> &points);
+    void MapScan(const std::vector<Vector2>& points);
 
     void Publish();
     void PublishPose(const Pose& pose);
