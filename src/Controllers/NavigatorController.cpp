@@ -6,7 +6,7 @@
 using namespace std;
 
 constexpr int rayCount = 32;
-constexpr double rayDistance = 5;
+constexpr double rayDistance = 3;
 constexpr double avoidanceDistance = 0.22;
 constexpr double avoidanceStrength = 20;
 
@@ -426,7 +426,7 @@ void NavigatorController::Update()
     const auto rayHits = RayCastAround(pose);
     const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
-    // PublishRayCast(rayHits, pose, desiredDirection);
+    PublishRayCast(rayHits, pose, desiredDirection);
 
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
     // const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
