@@ -1,3 +1,12 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Improve pose matching confidence response in SlamController
+
+### ⚙️ Miscellaneous Tasks
+
+- Update changelog
 ## [1.1.0] - 2026-04-20
 
 ### 🚀 Features
