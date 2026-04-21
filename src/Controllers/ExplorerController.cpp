@@ -106,7 +106,7 @@ std::vector<GridCell*> ExplorerController::Explore(GridCell* startCell) const
 
 void ExplorerController::Update()
 {
-    if (_navigatorController->HasPath())
+    if (!_navigatorController->IsInDestination())
         return;
 
     switch (_state) {

@@ -33,7 +33,7 @@ void FollowerController::OnDisable()
 
 void FollowerController::FollowCorridor()
 {
-    if (_navigator->HasPath())
+    if (!_navigator->IsInDestination())
         return;
 
     const auto pose = _map->CurrentPose();

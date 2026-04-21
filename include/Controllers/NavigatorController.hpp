@@ -18,7 +18,7 @@ public:
 
     void SetPath(const std::vector<GridCell*>& path);
 
-    [[nodiscard]] bool HasPath() const;
+    [[nodiscard]] bool IsInDestination() const;
     void ClearPath();
 
     void SetDestination(GridCell* destination); // todo: move this to somewhere else
@@ -26,6 +26,8 @@ public:
 private:
     double _currentAngularVelocity = 0.0;
     double _currentLinearVelocity = 0.0;
+
+    double _t = 0.0;
 
     Kinematics _kinematics;
     Pid _angularPid;

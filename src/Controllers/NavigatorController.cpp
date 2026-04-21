@@ -243,11 +243,12 @@ void NavigatorController::SetDestination(GridCell* destination)
 void NavigatorController::ClearPath()
 {
     _path.Initialize({});
+    _t = 0.0;
 }
 
-bool NavigatorController::HasPath() const
+bool NavigatorController::IsInDestination() const
 {
-    return _path.HasPath();
+    return _t > 0.9;
 }
 
 vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
@@ -399,7 +400,7 @@ double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double c
 
 void NavigatorController::Update()
 {
-    if (!HasPath()) {
+    if (!_path.HasPath()) {
         const auto speed = _kinematics.inverse(RobotSpeed { 0, 0 });
 
         _motor->SetForce(speed.left, speed.right);
@@ -414,9 +415,9 @@ void NavigatorController::Update()
     if (_path.GetTotalLength() <= 0)
         return;
 
-    auto t = std::clamp((result.DistanceAlongPath + waypointTolerance) / _path.GetTotalLength(), 0.0, 1.0);
+    _t = std::clamp((result.DistanceAlongPath + waypointTolerance) / _path.GetTotalLength(), 0.0, 1.0);
 
-    auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
+    auto aimPoint = _path.GetPointAtDistance(_t * _path.GetTotalLength());
     auto directionToWaypoint = (aimPoint - pose.position).Normalized();
 
     // auto currentWaypoint = _path.front();
@@ -445,7 +446,7 @@ void NavigatorController::Update()
     }
 
     const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
-    const auto cornerFactor = GetCornerSlowFactor(pose, t);
+    const auto cornerFactor = GetCornerSlowFactor(pose, _t);
 
     const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor * cornerFactor;
 
