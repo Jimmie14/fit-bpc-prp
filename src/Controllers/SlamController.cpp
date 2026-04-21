@@ -46,7 +46,7 @@ void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
         std::lock_guard guard(_odomLock);
 
         const auto delta = current - _lastOdomPose;
-        std::cout << "odom  : " << delta.ToString() << std::endl;
+        // std::cout << "odom  : " << delta.ToString() << std::endl;
 
         _odomPoseDelta = _odomPoseDelta + delta;
 
@@ -75,13 +75,13 @@ void SlamController::OnLidar(const std::vector<Vector2>& points)
 
     const auto stableResult = _poseMatcher.Match(points, _lastStablePose);
     const auto odomResult = _poseMatcher.Match(points, _lastOdomPose + odomDelta);
-    std::cout << "odomDelta  : " << odomDelta.ToString() << std::endl;
+    // std::cout << "odomDelta  : " << odomDelta.ToString() << std::endl;
 
     const auto result = PoseResult::Combine(stableResult, odomResult);
 
     _lastStablePose = result.pose;
 
-    std::cout << "Matcher confidence: " << result.confidence << std::endl;
+    // std::cout << "Matcher confidence: " << result.confidence << std::endl;
 
     if (result.confidence < 0.5)
         return;

@@ -6,27 +6,28 @@
 using namespace std;
 
 constexpr int rayCount = 32;
-constexpr double rayDistance = 2;
+constexpr double rayDistance = 5;
 constexpr double avoidanceDistance = 0.22;
 constexpr double avoidanceStrength = 20;
 
-constexpr double waypointTolerance = 0.25;
+constexpr double waypointTolerance = 0.2;
+constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
 constexpr double cornerSlowMinFactor = 0.25;
 constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
 constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
-constexpr double maxLinearSpeed = 0.5;
+constexpr double maxLinearSpeed = 0.25;
 constexpr double maxAngularSpeed = 0.2;
 
-constexpr double turnDeceleration = 4.0;
-constexpr double acceleration = 0.1;
-constexpr double deceleration = 0.3;
+constexpr double turnDeceleration = 1.5;
+constexpr double acceleration = 0.05;
+constexpr double deceleration = 0.4;
 
-constexpr double angularKp = 0.2;
+constexpr double angularKp = 0.3;
 constexpr double angularKi = 0.012;
-constexpr double angularKd = 0.001;
+constexpr double angularKd = 0.01;
 
 static double MoveTowards(const double current, const double target, const double maxDelta)
 {
@@ -74,23 +75,11 @@ void NavigatorController::PublishPath() const
     poseMsg.header.stamp = msg.header.stamp;
     poseMsg.header.frame_id = "map";
 
-    auto position = _slam->CurrentPose().position;
-    poseMsg.pose.position.x = position.x;
-    poseMsg.pose.position.y = position.y;
-    poseMsg.pose.position.z = 0.0;
-
-    poseMsg.pose.orientation.x = 0.0;
-    poseMsg.pose.orientation.y = 0.0;
-    poseMsg.pose.orientation.z = 0.0;
-    poseMsg.pose.orientation.w = 1.0;
-
-    msg.poses.push_back(poseMsg);
-
     for (const auto& seg : _path.GetSegments())
     {
         for (int i = 1; i <= 60; i++)
         {
-            position = seg.Evaluate(i / 60.0);
+            const auto position = seg.Evaluate(i / 60.0);
 
             poseMsg.pose.position.x = position.x;
             poseMsg.pose.position.y = position.y;
@@ -435,12 +424,12 @@ void NavigatorController::Update()
     // }
 
     const auto rayHits = RayCastAround(pose);
-    // const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
+    const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
     // PublishRayCast(rayHits, pose, desiredDirection);
 
-    // const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-    const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
+    const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+    // const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
 
     const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
     _currentAngularVelocity = angularSpeedTarget;
@@ -450,13 +439,13 @@ void NavigatorController::Update()
         const auto forwardHit = rayHits[0];
         const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
 
-        distanceFactor = 1 - exp(-distanceAhead * rayDistance); // clamp(, 0.0, 1.0);
+        distanceFactor = clamp(distanceAhead / distanceToSlow, 0.0, 1.0);
     }
 
     const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
     const auto cornerFactor = GetCornerSlowFactor(pose, _t);
 
-    const auto targetSpeed = maxLinearSpeed * turnFactor * distanceFactor * cornerFactor;
+    const auto targetSpeed = maxLinearSpeed * clamp(distanceFactor * cornerFactor * turnFactor, 0.0, 1.0);
 
     _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
         (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * maxLinearSpeed * deltaTime);
