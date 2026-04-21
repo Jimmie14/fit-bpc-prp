@@ -43,8 +43,7 @@ void FollowerController::FollowCorridor()
     if (targetCell == nullptr)
         return;
 
-    auto path = _navigator->CalculatePath(targetCell);
-    _navigator->SetPath(path);
+    _navigator->SetDestination(targetCell);
 }
 
 Vector2 FollowerController::GetTarget(const Pose& pose) const

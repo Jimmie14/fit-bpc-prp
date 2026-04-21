@@ -104,6 +104,11 @@ struct Vector2 {
         return Vector2(x * scalar, y * scalar);
     }
 
+    Vector2 operator/(const double scalar) const
+    {
+        return Vector2(x / scalar, y / scalar);
+    }
+
     Vector2 operator-() const
     {
         return Vector2(-x, -y);
@@ -124,6 +129,11 @@ struct Vector2 {
     static double Distance(const Vector2& p1, const Vector2& p2)
     {
         return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2));
+    }
+
+    static Vector2 Lerp(const Vector2& a, const Vector2& b, double t) {
+        t = std::max(0.0, std::min(1.0, t));
+        return a + (b - a) * t;
     }
 
     static double Dot(const Vector2& p1, const Vector2& p2)
