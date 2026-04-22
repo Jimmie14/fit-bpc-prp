@@ -1,5 +1,9 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Add multiple hypothesis to MappingEngine
+
 ### 🚜 Refactor
 
 - Major architecture refactor
