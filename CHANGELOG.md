@@ -1,5 +1,13 @@
 ## [unreleased]
 
+### 🚜 Refactor
+
+- Major architecture refactor
+
+### 🎨 Styling
+
+- Run clang-format
+
 ### ⚙️ Miscellaneous Tasks
 
 - Correct skip rule for 'ci: update changelog' in cliff config
