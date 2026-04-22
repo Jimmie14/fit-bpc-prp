@@ -29,13 +29,15 @@ void ImuDriver::OnEnable()
 
     _imuPublisher = _node->create_publisher<sensor_msgs::msg::Imu>(imuTopic, 2);
 
-    RCLCPP_INFO(_node->get_logger(), "ImuComponent enabled");
+    RCLCPP_INFO(_node->get_logger(), "Imu driver enabled");
 }
 
 void ImuDriver::OnDisable()
 {
     _imuSubscriber.reset();
     _imuPublisher.reset();
+
+    RCLCPP_INFO(_node->get_logger(), "Imu driver disabled");
 }
 
 void ImuDriver::OnImu(const sensor_msgs::msg::Imu::SharedPtr& msg) const

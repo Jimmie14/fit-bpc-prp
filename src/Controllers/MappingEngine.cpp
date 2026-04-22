@@ -19,13 +19,12 @@ MappingEngine::MappingEngine(App& app)
         this->OnLidar(scan.points);
     });
 
-    const auto qos = rclcpp::QoS(1).best_effort().durability_volatile();
-    _scanPublisher = _node->create_publisher<sensor_msgs::msg::PointCloud2>("~/slam/scan", qos);
-    _posePublisher = _node->create_publisher<geometry_msgs::msg::PoseArray>("~/slam/pose", qos);
-    _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", qos);
+    _scanPublisher = _node->create_publisher<sensor_msgs::msg::PointCloud2>("~/slam/scan", rclcpp::QoS(1).best_effort().durability_volatile());
+    _posePublisher = _node->create_publisher<geometry_msgs::msg::PoseArray>("~/slam/pose", rclcpp::QoS(1));
+    _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", rclcpp::QoS(1));
 
-    _gridPublisher = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", qos);
-    _gridMapPublisher = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", qos);
+    _gridPublisher = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", rclcpp::QoS(1));
+    _gridMapPublisher = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", rclcpp::QoS(1).best_effort().durability_volatile());
 
     _path.header.frame_id = "map";
 
@@ -34,7 +33,9 @@ MappingEngine::MappingEngine(App& app)
             this->OnOdometry(msg);
         });
 
-    _publishTimer = _node->create_wall_timer(200ms, [this] { Publish(); });
+    _publishTimer = _node->create_wall_timer(200ms, [this] {
+        Publish();
+    });
     _costUpdateTimer = _node->create_wall_timer(1000ms, [this] {
         std::lock_guard guard(_mapLock);
 
