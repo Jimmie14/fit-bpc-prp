@@ -12,6 +12,7 @@ public:
     void OnEnable() override;
 
     void OnDisable() override;
+
 private:
     rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr _imuSubscriber;
     rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr _imuPublisher;

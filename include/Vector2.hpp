@@ -131,7 +131,8 @@ struct Vector2 {
         return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2));
     }
 
-    static Vector2 Lerp(const Vector2& a, const Vector2& b, double t) {
+    static Vector2 Lerp(const Vector2& a, const Vector2& b, double t)
+    {
         t = std::max(0.0, std::min(1.0, t));
         return a + (b - a) * t;
     }

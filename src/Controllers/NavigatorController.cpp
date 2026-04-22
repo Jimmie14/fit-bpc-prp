@@ -42,8 +42,8 @@ namespace Manhattan::Core {
 NavigatorController::NavigatorController(const App& app)
     : BaseController(app)
     , _kinematics(app.GetController<RobotOdometry>()->GetKinematics())
-    , _angularPid(angularKp, angularKi, angularKd),
-    _lastTime(std::chrono::steady_clock::now())
+    , _angularPid(angularKp, angularKi, angularKd)
+    , _lastTime(std::chrono::steady_clock::now())
 {
 
     _motor = app.GetController<MotorController>();
@@ -75,10 +75,8 @@ void NavigatorController::PublishPath() const
     poseMsg.header.stamp = msg.header.stamp;
     poseMsg.header.frame_id = "map";
 
-    for (const auto& seg : _path.GetSegments())
-    {
-        for (int i = 1; i <= 60; i++)
-        {
+    for (const auto& seg : _path.GetSegments()) {
+        for (int i = 1; i <= 60; i++) {
             const auto position = seg.Evaluate(i / 60.0);
 
             poseMsg.pose.position.x = position.x;

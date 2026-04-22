@@ -19,15 +19,13 @@ namespace Manhattan::Core {
 ImuComponent::ImuComponent(const App& app)
     : BaseController(app)
 {
-
 }
 
 void ImuComponent::OnEnable()
 {
     _imuSubscriber = _node->create_subscription<sensor_msgs::msg::Imu>(
         baseImuTopic, 2,
-        [this](const sensor_msgs::msg::Imu::SharedPtr msg) { this->OnImu(msg); }
-    );
+        [this](const sensor_msgs::msg::Imu::SharedPtr msg) { this->OnImu(msg); });
 
     _imuPublisher = _node->create_publisher<sensor_msgs::msg::Imu>(imuTopic, 2);
 

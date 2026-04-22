@@ -32,7 +32,11 @@ SlamController::SlamController(const App& app)
         });
 
     _publishTimer = _node->create_wall_timer(200ms, [this] { Publish(); });
-    _costUpdateTimer = _node->create_wall_timer(1000ms, [this] { _grid.RecalculateCosts(); });
+    _costUpdateTimer = _node->create_wall_timer(1000ms, [this] {
+        std::lock_guard guard(_mapLock);
+
+        this->_grid.RecalculateCosts();
+    });
 
     RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
 }

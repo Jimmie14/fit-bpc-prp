@@ -4,13 +4,13 @@
 #include "Controllers/Node/LineController.hpp"
 #include "ExplorerController.hpp"
 #include "FollowerController.hpp"
+#include "ImuComponent.hpp"
 #include "LidarController.hpp"
 #include "MotorController.hpp"
 #include "NavigatorController.hpp"
 #include "RobotOdometry.hpp"
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
-#include "ImuComponent.hpp"
 
 using namespace std;
 using namespace Manhattan;
