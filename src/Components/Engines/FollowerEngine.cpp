@@ -1,37 +1,37 @@
-#include "FollowerController.hpp"
+#include "FollowerEngine.hpp"
 
 using namespace std;
 
 namespace Manhattan::Core {
-FollowerController::FollowerController(const App& app)
-    : RosConnector(app)
+FollowerEngine::FollowerEngine(const App& app)
+    : RosEngine(app, "follower")
     , _fov(180)
     , _rayDistance(3)
     , _rayCount(11)
     , _avoidanceDistance(0.2)
 {
-    _map = app.GetController<MappingEngine>();
-    _navigator = app.GetController<NavigatorController>();
+    _map = app.GetComponent<MappingEngine>();
+    _navigator = app.GetComponent<NavigatorEngine>();
 }
 
-void FollowerController::OnEnable()
+void FollowerEngine::OnEnable()
 {
     _startPosition = _map->CurrentPose().position;
 
-    _initialTimer = _node->create_wall_timer(1s, [this]() {
+    _initialTimer = create_wall_timer(1s, [this]() {
         _initialTimer->cancel();
 
-        _timer = _node->create_wall_timer(100ms, [this] { Update(); });
+        _timer = create_wall_timer(100ms, [this] { Update(); });
     });
 }
 
-void FollowerController::OnDisable()
+void FollowerEngine::OnDisable()
 {
     _timer.reset();
     _initialTimer.reset();
 }
 
-void FollowerController::FollowCorridor()
+void FollowerEngine::FollowCorridor()
 {
     if (!_navigator->IsInDestination())
         return;
@@ -46,7 +46,7 @@ void FollowerController::FollowCorridor()
     _navigator->SetDestination(targetCell);
 }
 
-Vector2 FollowerController::GetTarget(const Pose& pose) const
+Vector2 FollowerEngine::GetTarget(const Pose& pose) const
 {
     const auto rad = _fov * (M_PI / 180.0);
     auto angle = (M_PI - rad) * 0.5;
@@ -84,7 +84,7 @@ Vector2 FollowerController::GetTarget(const Pose& pose) const
     return pos;
 }
 
-void FollowerController::Update()
+void FollowerEngine::Update()
 {
     FollowCorridor();
 }

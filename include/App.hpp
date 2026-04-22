@@ -9,7 +9,7 @@
 namespace Manhattan::Core {
 class App {
 public:
-    EventBus Events;
+    const std::unique_ptr<EventBus> Events;
 
     App();
 
@@ -20,17 +20,12 @@ public:
 
     void Run() const;
 
-    rclcpp::Node::SharedPtr GetNode() const
-    {
-        return _node;
-    }
-
     template <typename T>
-    requires std::is_base_of_v<RosConnector, T> std::shared_ptr<T> GetController()
+    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> GetComponent()
     const
     {
-        auto it = _controllers.find(typeid(T));
-        if (it != _controllers.end()) {
+        auto it = _components.find(typeid(T));
+        if (it != _components.end()) {
             return std::static_pointer_cast<T>(it->second);
         }
 
@@ -38,29 +33,32 @@ public:
     }
 
     template <typename T, typename... Args>
-    requires std::is_base_of_v<RosConnector, T> std::shared_ptr<T> AddController(Args&&... args)
+    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> AddComponent(Args&&... args)
     {
-        auto controller = std::make_shared<T>(*this, std::forward<Args>(args)...);
-        _controllers[typeid(T)] = controller;
+        auto component = std::make_shared<T>(*this, std::forward<Args>(args)...);
 
-        return controller;
+        _components[typeid(T)] = component;
+        _executor->add_node(component);
+
+        return component;
     }
 
     template <typename T, typename... Args>
     requires std::is_base_of_v<RosDeviceDriver, T> std::shared_ptr<T> AddDriver(Args&&... args)
     {
-        auto controller = std::make_shared<T>(*this, std::forward<Args>(args)...);
-        _controllers[typeid(T)] = controller;
+        return AddComponent<T>(std::forward<Args>(args)...);
+    }
 
-        return controller;
+    template <typename T, typename... Args>
+    requires std::is_base_of_v<RosEngine, T> std::shared_ptr<T> AddEngine(Args&&... args)
+    {
+        return AddComponent<T>(std::forward<Args>(args)...);
     }
 
 private:
-    std::shared_ptr<rclcpp::executors::MultiThreadedExecutor> _executor;
+    const std::shared_ptr<executors::MultiThreadedExecutor> _executor;
     std::shared_ptr<TcpServer> _tcpServer;
 
-    std::unordered_map<std::type_index, std::shared_ptr<RosConnector>> _controllers;
-
-    rclcpp::Node::SharedPtr _node;
+    std::unordered_map<std::type_index, std::shared_ptr<RosComponent>> _components;
 };
 } // namespace Manhattan::Core

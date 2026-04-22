@@ -10,7 +10,7 @@ namespace Manhattan::Core {
 class LidarDriver final : public RosDeviceDriver {
     std::vector<Vector2> _points {};
 
-    rclcpp::Subscription<sensor_msgs::msg::LaserScan>::SharedPtr _lidar_subscriber;
+    Subscription<sensor_msgs::msg::LaserScan>::SharedPtr _lidar_subscriber;
 
     void LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg);
 

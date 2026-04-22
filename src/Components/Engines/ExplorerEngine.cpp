@@ -1,32 +1,31 @@
-#include "ExplorerController.hpp"
+#include "ExplorerEngine.hpp"
 #include <algorithm>
-#include <cmath>
 #include <stdexcept>
 
 using namespace std;
 
 namespace Manhattan::Core {
-ExplorerController::ExplorerController(const App& app)
-    : RosConnector(app)
+ExplorerEngine::ExplorerEngine(const App& app)
+    : RosEngine(app, "explorer")
 {
-    _slamController = app.GetController<MappingEngine>();
-    _navigatorController = app.GetController<NavigatorController>();
+    _slamController = app.GetComponent<MappingEngine>();
+    _navigatorController = app.GetComponent<NavigatorEngine>();
 }
 
-void ExplorerController::OnEnable()
+void ExplorerEngine::OnEnable()
 {
     _startCell = _slamController->GetCell(_slamController->CurrentPose().position);
     _state = ExplorerState::Exploring;
 
-    _timer = _node->create_wall_timer(100ms, [this] { Update(); });
+    _timer = create_wall_timer(100ms, [this] { Update(); });
 }
 
-void ExplorerController::OnDisable()
+void ExplorerEngine::OnDisable()
 {
     _timer.reset();
 }
 
-std::vector<GridCell*> ExplorerController::Explore(GridCell* startCell) const
+std::vector<GridCell*> ExplorerEngine::Explore(GridCell* startCell) const
 {
     std::map<GridCell*, double> distances;
     std::map<GridCell*, GridCell*> previous;
@@ -104,7 +103,7 @@ std::vector<GridCell*> ExplorerController::Explore(GridCell* startCell) const
     // return pathQueue;
 }
 
-void ExplorerController::Update()
+void ExplorerEngine::Update()
 {
     if (!_navigatorController->IsInDestination())
         return;

@@ -30,7 +30,7 @@ def generate_launch_description():
         Node(
             package='project',
             executable='manhattan',
-            name='manhattan',
+            namespace='manhattan',
             output='screen',
             condition=IfCondition(launch_manhattan)
         )

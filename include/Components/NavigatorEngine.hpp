@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "../Common/RosConnector.hpp"
+#include "RosEngine.hpp"
 #include "Kinematics.hpp"
 #include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
@@ -12,9 +12,9 @@
 #include "SplinePath.hpp"
 
 namespace Manhattan::Core {
-class NavigatorController final : public RosConnector {
+class NavigatorEngine final : public RosEngine {
 public:
-    explicit NavigatorController(const App& app);
+    explicit NavigatorEngine(const App& app);
 
     void SetPath(const std::vector<GridCell*>& path);
 
@@ -33,13 +33,13 @@ private:
     Kinematics _kinematics;
     Pid _angularPid;
 
-    rclcpp::TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _timer;
     std::shared_ptr<MotorDriver> _motor; // todo: change naming of MotorController
     std::shared_ptr<MappingEngine> _slam;
 
     SplinePath _path;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
-    rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
+    Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
 
     std::vector<Vector2> SmoothPath(const std::vector<GridCell*>& path) const;
 

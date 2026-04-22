@@ -1,15 +1,16 @@
-#include "../../include/Common/RosConnector.hpp"
+#include "RosComponent.hpp"
 
 #include "App.hpp"
 
 namespace Manhattan::Core {
-RosConnector::RosConnector(const App& app)
-    : _app(app)
-    , _node(app.GetNode())
+RosComponent::RosComponent(const App& app, const std::string& nodeName)
+    : Node(nodeName)
+    , _app(app)
 {
+
 }
 
-void RosConnector::Enable()
+void RosComponent::Enable()
 {
     if (_enabled)
         return;
@@ -18,7 +19,7 @@ void RosConnector::Enable()
     OnEnable();
 }
 
-void RosConnector::Disable()
+void RosComponent::Disable()
 {
     if (!_enabled)
         return;

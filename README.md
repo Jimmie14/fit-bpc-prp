@@ -51,6 +51,10 @@ git clone <project-url> project
    - Use `ssh -l` to launch the backend so ROS sourcing works.
 3. New Project → SSH → Enter Ubuntu VM credentials
 4. Select `~/ros_ws/project` as the project path.
+5. When running the application from CLion, set the app arguments to:
+   `--ros-args -r __ns:=/manhattan`
+   to ensure it starts in the correct namespace.
+
 
 ## 📋 Code Conventions
 This project follows the **WebKit C++ Code Style**.

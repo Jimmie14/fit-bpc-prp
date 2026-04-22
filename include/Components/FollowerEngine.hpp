@@ -1,15 +1,14 @@
 #pragma once
 
-#include "../Common/RosConnector.hpp"
 #include "MappingEngine.hpp"
-#include "NavigatorController.hpp"
+#include "NavigatorEngine.hpp"
 #include "PoseMatcher.hpp"
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
-class FollowerController final : public RosConnector {
+class FollowerEngine final : public RosEngine {
 public:
-    explicit FollowerController(const App& app);
+    explicit FollowerEngine(const App& app);
 
     void OnEnable() override;
 
@@ -25,11 +24,11 @@ private:
 
     double _avoidanceDistance;
 
-    rclcpp::TimerBase::SharedPtr _timer;
-    rclcpp::TimerBase::SharedPtr _initialTimer;
+    TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _initialTimer;
 
     std::shared_ptr<MappingEngine> _map;
-    std::shared_ptr<NavigatorController> _navigator;
+    std::shared_ptr<NavigatorEngine> _navigator;
 
     Vector2 GetTarget(const Pose& pose) const;
 

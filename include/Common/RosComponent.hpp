@@ -2,27 +2,21 @@
 
 #include <rclcpp/rclcpp.hpp>
 
+using namespace std;
+using namespace rclcpp;
+
 namespace Manhattan::Core {
 class App;
 
-class RosConnector {
+class RosComponent : public Node {
 public:
-    explicit RosConnector(const App& app);
-
-    virtual ~RosConnector() = default;
+    explicit RosComponent(const App& app, const string& nodeName);
 
     void Enable();
 
     void Disable();
-
-    [[nodiscard]] virtual std::shared_ptr<rclcpp::Node> GetNode() const
-    {
-        return nullptr;
-    }
-
 protected:
     const App& _app;
-    const rclcpp::Node::SharedPtr _node;
 
     virtual void OnEnable()
     {

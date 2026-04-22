@@ -1,4 +1,4 @@
-#include "../../../include/Controllers/OdometryEngine.hpp"
+#include "OdometryEngine.hpp"
 #include <cmath>
 
 using namespace std;
@@ -13,28 +13,28 @@ constexpr int32_t PULSES_PER_ROTATION = 550;
 constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
 
 OdometryEngine::OdometryEngine(const App& app)
-    : RosEngine(app)
+    : RosEngine(app, "odometry")
     , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
     Enable();
 
-    _odomPub = _node->create_publisher<nav_msgs::msg::Odometry>("~/odom", 10);
-    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
+    _odomPub = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+    _posePub = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);
 }
 
 void OdometryEngine::OnEnable()
 {
-    _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
+    _encoderSub = create_subscription<std_msgs::msg::UInt32MultiArray>(
         ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
 
-    RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
+    RCLCPP_INFO(get_logger(), "RobotOdometry enabled");
 }
 
 void OdometryEngine::OnDisable()
 {
     _encoderSub.reset();
 
-    RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
+    RCLCPP_INFO(get_logger(), "RobotOdometry disabled");
 }
 
 void OdometryEngine::ApplyCorrection(const Pose2D& correctedPose)
@@ -50,7 +50,7 @@ Kinematics OdometryEngine::GetKinematics() const
 void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
 {
     if (msg->data.size() < 2) {
-        RCLCPP_WARN_ONCE(_node->get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
+        RCLCPP_WARN_ONCE(get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
         return;
     }
 
@@ -80,7 +80,7 @@ void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr
     _linearVelocity = (dLeft + dRight) * 0.5;
     _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
 
-    publishOdometry(_node->now());
+    publishOdometry(now());
 }
 
 void OdometryEngine::publishOdometry(const Time& stamp)

@@ -14,8 +14,8 @@ public:
     void OnDisable() override;
 
 private:
-    rclcpp::Subscription<sensor_msgs::msg::Imu>::SharedPtr _imuSubscriber;
-    rclcpp::Publisher<sensor_msgs::msg::Imu>::SharedPtr _imuPublisher;
+    Subscription<sensor_msgs::msg::Imu>::SharedPtr _imuSubscriber;
+    Publisher<sensor_msgs::msg::Imu>::SharedPtr _imuPublisher;
 
     void OnImu(const sensor_msgs::msg::Imu::SharedPtr& msg) const;
 };

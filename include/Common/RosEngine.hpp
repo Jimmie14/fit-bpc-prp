@@ -1,12 +1,12 @@
 #pragma once
 
-#include "RosConnector.hpp"
+#include "RosComponent.hpp"
 
 namespace Manhattan::Core {
-class RosEngine : public RosConnector {
+class RosEngine : public RosComponent {
 public:
-    explicit RosEngine(const App& app)
-        : RosConnector(app)
+    explicit RosEngine(const App& app, const string& name)
+        : RosComponent(app, name + "_engine")
     {
     }
 };

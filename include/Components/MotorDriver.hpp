@@ -8,10 +8,10 @@
 
 namespace Manhattan::Core {
 class MotorDriver final : public RosDeviceDriver {
-    rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
-    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
+    Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
+    Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
-    rclcpp::TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
 
     void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;

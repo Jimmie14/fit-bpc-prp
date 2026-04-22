@@ -65,17 +65,17 @@ public:
     }
 
 private:
-    rclcpp::Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
+    Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
 
-    rclcpp::TimerBase::SharedPtr _publishTimer;
-    rclcpp::TimerBase::SharedPtr _costUpdateTimer;
+    TimerBase::SharedPtr _publishTimer;
+    TimerBase::SharedPtr _costUpdateTimer;
 
-    rclcpp::Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
-    rclcpp::Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _posePublisher;
-    rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
+    Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
+    Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _posePublisher;
+    Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
-    rclcpp::Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
-    rclcpp::Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
+    Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
+    Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
 
     OccupancyGrid _grid;
     PoseMatcher _poseMatcher;
@@ -89,7 +89,7 @@ private:
     std::unordered_map<size_t, ScanContext> _scanContexts;
 
     MappingEngineState _state = MappingEngineState::Initializing;
-    rclcpp::Time _lostTime;
+    Time _lostTime;
 
     std::vector<Vector2> _lastScan;
 

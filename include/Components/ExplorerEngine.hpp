@@ -1,11 +1,9 @@
 #pragma once
 
-#include "../Common/RosConnector.hpp"
+#include "RosEngine.hpp"
 #include "MappingEngine.hpp"
-#include "NavigatorController.hpp"
-#include <map>
+#include "NavigatorEngine.hpp"
 #include <memory>
-#include <queue>
 #include <vector>
 
 namespace Manhattan::Core {
@@ -15,9 +13,9 @@ enum class ExplorerState {
     Returning
 };
 
-class ExplorerController : public RosConnector {
+class ExplorerEngine : public RosEngine {
 public:
-    ExplorerController(const App& app);
+    ExplorerEngine(const App& app);
 
     void Update();
 
@@ -29,10 +27,10 @@ private:
     GridCell* Recenter(GridCell* cell) const;
     std::vector<GridCell*> Explore(GridCell* startCell) const;
 
-    rclcpp::TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _timer;
 
     std::shared_ptr<MappingEngine> _slamController;
-    std::shared_ptr<NavigatorController> _navigatorController;
+    std::shared_ptr<NavigatorEngine> _navigatorController;
 
     ExplorerState _state = ExplorerState::Idle;
     GridCell* _startCell = nullptr;

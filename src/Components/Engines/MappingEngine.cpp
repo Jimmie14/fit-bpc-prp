@@ -7,42 +7,42 @@ using namespace std;
 
 namespace Manhattan::Core {
 MappingEngine::MappingEngine(App& app)
-    : RosEngine(app)
+    : RosEngine(app, "mapping")
     , _grid(Vector2Int(200, 200), 0.05, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::Identity())
     , _hypotheses({ PoseMatchResult(Pose::Identity(), 0.5) })
 {
-    _lostTime = _node->now();
+    _lostTime = now();
 
-    app.Events.Subscribe<LidarScan>([this](const LidarScan& scan) {
+    app.Events->Subscribe<LidarScan>([this](const LidarScan& scan) {
         this->OnLidar(scan.points);
     });
 
-    _scanPublisher = _node->create_publisher<sensor_msgs::msg::PointCloud2>("~/slam/scan", rclcpp::QoS(1).best_effort().durability_volatile());
-    _posePublisher = _node->create_publisher<geometry_msgs::msg::PoseArray>("~/slam/pose", rclcpp::QoS(1));
-    _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", rclcpp::QoS(1));
+    _scanPublisher = create_publisher<sensor_msgs::msg::PointCloud2>("slam/scan", QoS(1).best_effort().durability_volatile());
+    _posePublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/pose", QoS(1));
+    _pathPublisher = create_publisher<nav_msgs::msg::Path>("slam/path", QoS(1));
 
-    _gridPublisher = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", rclcpp::QoS(1));
-    _gridMapPublisher = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", rclcpp::QoS(1).best_effort().durability_volatile());
+    _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", QoS(1));
+    _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", QoS(1).best_effort().durability_volatile());
 
     _path.header.frame_id = "map";
 
-    _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
+    _odometrySub = create_subscription<nav_msgs::msg::Odometry>(
         "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
             this->OnOdometry(msg);
         });
 
-    _publishTimer = _node->create_wall_timer(200ms, [this] {
+    _publishTimer = create_wall_timer(200ms, [this] {
         Publish();
     });
-    _costUpdateTimer = _node->create_wall_timer(1000ms, [this] {
+    _costUpdateTimer = create_wall_timer(1000ms, [this] {
         std::lock_guard guard(_mapLock);
 
         this->_grid.RecalculateCosts();
     });
 
-    RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
+    RCLCPP_INFO(get_logger(), "SlamController initialized");
 }
 
 void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
@@ -125,16 +125,16 @@ void MappingEngine::UpdateState()
 {
     constexpr auto lostTimeout = 10000ms;
 
-    const auto now = _node->now();
+    const auto timeNow = now();
 
     if (_hypotheses.empty()) {
         if (_state != MappingEngineState::Lost) {
             _state = MappingEngineState::Lost;
-            _lostTime = now;
+            _lostTime = timeNow;
             return;
         }
 
-        if (now - _lostTime > lostTimeout)
+        if (timeNow - _lostTime > lostTimeout)
             Reset();
 
         return;
@@ -158,11 +158,11 @@ void MappingEngine::UpdateState()
 
     if (_state != MappingEngineState::Lost) {
         _state = MappingEngineState::Lost;
-        _lostTime = now;
+        _lostTime = timeNow;
         return;
     }
 
-    if (now - _lostTime > lostTimeout)
+    if (timeNow - _lostTime > lostTimeout)
         Reset();
 }
 
@@ -356,7 +356,7 @@ void MappingEngine::Publish()
 void MappingEngine::PublishScan() const
 {
     auto msg = sensor_msgs::msg::PointCloud2();
-    msg.header.stamp = _node->now();
+    msg.header.stamp = now();
     msg.header.frame_id = "map";
 
     msg.height = 1;
@@ -386,7 +386,7 @@ void MappingEngine::PublishScan() const
 void MappingEngine::PublishPose() const
 {
     auto msg = geometry_msgs::msg::PoseArray();
-    msg.header.stamp = _node->now();
+    msg.header.stamp = now();
     msg.header.frame_id = "map";
 
     for (const auto hypothesis : _hypotheses) {
@@ -417,7 +417,7 @@ void MappingEngine::PublishPose() const
 void MappingEngine::PublishGrid()
 {
     nav_msgs::msg::OccupancyGrid gridMsg;
-    gridMsg.header.stamp = _node->now();
+    gridMsg.header.stamp = now();
     gridMsg.header.frame_id = "map";
 
     gridMsg.info.origin.position.x = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
