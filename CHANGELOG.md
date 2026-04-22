@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Add Fast DDS support and optimize OccupancyGrid traversal
 ## [1.2.0] - 2026-04-22
 
 ### 🚀 Features
