@@ -4,6 +4,7 @@
 
 - Major architecture refactor
 - Rename SlamController to MappingEngine
+- Enhance navigation logic and smooth path calculation in NavigatorController
 
 ### 🎨 Styling
 
