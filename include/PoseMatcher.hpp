@@ -42,17 +42,51 @@ struct Pose {
         return Pose(Vector2::Zero(), 0.0);
     }
 
+    void TransformPointsInplace(std::vector<Vector2>& points) const
+    {
+        const auto c = std::cos(rotation);
+        const auto s = std::sin(rotation);
+
+        std::vector<Vector2> result;
+        result.reserve(points.size());
+
+        for (auto& p : points) {
+            const auto x = p.x;
+            const auto y = p.y;
+
+            p.x = position.x + x * c - y * s;
+            p.y = position.y + x * s + y * c;
+        }
+    }
+
+    void InverseTransformPointsInplace(std::vector<Vector2>& points) const
+    {
+        const auto c = std::cos(rotation);
+        const auto s = std::sin(rotation);
+
+        std::vector<Vector2> result;
+        result.reserve(points.size());
+
+        for (auto& p : points) {
+            const auto dx = p.x - position.x;
+            const auto dy = p.y - position.y;
+
+            p.x = dx * c + dy * s;
+            p.y = -dx * s + dy * c;
+        }
+    }
+
     [[nodiscard]] std::string ToString() const
     {
         return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
     }
 };
 
-struct PoseResult {
+struct PoseMatchResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };
 
-    [[nodiscard]] static PoseResult Combine(const PoseResult& left, const PoseResult& right)
+    [[nodiscard]] static PoseMatchResult Combine(const PoseMatchResult& left, const PoseMatchResult& right)
     {
         return left.confidence > right.confidence ? left : right;
     }
@@ -67,7 +101,7 @@ public:
     {
     }
 
-    [[nodiscard]] PoseResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
+    [[nodiscard]] PoseMatchResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
     {
         auto pos = estimatedPose.position;
         auto rot = estimatedPose.rotation;
