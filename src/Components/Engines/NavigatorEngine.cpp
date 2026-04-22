@@ -50,8 +50,8 @@ NavigatorEngine::NavigatorEngine(const App& app)
     _motor = app.GetComponent<MotorDriver>();
     _slam = app.GetComponent<MappingEngine>();
 
-    _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 10);
-    _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 10);
+    _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 1);
+    _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 1);
 
     _timer = create_wall_timer(10ms, // todo: timer frequency config duplication
         [this] { Update(); });

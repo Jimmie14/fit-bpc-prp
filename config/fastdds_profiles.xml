@@ -12,6 +12,21 @@
                 <transport_id>udp_transport</transport_id>
             </userTransports>
             <useBuiltinTransports>false</useBuiltinTransports>
+            <allocation>
+                <send_buffers>
+                    <preallocated_number>1</preallocated_number>
+                    <dynamic>true</dynamic>
+                </send_buffers>
+            </allocation>
         </rtps>
     </participant>
+    <!-- Use dynamic allocation instead of pre-allocating max-size buffers at startup.
+         With 10 nodes (PREALLOCATED default), all history buffers are touched at init,
+         consuming several GB of physical RAM before any messages flow. -->
+    <publisher profile_name="default_publisher" is_default_profile="true">
+        <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
+    </publisher>
+    <subscriber profile_name="default_subscriber" is_default_profile="true">
+        <historyMemoryPolicy>DYNAMIC</historyMemoryPolicy>
+    </subscriber>
 </profiles>

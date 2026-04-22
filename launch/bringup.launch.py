@@ -12,7 +12,7 @@ def generate_launch_description():
 
     project_share_dir = get_package_share_directory('project')
     ekf_config = os.path.join(project_share_dir, 'config', 'ekf.yaml')
-    fastdds_profile = os.path.join(project_share_dir, 'config', 'fastdds_profiles.xml')
+    # fastdds_profile = os.path.join(project_share_dir, 'config', 'fastdds_profiles.xml')
     print(f"ekf conf: {ekf_config}")
 
     nodes = [
@@ -34,7 +34,10 @@ def generate_launch_description():
             namespace='manhattan',
             output='screen',
             condition=IfCondition(launch_manhattan),
-            additional_env={'FASTRTPS_DEFAULT_PROFILES_FILE': fastdds_profile}
+            additional_env={
+                # 'FASTRTPS_DEFAULT_PROFILES_FILE': fastdds_profile,
+                'RMW_IMPLEMENTATION': 'rmw_cyclonedds_cpp',
+            }
         )
     ]
 

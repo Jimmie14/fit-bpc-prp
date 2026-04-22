@@ -10,3 +10,7 @@ sudo apt install ros-humble-grid-map-ros
 
 sudo apt install ros-humble-rviz2
 sudo apt install ros-humble-grid-map-rviz-plugin
+
+# install cyclone DDS (lower RAM-usage)
+sudo apt update
+sudo apt install -y ros-humble-rmw-cyclonedds-cpp
