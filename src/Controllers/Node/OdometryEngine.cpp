@@ -1,4 +1,4 @@
-#include "RobotOdometry.hpp"
+#include "../../../include/Controllers/OdometryEngine.hpp"
 #include <cmath>
 
 using namespace std;
@@ -12,8 +12,8 @@ constexpr int32_t PULSES_PER_ROTATION = 550;
 
 constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
 
-RobotOdometry::RobotOdometry(const App& app)
-    : BaseController(app)
+OdometryEngine::OdometryEngine(const App& app)
+    : RosEngine(app)
     , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
     Enable();
@@ -22,7 +22,7 @@ RobotOdometry::RobotOdometry(const App& app)
     _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
 }
 
-void RobotOdometry::OnEnable()
+void OdometryEngine::OnEnable()
 {
     _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
         ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
@@ -30,24 +30,24 @@ void RobotOdometry::OnEnable()
     RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
 }
 
-void RobotOdometry::OnDisable()
+void OdometryEngine::OnDisable()
 {
     _encoderSub.reset();
 
     RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
 }
 
-void RobotOdometry::ApplyCorrection(const Pose2D& correctedPose)
+void OdometryEngine::ApplyCorrection(const Pose2D& correctedPose)
 {
     _pose = correctedPose;
 }
 
-Kinematics RobotOdometry::GetKinematics() const
+Kinematics OdometryEngine::GetKinematics() const
 {
     return _kinematics;
 }
 
-void RobotOdometry::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
+void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
 {
     if (msg->data.size() < 2) {
         RCLCPP_WARN_ONCE(_node->get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
@@ -83,7 +83,7 @@ void RobotOdometry::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr&
     publishOdometry(_node->now());
 }
 
-void RobotOdometry::publishOdometry(const Time& stamp)
+void OdometryEngine::publishOdometry(const Time& stamp)
 {
     if ((stamp - _lastPublishTime).seconds() < 0.1)
         return;

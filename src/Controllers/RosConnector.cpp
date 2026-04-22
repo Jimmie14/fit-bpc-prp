@@ -1,15 +1,15 @@
-#include "BaseController.h"
+#include "../../include/Common/RosConnector.hpp"
 
-#include "App.h"
+#include "App.hpp"
 
 namespace Manhattan::Core {
-BaseController::BaseController(const App& app)
+RosConnector::RosConnector(const App& app)
     : _app(app)
     , _node(app.GetNode())
 {
 }
 
-void BaseController::Enable()
+void RosConnector::Enable()
 {
     if (_enabled)
         return;
@@ -18,7 +18,7 @@ void BaseController::Enable()
     OnEnable();
 }
 
-void BaseController::Disable()
+void RosConnector::Disable()
 {
     if (!_enabled)
         return;

@@ -1,13 +1,13 @@
 #pragma once
 
-#include "BaseController.h"
+#include "../Common/RosConnector.hpp"
 #include "NavigatorController.hpp"
 #include "PoseMatcher.hpp"
 #include "SlamController.hpp"
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
-class FollowerController final : public BaseController {
+class FollowerController final : public RosConnector {
 public:
     explicit FollowerController(const App& app);
 

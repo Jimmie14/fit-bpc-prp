@@ -1,5 +1,6 @@
-#include "LidarController.hpp"
+#include "LidarDriver.hpp"
 
+#include "App.hpp"
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
@@ -15,14 +16,13 @@ static bool IsInRange(const double hit, const double minRange, const double maxR
     return hit > minRange && hit < maxRange;
 }
 
-LidarController::LidarController(const App& app)
-    : BaseController(app)
+LidarDriver::LidarDriver(const App& app) : RosDeviceDriver(app)
 {
     _lidar_subscriber = _node->create_subscription<sensor_msgs::msg::LaserScan>(
         LIDAR_TOPIC, 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg) { LidarFilter(msg); });
 }
 
-void LidarController::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
+void LidarDriver::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
 {
     const auto length = msg->ranges.size();
     const auto angleStep = M_PI * 2.0 / static_cast<double>(length);
@@ -51,7 +51,6 @@ void LidarController::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& 
 
     _points.resize(pointIndex);
 
-    if (_scanCallback)
-        _scanCallback(_points);
+    _app.Events.Publish(LidarScan{_points});
 }
 } // namespace Manhattan::Core

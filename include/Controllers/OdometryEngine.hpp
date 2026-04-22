@@ -6,13 +6,14 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
-#include "BaseController.h"
 #include "Kinematics.hpp"
+#include "RosConnector.hpp"
+#include "RosEngine.hpp"
 
 namespace Manhattan::Core {
-class RobotOdometry final : public BaseController {
+class OdometryEngine final : public RosEngine {
 public:
-    explicit RobotOdometry(const App& app);
+    explicit OdometryEngine(const App& app);
 
     void ApplyCorrection(const Pose2D& correctedPose);
 

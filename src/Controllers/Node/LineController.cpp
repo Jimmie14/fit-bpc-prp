@@ -2,9 +2,9 @@
 // Created by guest on 3/17/26.
 //
 
-#include "Controllers/Node/LineController.hpp"
+#include "../../../include/Controllers/LineController.hpp"
 
-#include "App.h"
+#include "App.hpp"
 
 using namespace std;
 using namespace rclcpp;
@@ -14,11 +14,11 @@ namespace Manhattan::Core {
 constexpr auto subscriber = "/bpc_prp_robot/line_sensors";
 
 LineController::LineController(const App& app)
-    : BaseController(app)
+    : RosConnector(app)
     , _lineEstimator(0, 1000)
     , _linePid(0.36f, 0.03f, 0.02f)
 {
-    _motorController = _app.GetController<MotorController>();
+    _motorController = _app.GetController<MotorDriver>();
 }
 
 Pid& LineController::GetPid()
@@ -36,7 +36,7 @@ void LineController::OnEnable()
     _subscriber = _node->create_subscription<std_msgs::msg::UInt16MultiArray>(
         subscriber, 1, std::bind(&LineController::OnLineSensorMsg, this, std::placeholders::_1));
 
-    _motorController = _app.GetController<MotorController>();
+    _motorController = _app.GetController<MotorDriver>();
 
     // _lineSensorsPublisher =
     // _node->create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);

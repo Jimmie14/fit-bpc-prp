@@ -1,7 +1,7 @@
 
-#include "ImuComponent.hpp"
+#include "ImuDriver.hpp"
 
-#include "RobotOdometry.hpp"
+#include "../../include/Controllers/OdometryEngine.hpp"
 
 #include <nav_msgs/msg/detail/grid_cells__builder.hpp>
 
@@ -16,12 +16,12 @@ constexpr auto imuLinearCovariance = 0.01;
 
 namespace Manhattan::Core {
 
-ImuComponent::ImuComponent(const App& app)
-    : BaseController(app)
+ImuDriver::ImuDriver(const App& app) : RosDeviceDriver(app)
 {
+
 }
 
-void ImuComponent::OnEnable()
+void ImuDriver::OnEnable()
 {
     _imuSubscriber = _node->create_subscription<sensor_msgs::msg::Imu>(
         baseImuTopic, 2,
@@ -32,13 +32,13 @@ void ImuComponent::OnEnable()
     RCLCPP_INFO(_node->get_logger(), "ImuComponent enabled");
 }
 
-void ImuComponent::OnDisable()
+void ImuDriver::OnDisable()
 {
     _imuSubscriber.reset();
     _imuPublisher.reset();
 }
 
-void ImuComponent::OnImu(const sensor_msgs::msg::Imu::SharedPtr& msg) const
+void ImuDriver::OnImu(const sensor_msgs::msg::Imu::SharedPtr& msg) const
 {
     auto resultMsg = *msg;
 

@@ -1,6 +1,6 @@
 #include "UserInputController.hpp"
 
-#include "App.h"
+#include "App.hpp"
 #include "Kinematics.hpp"
 #include "Networking/CommandParser.hpp"
 using namespace std;
@@ -19,12 +19,12 @@ static std::vector<std::string> SplitBySpace(const std::string& value)
 }
 
 UserInputController::UserInputController(const App& app)
-    : BaseController(app)
-    , _kinematics(app.GetController<RobotOdometry>()->GetKinematics())
+    : RosConnector(app)
+    , _kinematics(app.GetController<OdometryEngine>()->GetKinematics())
 {
     _tcpServer = app.GetTcpServer();
 
-    _motorController = app.GetController<MotorController>();
+    _motorController = app.GetController<MotorDriver>();
     _lineController = app.GetController<LineController>();
 
     Enable();
@@ -78,7 +78,7 @@ void UserInputController::DecodeModeCommand(const std::vector<std::string>& valu
 
     if (mode == "LINE_FOLLOW") {
         _lineController->Enable();
-        _activeController = std::dynamic_pointer_cast<BaseController>(_lineController);
+        _activeController = std::dynamic_pointer_cast<RosConnector>(_lineController);
 
         return;
     }

@@ -1,6 +1,6 @@
 #include "NavigatorController.hpp"
 
-#include "RobotOdometry.hpp"
+#include "../../include/Controllers/OdometryEngine.hpp"
 #include "SplinePath.hpp"
 
 using namespace std;
@@ -40,13 +40,13 @@ static double MoveTowards(const double current, const double target, const doubl
 
 namespace Manhattan::Core {
 NavigatorController::NavigatorController(const App& app)
-    : BaseController(app)
-    , _kinematics(app.GetController<RobotOdometry>()->GetKinematics())
+    : RosConnector(app)
+    , _kinematics(app.GetController<OdometryEngine>()->GetKinematics())
     , _angularPid(angularKp, angularKi, angularKd)
     , _lastTime(std::chrono::steady_clock::now())
 {
 
-    _motor = app.GetController<MotorController>();
+    _motor = app.GetController<MotorDriver>();
     _slam = app.GetController<SlamController>();
 
     _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/nav/desired_path", 10);

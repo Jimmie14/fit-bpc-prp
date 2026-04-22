@@ -7,15 +7,15 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "App.h"
+#include "App.hpp"
 #include "OccupancyGrid.hpp"
 #include "PoseMatcher.hpp"
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
-class SlamController final : public BaseController {
+class SlamController final : public RosConnector {
 public:
-    explicit SlamController(const App& app);
+    explicit SlamController(App& app);
     GridCell* GetCell(const Vector2& position);
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);

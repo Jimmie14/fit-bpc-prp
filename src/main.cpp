@@ -1,25 +1,20 @@
 #include <rclcpp/rclcpp.hpp>
 
-#include "App.h"
-#include "Controllers/Node/LineController.hpp"
+#include "../include/Controllers/LineController.hpp"
+#include "../include/Controllers/MotorDriver.hpp"
+#include "App.hpp"
 #include "ExplorerController.hpp"
 #include "FollowerController.hpp"
-#include "ImuComponent.hpp"
-#include "LidarController.hpp"
-#include "MotorController.hpp"
+#include "ImuDriver.hpp"
+#include "LidarDriver.hpp"
 #include "NavigatorController.hpp"
-#include "RobotOdometry.hpp"
+#include "OdometryEngine.hpp"
 #include "SlamController.hpp"
 #include "UserInputController.hpp"
 
 using namespace std;
 using namespace Manhattan;
 
-void AddKinematics(const shared_ptr<Core::App>& app)
-{
-    const auto motor = app->AddController<Core::MotorController>();
-    const auto odometry = app->AddController<Core::RobotOdometry>();
-}
 
 int main(const int argc, char* argv[])
 {
@@ -27,12 +22,13 @@ int main(const int argc, char* argv[])
 
     const auto app = make_shared<Core::App>();
 
-    AddKinematics(app);
 
-    app->AddController<Core::ImuComponent>()->Enable();
+    app->AddDriver<Core::ImuDriver>()->Enable();
+    app->AddDriver<Core::LidarDriver>()->Enable();
+    app->AddDriver<Core::MotorDriver>()->Enable();
 
+    app->AddController<Core::OdometryEngine>();
     app->AddController<Core::LineController>();
-    app->AddController<Core::LidarController>();
 
     app->AddController<Core::UserInputController>();
     app->AddController<Core::SlamController>();

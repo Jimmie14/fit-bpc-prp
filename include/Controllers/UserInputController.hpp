@@ -1,18 +1,18 @@
 #pragma once
 
-#include "BaseController.h"
+#include "../Common/RosConnector.hpp"
 #include "LineController.hpp"
 #include "Networking/TcpServer.h"
-#include "RobotOdometry.hpp"
+#include "OdometryEngine.hpp"
 
 namespace Manhattan::Core {
-class UserInputController final : public BaseController {
+class UserInputController final : public RosConnector {
     std::shared_ptr<TcpServer> _tcpServer;
 
-    std::shared_ptr<MotorController> _motorController;
+    std::shared_ptr<MotorDriver> _motorController;
     std::shared_ptr<LineController> _lineController;
 
-    std::shared_ptr<BaseController> _activeController;
+    std::shared_ptr<RosConnector> _activeController;
 
     Kinematics _kinematics;
 

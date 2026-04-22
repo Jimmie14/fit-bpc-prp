@@ -7,7 +7,7 @@ using namespace std;
 
 namespace Manhattan::Core {
 ExplorerController::ExplorerController(const App& app)
-    : BaseController(app)
+    : RosConnector(app)
 {
     _slamController = app.GetController<SlamController>();
     _navigatorController = app.GetController<NavigatorController>();

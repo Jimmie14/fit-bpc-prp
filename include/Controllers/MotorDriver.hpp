@@ -4,10 +4,10 @@
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 
-#include "BaseController.h"
+#include "RosDeviceDriver.hpp"
 
 namespace Manhattan::Core {
-class MotorController final : public BaseController {
+class MotorDriver final : public RosDeviceDriver {
     rclcpp::Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
     rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
@@ -17,7 +17,7 @@ class MotorController final : public BaseController {
     void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
 
 public:
-    explicit MotorController(const App& app);
+    explicit MotorDriver(const App& app);
 
     void OnEnable() override;
 

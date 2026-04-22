@@ -5,17 +5,17 @@
 #include <std_msgs/msg/float64_multi_array.hpp>
 #include <std_msgs/msg/u_int16_multi_array.hpp>
 
-#include "BaseController.h"
 #include "LineEstimator.hpp"
-#include "MotorController.hpp"
+#include "MotorDriver.hpp"
 #include "Pid.hpp"
+#include "RosConnector.hpp"
 
 namespace Manhattan::Core {
-class LineController final : public BaseController {
+class LineController final : public RosConnector {
     rclcpp::Subscription<std_msgs::msg::UInt16MultiArray>::SharedPtr _subscriber;
     DiscreteLinePose _linePose = DiscreteLinePose::LineNone;
 
-    std::shared_ptr<MotorController> _motorController;
+    std::shared_ptr<MotorDriver> _motorController;
 
     LineEstimator _lineEstimator;
 

@@ -4,7 +4,7 @@ using namespace std;
 
 namespace Manhattan::Core {
 FollowerController::FollowerController(const App& app)
-    : BaseController(app)
+    : RosConnector(app)
     , _fov(180)
     , _rayDistance(2)
     , _rayCount(7)

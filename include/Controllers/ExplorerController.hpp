@@ -1,6 +1,6 @@
 #pragma once
 
-#include "BaseController.h"
+#include "../Common/RosConnector.hpp"
 #include "NavigatorController.hpp" // Replace with your actual navigator header
 #include "SlamController.hpp"
 #include <map>
@@ -15,7 +15,7 @@ enum class ExplorerState {
     Returning
 };
 
-class ExplorerController : public BaseController {
+class ExplorerController : public RosConnector {
 public:
     ExplorerController(const App& app);
 

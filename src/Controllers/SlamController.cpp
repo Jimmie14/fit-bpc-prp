@@ -1,22 +1,21 @@
 #include "SlamController.hpp"
-#include "LidarController.hpp"
+#include "LidarDriver.hpp"
 #include <grid_map_ros/GridMapRosConverter.hpp>
 
 using namespace std;
 
 namespace Manhattan::Core {
-SlamController::SlamController(const App& app)
-    : BaseController(app)
+SlamController::SlamController(App& app)
+    : RosConnector(app)
     , _grid(Vector2Int(200, 200), 0.05, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
-    , _lastStablePose(Pose::Identity())
     , _lastOdomPose(Pose::Identity())
     , _odomPoseDelta(Pose::Zero())
+    , _lastStablePose(Pose::Identity())
 {
-    app.GetController<LidarController>()->SetScanCallback(
-        [this](const std::vector<Vector2>& points) {
-            this->OnLidar(points);
-        });
+    app.Events.Subscribe<LidarScan>([this](const LidarScan& scan) {
+        this->OnLidar(scan.points);
+    });
 
     _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 5);
     _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 5);

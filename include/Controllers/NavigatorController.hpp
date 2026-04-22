@@ -4,15 +4,15 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "BaseController.h"
+#include "../Common/RosConnector.hpp"
 #include "Kinematics.hpp"
-#include "MotorController.hpp"
+#include "MotorDriver.hpp"
 #include "Pid.hpp"
 #include "SlamController.hpp"
 #include "SplinePath.hpp"
 
 namespace Manhattan::Core {
-class NavigatorController final : public BaseController {
+class NavigatorController final : public RosConnector {
 public:
     explicit NavigatorController(const App& app);
 
@@ -34,7 +34,7 @@ private:
     Pid _angularPid;
 
     rclcpp::TimerBase::SharedPtr _timer;
-    std::shared_ptr<MotorController> _motor; // todo: change naming of MotorController
+    std::shared_ptr<MotorDriver> _motor; // todo: change naming of MotorController
     std::shared_ptr<SlamController> _slam;
 
     SplinePath _path;
