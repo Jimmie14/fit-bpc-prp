@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <optional>
 #include <queue>
-#include <set>
+#include <vector>
 
 #include "Vector2.hpp"
 
@@ -174,16 +174,16 @@ public:
     void RecalculateCosts()
     {
         std::queue<Vector2Int> queue;
-        std::set<Vector2Int> visited;
+        std::vector<bool> visited(_width * _height, false);
 
-        for (int i = 0; i < _grid.size(); i++) {
+        for (int i = 0; i < static_cast<int>(_grid.size()); i++) {
             auto& cell = _grid[i];
             cell.SetCost(0.0);
 
             if (cell.IsOccupied()) {
                 Vector2Int pos = cell.GetGridPosition();
                 queue.push(pos);
-                visited.insert(pos);
+                visited[i] = true;
             }
         }
 
@@ -201,15 +201,19 @@ public:
             for (const auto& dir : directions) {
                 Vector2Int neighbour(current.x + dir.x, current.y + dir.y);
 
-                if (!InBounds(neighbour.x, neighbour.y) || visited.contains(neighbour))
+                if (!InBounds(neighbour.x, neighbour.y))
+                    continue;
+
+                const int idx = GetIndex(neighbour.x, neighbour.y);
+                if (visited[idx])
                     continue;
 
                 auto penalty = _inflationPenalty / static_cast<double>(currentStep);
 
-                auto& neighbourCell = _grid[GetIndex(neighbour.x, neighbour.y)];
+                auto& neighbourCell = _grid[idx];
                 neighbourCell.SetCost(std::max(neighbourCell.GetCost(), penalty));
 
-                visited.insert(neighbour);
+                visited[idx] = true;
                 queue.push(neighbour);
             }
 
