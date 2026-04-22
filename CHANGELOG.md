@@ -3,6 +3,7 @@
 ### 🚜 Refactor
 
 - Major architecture refactor
+- Rename SlamController to MappingEngine
 
 ### 🎨 Styling
 
