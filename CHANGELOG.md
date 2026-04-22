@@ -5,6 +5,10 @@
 - Add Fast DDS support and optimize OccupancyGrid traversal
 - Enable Cyclone DDS, adjust ROS node options, and optimize QoS settings
 - Add monte carlo localization in MappingEngine
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.3.0
 ## [1.2.0] - 2026-04-22
 
 ### 🚀 Features
