@@ -1,9 +1,9 @@
 #pragma once
 
 #include "../Common/RosConnector.hpp"
+#include "MappingEngine.hpp"
 #include "NavigatorController.hpp"
 #include "PoseMatcher.hpp"
-#include "SlamController.hpp"
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
@@ -28,7 +28,7 @@ private:
     rclcpp::TimerBase::SharedPtr _timer;
     rclcpp::TimerBase::SharedPtr _initialTimer;
 
-    std::shared_ptr<SlamController> _map;
+    std::shared_ptr<MappingEngine> _map;
     std::shared_ptr<NavigatorController> _navigator;
 
     Vector2 GetTarget(const Pose& pose) const;

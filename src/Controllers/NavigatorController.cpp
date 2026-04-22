@@ -47,7 +47,7 @@ NavigatorController::NavigatorController(const App& app)
 {
 
     _motor = app.GetController<MotorDriver>();
-    _slam = app.GetController<SlamController>();
+    _slam = app.GetController<MappingEngine>();
 
     _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/nav/desired_path", 10);
     _rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);

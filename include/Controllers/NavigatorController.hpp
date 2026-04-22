@@ -6,9 +6,9 @@
 
 #include "../Common/RosConnector.hpp"
 #include "Kinematics.hpp"
+#include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
-#include "SlamController.hpp"
 #include "SplinePath.hpp"
 
 namespace Manhattan::Core {
@@ -35,7 +35,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr _timer;
     std::shared_ptr<MotorDriver> _motor; // todo: change naming of MotorController
-    std::shared_ptr<SlamController> _slam;
+    std::shared_ptr<MappingEngine> _slam;
 
     SplinePath _path;
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;

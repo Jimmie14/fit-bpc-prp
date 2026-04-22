@@ -10,7 +10,7 @@ FollowerController::FollowerController(const App& app)
     , _rayCount(7)
     , _avoidanceDistance(0.2)
 {
-    _map = app.GetController<SlamController>();
+    _map = app.GetController<MappingEngine>();
     _navigator = app.GetController<NavigatorController>();
 }
 

@@ -1,12 +1,12 @@
-#include "SlamController.hpp"
 #include "LidarDriver.hpp"
+#include "MappingEngine.hpp"
 #include <grid_map_ros/GridMapRosConverter.hpp>
 
 using namespace std;
 
 namespace Manhattan::Core {
-SlamController::SlamController(App& app)
-    : RosConnector(app)
+MappingEngine::MappingEngine(App& app)
+    : RosEngine(app)
     , _grid(Vector2Int(200, 200), 0.05, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::Identity())
@@ -40,7 +40,7 @@ SlamController::SlamController(App& app)
     RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
 }
 
-void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
+void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
 {
     const auto current = Pose(Vector2(msg->pose.pose.position.x, msg->pose.pose.position.y),
         2.0 * std::atan2(msg->pose.pose.orientation.z, msg->pose.pose.orientation.w) - M_PI * 0.5);
@@ -57,7 +57,7 @@ void SlamController::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
     }
 }
 
-void SlamController::OnLidar(const std::vector<Vector2>& points)
+void MappingEngine::OnLidar(const std::vector<Vector2>& points)
 {
     if (points.empty())
         return;
@@ -92,7 +92,7 @@ void SlamController::OnLidar(const std::vector<Vector2>& points)
     MapScan(points);
 }
 
-void SlamController::MapScan(const std::vector<Vector2>& points)
+void MappingEngine::MapScan(const std::vector<Vector2>& points)
 {
     // Convert robot position to grid coordinates
     const auto startGridPos = _grid.WorldToGrid(_lastStablePose.position);
@@ -124,7 +124,7 @@ void SlamController::MapScan(const std::vector<Vector2>& points)
     }
 }
 
-void SlamController::Publish()
+void MappingEngine::Publish()
 {
     const std::unique_lock lock(_mapLock, std::try_to_lock);
     if (!lock.owns_lock())
@@ -135,7 +135,7 @@ void SlamController::Publish()
     PublishGridMap();
 }
 
-void SlamController::PublishPose(const Pose& pose)
+void MappingEngine::PublishPose(const Pose& pose)
 {
     auto pose_msg = geometry_msgs::msg::PoseStamped();
     pose_msg.header.stamp = _node->now();
@@ -162,7 +162,7 @@ void SlamController::PublishPose(const Pose& pose)
     _posePub->publish(pose_msg);
 }
 
-void SlamController::PublishGrid()
+void MappingEngine::PublishGrid()
 {
     nav_msgs::msg::OccupancyGrid gridMsg;
     gridMsg.header.stamp = _node->now();
@@ -196,7 +196,7 @@ void SlamController::PublishGrid()
     _gridPub->publish(gridMsg);
 }
 
-void SlamController::PublishGridMap()
+void MappingEngine::PublishGridMap()
 {
     grid_map::GridMap map;
 
@@ -242,12 +242,12 @@ void SlamController::PublishGridMap()
     _gridMapPub->publish(*msg);
 }
 
-GridCell* SlamController::GetCell(const Vector2& position)
+GridCell* MappingEngine::GetCell(const Vector2& position)
 {
     return _grid.GetCell(_grid.WorldToGrid(position));
 }
 
-std::vector<GridCell*> SlamController::GetNeighbors(const GridCell* cell)
+std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 {
     auto neighbours = std::vector<GridCell*>();
 
@@ -262,7 +262,7 @@ std::vector<GridCell*> SlamController::GetNeighbors(const GridCell* cell)
     return neighbours;
 }
 
-bool SlamController::RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance)
+bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance)
 {
     const auto startCell = _grid.WorldToGrid(worldPosition);
     const auto endWorldPosition = worldPosition + direction.Normalized() * maxDistance;

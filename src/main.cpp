@@ -7,9 +7,9 @@
 #include "FollowerController.hpp"
 #include "ImuDriver.hpp"
 #include "LidarDriver.hpp"
+#include "MappingEngine.hpp"
 #include "NavigatorController.hpp"
 #include "OdometryEngine.hpp"
-#include "SlamController.hpp"
 #include "UserInputController.hpp"
 
 using namespace std;
@@ -29,7 +29,7 @@ int main(const int argc, char* argv[])
     app->AddController<Core::LineController>();
 
     app->AddController<Core::UserInputController>();
-    app->AddController<Core::SlamController>();
+    app->AddController<Core::MappingEngine>();
     app->AddController<Core::NavigatorController>();
     app->AddController<Core::FollowerController>();
     app->AddController<Core::ExplorerController>();

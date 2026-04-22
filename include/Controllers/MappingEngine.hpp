@@ -13,9 +13,9 @@
 #include "Vector2.hpp"
 
 namespace Manhattan::Core {
-class SlamController final : public RosConnector {
+class MappingEngine final : public RosEngine {
 public:
-    explicit SlamController(App& app);
+    explicit MappingEngine(App& app);
     GridCell* GetCell(const Vector2& position);
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);

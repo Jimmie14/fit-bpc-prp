@@ -1,8 +1,8 @@
 #pragma once
 
 #include "../Common/RosConnector.hpp"
+#include "MappingEngine.hpp"
 #include "NavigatorController.hpp" // Replace with your actual navigator header
-#include "SlamController.hpp"
 #include <map>
 #include <memory>
 #include <queue>
@@ -31,7 +31,7 @@ private:
 
     rclcpp::TimerBase::SharedPtr _timer;
 
-    std::shared_ptr<SlamController> _slamController;
+    std::shared_ptr<MappingEngine> _slamController;
     std::shared_ptr<NavigatorController> _navigatorController;
 
     ExplorerState _state = ExplorerState::Idle;

@@ -9,7 +9,7 @@ namespace Manhattan::Core {
 ExplorerController::ExplorerController(const App& app)
     : RosConnector(app)
 {
-    _slamController = app.GetController<SlamController>();
+    _slamController = app.GetController<MappingEngine>();
     _navigatorController = app.GetController<NavigatorController>();
 }
 
