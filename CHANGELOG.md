@@ -1,8 +1,12 @@
-## [unreleased]
+## [1.2.0] - 2026-04-22
 
 ### 🚀 Features
 
 - Add multiple hypothesis to MappingEngine
+
+### 🐛 Bug Fixes
+
+- [**breaking**] Migrate to multi-node architecture, fix performance bottleneck
 
 ### 🚜 Refactor
 
@@ -18,6 +22,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Correct skip rule for 'ci: update changelog' in cliff config
+- Bump version to 1.2.0
 ## [1.1.1] - 2026-04-22
 
 ### 🚀 Features
