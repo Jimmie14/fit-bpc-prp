@@ -4,6 +4,7 @@
 
 - Improve pose matching confidence response in SlamController
 - Add ImuComponent republishing imu with covariance and correct frame
+- Add missing lock bofere cost recalculation
 
 ### 🐛 Bug Fixes
 
@@ -21,6 +22,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
+- Update changelog
 - Update changelog
 - Update changelog
 - Update changelog
