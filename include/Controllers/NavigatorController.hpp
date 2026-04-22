@@ -41,6 +41,8 @@ private:
     rclcpp::Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
     rclcpp::Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
 
+    std::vector<Vector2> SmoothPath(const std::vector<GridCell*>& path) const;
+
     std::vector<RayHit> RayCastAround(const Pose& pose) const;
     Vector2 GetDirection(const std::vector<RayHit>& rayHits, const Pose& pose, const Vector2& desiredDirection) const;
 

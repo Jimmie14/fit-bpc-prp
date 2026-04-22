@@ -2,7 +2,7 @@
 
 #include "../Common/RosConnector.hpp"
 #include "MappingEngine.hpp"
-#include "NavigatorController.hpp" // Replace with your actual navigator header
+#include "NavigatorController.hpp"
 #include <map>
 #include <memory>
 #include <queue>

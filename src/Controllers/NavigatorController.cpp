@@ -1,6 +1,6 @@
 #include "NavigatorController.hpp"
 
-#include "../../include/Controllers/OdometryEngine.hpp"
+#include "OdometryEngine.hpp"
 #include "SplinePath.hpp"
 
 using namespace std;
@@ -8,9 +8,10 @@ using namespace std;
 constexpr int rayCount = 32;
 constexpr double rayDistance = 3;
 constexpr double avoidanceDistance = 0.22;
-constexpr double avoidanceStrength = 20;
+constexpr double avoidanceStrength = 20.0;
 
-constexpr double waypointTolerance = 0.2;
+constexpr double aimDistance = 0.2;
+constexpr double destinationDistance = 0.3;
 constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
@@ -18,16 +19,16 @@ constexpr double cornerSlowMinFactor = 0.25;
 constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
 constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
-constexpr double maxLinearSpeed = 0.25;
+constexpr double maxLinearSpeed = 0.2;
 constexpr double maxAngularSpeed = 0.2;
 
 constexpr double turnDeceleration = 1.5;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
 
-constexpr double angularKp = 0.3;
+constexpr double angularKp = 0.2;
 constexpr double angularKi = 0.012;
-constexpr double angularKd = 0.01;
+constexpr double angularKd = 0.001;
 
 static double MoveTowards(const double current, const double target, const double maxDelta)
 {
@@ -58,9 +59,9 @@ NavigatorController::NavigatorController(const App& app)
 
 void NavigatorController::SetPath(const std::vector<GridCell*>& path)
 {
-    std::vector<Vector2> waypoints;
-    for (const auto waypoint : path)
-        waypoints.push_back(waypoint->GetWorldPosition());
+    const auto waypoints = SmoothPath(path);
+    // for (const auto waypoint : path)
+    //     waypoints.push_back(waypoint->GetWorldPosition());
 
     _path.Initialize(waypoints);
 }
@@ -176,56 +177,59 @@ void NavigatorController::SetDestination(GridCell* destination)
     SetPath(path);
 }
 
-// std::vector<GridCell*> NavigatorController::SmoothPath(const std::vector<GridCell*>& pathList) const
-// {
-//     std::vector<GridCell*> smoothedPath;
-//     if (pathList.empty())
-//         return smoothedPath;
-//
-//     smoothedPath.push_back(pathList.front());
-//     size_t currentIndex = 0;
-//
-//     for (size_t i = 1; i < pathList.size(); ++i) {
-//         if (HasLineOfSight(pathList[currentIndex], pathList[i]))
-//             continue;
-//
-//         smoothedPath.push_back(pathList[i - 1]);
-//         currentIndex = i - 1;
-//     }
-//
-//     if (smoothedPath.back() != pathList.back()) {
-//         smoothedPath.push_back(pathList.back());
-//     }
-//
-//     return smoothedPath;
-// }
-//
-// bool NavigatorController::HasLineOfSight(GridCell* start, GridCell* end) const
-// {
-//     const auto startPos = start->GetWorldPosition();
-//     const auto endPos = end->GetWorldPosition();
-//     const auto distance = Vector2::Distance(startPos, endPos);
-//     const auto direction = (endPos - startPos).Normalized();
-//
-//     // 0.03 is grid cell size
-//     const auto step = 0.03 / 2.0;
-//     const auto perpendicular = Vector2(-direction.y, direction.x) * 0.1;
-//
-//     for (double d = step; d < distance; d += step) {
-//         const auto centerPos = startPos + direction * d;
-//
-//         if (IsBlocking(centerPos) || IsBlocking(centerPos + perpendicular) || IsBlocking(centerPos - perpendicular)) {
-//             return false;
-//         }
-//     }
-//     return true;
-// }
-//
-// bool NavigatorController::IsBlocking(const Vector2& position) const
-// {
-//     const auto cell = _slam->GetCell(position);
-//     return cell == nullptr || cell->IsOccupied();
-// }
+
+std::vector<Vector2> NavigatorController::SmoothPath(const std::vector<GridCell*>& path) const
+{
+    std::vector<Vector2> points;
+    points.reserve(path.size());
+    for (const auto* cell : path) {
+        if (cell) {
+            points.push_back(cell->GetWorldPosition());
+        }
+    }
+
+    if (points.size() <= 2) {
+        return points;
+    }
+
+    size_t currentIndex = 0;
+
+    while (currentIndex < points.size() - 1) {
+        size_t furthestIndex = currentIndex + 1;
+
+        // Look for the furthest point we can see without hitting an obstacle
+        for (size_t i = points.size() - 1; i > currentIndex + 1; i--) {
+            const Vector2& p1 = points[currentIndex];
+            const Vector2& p2 = points[i];
+
+            Vector2 dir = (p2 - p1).Normalized();
+            double dist = Vector2::Distance(p1, p2);
+
+            RayHit hitInfo;
+
+            if (!_slam->RayCast(p1, dir, hitInfo, dist)) {
+                furthestIndex = i;
+                break;
+            }
+        }
+
+        const Vector2& startPt = points[currentIndex];
+        const Vector2& endPt = points[furthestIndex];
+        Vector2 lineDir = (endPt - startPt).Normalized();
+
+        // Project all intermediate staircase points onto the straight line segment
+        // to smooth out the transition between the two points
+        for (size_t j = currentIndex + 1; j < furthestIndex; j++) {
+            Vector2 v = points[j] - startPt;
+            double d = Vector2::Dot(v, lineDir);
+            points[j] = startPt + lineDir * d;
+        }
+
+        currentIndex = furthestIndex;
+    }
+
+    return points;
+}
 
 void NavigatorController::ClearPath()
 {
@@ -235,7 +239,11 @@ void NavigatorController::ClearPath()
 
 bool NavigatorController::IsInDestination() const
 {
-    return _t > 0.9 || !_path.HasPath();
+    const auto pose = _slam->CurrentPose();
+    const auto result = _path.FindClosestPoint(pose.position);
+
+    return _path.GetTotalLength() - result.DistanceAlongPath <= destinationDistance || !_path.HasPath();
+    // return _t > 0.9 || !_path.HasPath();
 }
 
 vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
@@ -363,7 +371,7 @@ double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double c
     auto t = currentT;
     for (int i = 0; i < lookAheadWaypoints && t < 1.0; ++i) {
         points.push_back(_path.GetPointAtDistance(t * _path.GetTotalLength()));
-        t = std::clamp(t + waypointTolerance, 0.0, 1.0);
+        t = std::clamp(t + aimDistance, 0.0, 1.0);
     }
 
     if (points.size() < 3)
@@ -408,7 +416,7 @@ void NavigatorController::Update()
     if (_path.GetTotalLength() <= 0)
         return;
 
-    _t = std::clamp((result.DistanceAlongPath + waypointTolerance) / _path.GetTotalLength(), 0.0, 1.0);
+    _t = std::clamp((result.DistanceAlongPath + aimDistance) / _path.GetTotalLength(), 0.0, 1.0);
 
     auto aimPoint = _path.GetPointAtDistance(_t * _path.GetTotalLength());
     auto directionToWaypoint = (aimPoint - pose.position).Normalized();

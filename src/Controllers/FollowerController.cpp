@@ -6,8 +6,8 @@ namespace Manhattan::Core {
 FollowerController::FollowerController(const App& app)
     : RosConnector(app)
     , _fov(180)
-    , _rayDistance(2)
-    , _rayCount(7)
+    , _rayDistance(3)
+    , _rayCount(11)
     , _avoidanceDistance(0.2)
 {
     _map = app.GetController<MappingEngine>();
@@ -55,20 +55,30 @@ Vector2 FollowerController::GetTarget(const Pose& pose) const
     auto dst = 0.0;
     auto pos = pose.position;
 
+    std::vector<RayHit> hits;
     for (auto i = 0; i < _rayCount; i++) {
         auto ray = RayHit();
         auto direction = Vector2(cos(pose.rotation + angle), sin(pose.rotation + angle));
-        auto hit = _map->RayCast(pose.position, direction, ray, _rayDistance);
+        const auto hit = _map->RayCast(pose.position, direction, ray, _rayDistance);
 
         angle += step;
 
-        auto hitPoint = hit ? ray.hit : pose.position + direction * _rayDistance;
-        auto dstToHit = Vector2::Distance(pose.position, hitPoint);
+        ray.hit = hit ? ray.hit : pose.position + direction * _rayDistance;
+        hits.push_back(ray);
+    }
 
+    for (auto i = 1; i < _rayCount - 1; i++) {
+        const auto dst1 = Vector2::Distance(pose.position, hits[i - 1].hit);
+        const auto dst2 = Vector2::Distance(pose.position, hits[i].hit);
+        const auto dst3 = Vector2::Distance(pose.position, hits[i + 1].hit);
+
+        auto dstToHit = (dst1 + dst2 + dst3) / 3.0;
+        dstToHit = dst2;
         if (dstToHit <= dst)
             continue;
+
         dst = dstToHit;
-        pos = hitPoint + ray.normal * _avoidanceDistance;
+        pos = hits[i].hit + hits[i].normal * _avoidanceDistance;
     }
 
     return pos;
