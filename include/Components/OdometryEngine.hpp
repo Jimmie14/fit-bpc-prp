@@ -15,7 +15,7 @@ class OdometryEngine final : public RosEngine {
 public:
     explicit OdometryEngine(const App& app);
 
-    void ApplyCorrection(const Pose2D& correctedPose);
+    void ApplyCorrection(const Pose& correctedPose);
 
     [[nodiscard]] Kinematics GetKinematics() const;
 
@@ -31,7 +31,7 @@ private:
     // -----------------------------------------------------------------------
     Kinematics _kinematics;
 
-    Pose2D _pose = {};
+    Pose _pose = {};
     double _linearVelocity = 0.0;
     double _angularVelocity = 0.0;
 

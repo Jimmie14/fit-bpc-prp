@@ -1,7 +1,7 @@
 #include "LidarDriver.hpp"
 
+#include "../../../include/Math/Vector2.hpp"
 #include "App.hpp"
-#include "Vector2.hpp"
 
 namespace Manhattan::Core {
 constexpr auto LIDAR_TOPIC = "/bpc_prp_robot/lidar";
@@ -16,7 +16,8 @@ static bool IsInRange(const double hit, const double minRange, const double maxR
     return hit > minRange && hit < maxRange;
 }
 
-LidarDriver::LidarDriver(const App& app) : RosDeviceDriver(app, "lidar")
+LidarDriver::LidarDriver(const App& app)
+    : RosDeviceDriver(app, "lidar")
 {
     _lidar_subscriber = create_subscription<sensor_msgs::msg::LaserScan>(
         LIDAR_TOPIC, 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg) { LidarFilter(msg); });

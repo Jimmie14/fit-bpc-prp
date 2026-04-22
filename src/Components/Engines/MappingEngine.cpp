@@ -1,9 +1,13 @@
 #include "MappingEngine.hpp"
 #include "LidarDriver.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
+
 #include <grid_map_ros/GridMapRosConverter.hpp>
+#include <random>
 
 using namespace std;
+
+constexpr auto minConfidence = 0.6;
 
 namespace Manhattan::Core {
 MappingEngine::MappingEngine(App& app)
@@ -11,7 +15,7 @@ MappingEngine::MappingEngine(App& app)
     , _grid(Vector2Int(200, 200), 0.05, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::Identity())
-    , _hypotheses({ PoseMatchResult(Pose::Identity(), 0.5) })
+    , _hypotheses({ PoseMatchResult(Pose::Identity(), minConfidence) })
 {
     _lostTime = now();
 
@@ -19,12 +23,13 @@ MappingEngine::MappingEngine(App& app)
         this->OnLidar(scan.points);
     });
 
-    _scanPublisher = create_publisher<sensor_msgs::msg::PointCloud2>("slam/scan", QoS(1).best_effort().durability_volatile());
-    _posePublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/pose", QoS(1));
-    _pathPublisher = create_publisher<nav_msgs::msg::Path>("slam/path", QoS(1));
+    _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("slam/pose", 1);
+    _pathPublisher = create_publisher<nav_msgs::msg::Path>("slam/path", 1);
 
-    _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", QoS(1));
-    _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", QoS(1).best_effort().durability_volatile());
+    _hypoPublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/hypo", 1);
+
+    _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", 1);
+    _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", 1);
 
     _path.header.frame_id = "map";
 
@@ -98,27 +103,17 @@ void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
         auto stableResult = _poseMatcher.Match(_lastScan, hypothesis.pose);
         auto odomResult = _poseMatcher.Match(_lastScan, hypothesis.pose + odomDelta);
 
-        hypothesis = PoseMatchResult::Combine(stableResult, odomResult);
+        hypothesis = PoseMatchResult::Best(stableResult, odomResult);
     }
 
     erase_if(_hypotheses, [](const PoseMatchResult& result) {
-        return result.confidence < 0.5;
+        return result.confidence < minConfidence;
     });
 
-    if (_hypotheses.empty())
-        TryRelocalize();
+    if (_state == MappingEngineState::Degraded || _hypotheses.empty())
+        CreateHypothesis();
 
     UpdateState();
-
-    if (_state != MappingEngineState::Stable)
-        return;
-
-    const auto delta = _stablePose - _lastStoredPose;
-
-    if (delta.position.Magnitude() > 0.5) {
-        StoreScanContext();
-        _lastStoredPose = _stablePose;
-    }
 }
 
 void MappingEngine::UpdateState()
@@ -144,13 +139,18 @@ void MappingEngine::UpdateState()
         return a.confidence < b.confidence;
     });
 
-    if (_hypotheses.size() == 1 && best->confidence >= 0.8) {
+    std::cout << "best conf : " << best->confidence << std::endl;
+    for (const auto& hypothesis : _hypotheses) {
+        std::cout << "conf       : " << hypothesis.confidence << std::endl;
+    }
+
+    if (!_hypotheses.empty() && best->confidence >= 0.8) {
         _state = MappingEngineState::Stable;
         _stablePose = best->pose;
         return;
     }
 
-    if (_hypotheses.size() == 1) {
+    if (_hypotheses.size() < 2) {
         _state = MappingEngineState::Degraded;
         _stablePose = best->pose;
         return;
@@ -166,137 +166,45 @@ void MappingEngine::UpdateState()
         Reset();
 }
 
-void MappingEngine::TryRelocalize()
+void MappingEngine::CreateHypothesis()
 {
-    const auto currentContext = ComputeScanContext(_lastScan, _stablePose);
-    const auto hash = currentContext.GetHash();
-
-    const auto range = _scanContexts.equal_range(hash);
-    for (auto context = range.first; context != range.second; ++context) {
-        const auto similarity = ComputeScanContextSimilarity(currentContext, context->second);
-        if (similarity <= 0.6)
-            continue;
-
-        const auto candidatePose = EstimatePoseFromScanContext(currentContext, context->second);
-
-        _hypotheses.push_back(PoseMatchResult(candidatePose, similarity * 0.9));
+    if (_hypotheses.empty()) {
+        RCLCPP_INFO(get_logger(), "MCL failed no hypothesis found.");
+        _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+        return;
     }
-}
 
-void MappingEngine::StoreScanContext()
-{
-    if (_state != MappingEngineState::Stable)
+    const auto best = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
+        return a.confidence < b.confidence;
+    });
+
+    if (best == _hypotheses.end())
         return;
 
-    constexpr auto maxScanContexts = 50;
-    if (_scanContexts.size() > maxScanContexts) {
-        auto it = _scanContexts.begin();
+    static thread_local auto prng = std::mt19937(std::random_device {}());
+    constexpr auto attempts = 20;
 
-        for (size_t i = 0; i < maxScanContexts / 10 && it != _scanContexts.end(); ++i) {
-            it = _scanContexts.erase(it);
-        }
+    auto offsetXY = std::uniform_real_distribution(-0.75, 0.75);
+    auto offsetTheta = std::uniform_real_distribution(-0.35, 0.35);
+
+    for (auto i = 0; i < attempts; i++) {
+        const auto candidatePose = Pose(
+            Vector2(best->pose.position.x + offsetXY(prng), best->pose.position.y + offsetXY(prng)),
+            best->pose.rotation + offsetTheta(prng));
+
+        const auto hypothesis = _poseMatcher.Match(_lastScan, candidatePose);
+        if (hypothesis.confidence < minConfidence)
+            continue;
+
+        _hypotheses.push_back(hypothesis);
     }
-
-    auto ctx = ComputeScanContext(_lastScan, _stablePose);
-    _scanContexts.emplace(ctx.GetHash(), ctx);
-}
-
-ScanContext MappingEngine::ComputeScanContext(const std::vector<Vector2>& points, const Pose& pose)
-{
-    ScanContext context;
-    context.pose = pose;
-
-    for (auto& ring : context.descriptor)
-        ring.fill(0.0f);
-
-    constexpr auto maxRange = 10.0;
-    constexpr auto ringStep = maxRange / ScanContext::ringCount;
-    constexpr auto sectorStep = 2.0 * M_PI / ScanContext::sectorCount;
-
-    for (const auto& p : points) {
-        const double range = p.Magnitude();
-        const double angle = std::atan2(p.y, p.x) + M_PI;
-
-        const auto ring = std::min(static_cast<int>(range / ringStep), ScanContext::ringCount - 1);
-        const auto sector = static_cast<int>(angle / sectorStep) % ScanContext::sectorCount;
-
-        context.descriptor[ring][sector] = std::max(context.descriptor[ring][sector], static_cast<float>(range));
-    }
-
-    return context;
-}
-
-double MappingEngine::ComputeScanContextSimilarity(const ScanContext& a, const ScanContext& b)
-{
-    // Use cosine similarity averaged across all rings
-    double totalSimilarity = 0.0;
-    int validRings = 0;
-
-    for (int r = 0; r < ScanContext::ringCount; ++r) {
-        double dotProduct = 0.0;
-        double normA = 0.0;
-        double normB = 0.0;
-
-        for (int s = 0; s < ScanContext::sectorCount; ++s) {
-            dotProduct += a.descriptor[r][s] * b.descriptor[r][s];
-            normA += a.descriptor[r][s] * a.descriptor[r][s];
-            normB += b.descriptor[r][s] * b.descriptor[r][s];
-        }
-
-        if (normA > 0.0 && normB > 0.0) {
-            totalSimilarity += dotProduct / (std::sqrt(normA) * std::sqrt(normB));
-            ++validRings;
-        }
-    }
-
-    return validRings > 0 ? totalSimilarity / validRings : 0.0;
-}
-
-Pose MappingEngine::EstimatePoseFromScanContext(const ScanContext& current, const ScanContext& reference)
-{
-    // Find best sector shift (rotation alignment)
-    int bestShift = 0;
-    double bestSimilarity = -1.0;
-
-    for (int shift = 0; shift < ScanContext::sectorCount; ++shift) {
-        double similarity = 0.0;
-
-        for (int r = 0; r < ScanContext::ringCount; ++r) {
-            for (int s = 0; s < ScanContext::sectorCount; ++s) {
-                int shiftedS = (s + shift) % ScanContext::sectorCount;
-                similarity += current.descriptor[r][s] * reference.descriptor[r][shiftedS];
-            }
-        }
-
-        if (similarity > bestSimilarity) {
-            bestSimilarity = similarity;
-            bestShift = shift;
-        }
-    }
-
-    // Each sector corresponds to (2*PI / sectorCount) radians
-    constexpr double sectorAngle = 2.0 * M_PI / ScanContext::sectorCount;
-    double rotationOffset = bestShift * sectorAngle;
-
-    // The estimated pose is the reference pose with rotation adjusted
-    Pose estimatedPose;
-    estimatedPose.position = reference.pose.position;
-    estimatedPose.rotation = reference.pose.rotation + rotationOffset;
-
-    // Normalize rotation to [-PI, PI]
-    while (estimatedPose.rotation > M_PI)
-        estimatedPose.rotation -= 2.0 * M_PI;
-    while (estimatedPose.rotation < -M_PI)
-        estimatedPose.rotation += 2.0 * M_PI;
-
-    return estimatedPose;
 }
 
 void MappingEngine::Reset()
 {
     _state = MappingEngineState::Initializing;
-    _hypotheses = { PoseMatchResult(Pose::Identity(), 0.5) };
-    _scanContexts.clear();
+    _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+    _grid.Reset();
 
     _lastStoredPose = Pose::Identity();
     _stablePose = Pose::Identity();
@@ -347,71 +255,37 @@ void MappingEngine::Publish()
     if (!lock.owns_lock())
         return;
 
-    // PublishScan();
     PublishPose();
     PublishGrid();
-    // PublishGridMap();
+    PublishGridMap();
 }
 
-void MappingEngine::PublishScan() const
-{
-    auto msg = sensor_msgs::msg::PointCloud2();
-    msg.header.stamp = now();
-    msg.header.frame_id = "map";
-
-    msg.height = 1;
-    msg.width = _lastScan.size();
-
-    auto modifier = sensor_msgs::PointCloud2Modifier(msg);
-    modifier.setPointCloud2FieldsByString(1, "xyz");
-    modifier.resize(msg.width * msg.height);
-
-    auto iterX = sensor_msgs::PointCloud2Iterator<float>(msg, "x");
-    auto iterY = sensor_msgs::PointCloud2Iterator<float>(msg, "y");
-    auto iterZ = sensor_msgs::PointCloud2Iterator<float>(msg, "z");
-
-    for (const auto& p : _lastScan) {
-        *iterX = static_cast<float>(p.x);
-        *iterY = static_cast<float>(p.y);
-        *iterZ = 0.0f;
-
-        ++iterX;
-        ++iterY;
-        ++iterZ;
-    }
-
-    _scanPublisher->publish(msg);
-}
-
-void MappingEngine::PublishPose() const
+void MappingEngine::PublishPose()
 {
     auto msg = geometry_msgs::msg::PoseArray();
     msg.header.stamp = now();
     msg.header.frame_id = "map";
 
     for (const auto hypothesis : _hypotheses) {
-        auto poseMsg = geometry_msgs::msg::Pose();
-        poseMsg.position.x = hypothesis.pose.position.x;
-        poseMsg.position.y = hypothesis.pose.position.y;
-        poseMsg.position.z = 0.0;
-
-        const double halfRotation = (hypothesis.pose.rotation + M_PI * 0.5) * 0.5;
-
-        poseMsg.orientation.x = 0.0;
-        poseMsg.orientation.y = 0.0;
-        poseMsg.orientation.z = std::sin(halfRotation);
-        poseMsg.orientation.w = std::cos(halfRotation);
-
-        msg.poses.push_back(poseMsg);
+        msg.poses.push_back(hypothesis.pose.ToRosPoseMessage());
     }
 
-    // _path.poses.push_back(msg);
-    // if (_path.poses.size() > 100)
-    //     _path.poses.erase(_path.poses.begin());
-    //
-    // _pathPub->publish(_path);
+    _hypoPublisher->publish(msg);
 
-    _posePublisher->publish(msg);
+    auto poseMsg = geometry_msgs::msg::PoseStamped();
+
+    poseMsg.header.stamp = now();
+    poseMsg.header.frame_id = "map";
+
+    poseMsg.pose = _stablePose.ToRosPoseMessage();
+
+    _posePublisher->publish(poseMsg);
+
+    _path.poses.push_back(poseMsg);
+    if (_path.poses.size() > 100)
+        _path.poses.erase(_path.poses.begin());
+
+    _pathPublisher->publish(_path);
 }
 
 void MappingEngine::PublishGrid()

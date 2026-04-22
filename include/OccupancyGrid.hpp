@@ -4,7 +4,7 @@
 #include <queue>
 #include <vector>
 
-#include "Vector2.hpp"
+#include "Math/Vector2.hpp"
 
 namespace Manhattan::Core {
 class GridCell {
@@ -67,6 +67,12 @@ public:
     void Add(const double logOdds)
     {
         _probability = std::clamp(_probability + logOdds, -5.0, 20.0);
+    }
+
+    void Reset()
+    {
+        _probability = 0;
+        _cost = 0;
     }
 };
 
@@ -222,6 +228,12 @@ public:
                 nodesInCurrentLayer = queue.size();
             }
         }
+    }
+
+    void Reset()
+    {
+        for (auto& cell : _grid)
+            cell.Reset();
     }
 
     static std::vector<Vector2Int> Bresenham(const Vector2Int start, const Vector2Int end)

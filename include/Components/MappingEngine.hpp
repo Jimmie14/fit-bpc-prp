@@ -8,10 +8,10 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "../Math/PoseMatcher.hpp"
+#include "../Math/Vector2.hpp"
 #include "App.hpp"
 #include "OccupancyGrid.hpp"
-#include "PoseMatcher.hpp"
-#include "Vector2.hpp"
 
 namespace Manhattan::Core {
 enum class MappingEngineState {
@@ -19,37 +19,6 @@ enum class MappingEngineState {
     Stable,
     Degraded,
     Lost,
-};
-
-struct ScanContext {
-    static constexpr int ringCount = 20;
-    static constexpr int sectorCount = 60;
-
-    std::array<std::array<float, sectorCount>, ringCount> descriptor;
-    Pose pose;
-
-    [[nodiscard]] size_t GetHash() const
-    {
-        // coarse hash
-        size_t hash = 0;
-
-        for (auto r = 0; r < ringCount; ++r) {
-            auto ringSum = 0.0f;
-            auto ringMax = 0.0f;
-
-            for (auto s = 0; s < sectorCount; ++s) {
-                ringSum += descriptor[r][s];
-                ringMax = std::max(ringMax, descriptor[r][s]);
-            }
-
-            const auto quantizedSum = static_cast<int>(ringSum * 10) % 256;
-            const auto quantizedMax = static_cast<int>(ringMax * 10) % 256;
-
-            hash ^= (quantizedSum << (r % 8)) ^ (quantizedMax << ((r + 4) % 8));
-        }
-
-        return hash;
-    }
 };
 
 class MappingEngine final : public RosEngine {
@@ -70,8 +39,8 @@ private:
     TimerBase::SharedPtr _publishTimer;
     TimerBase::SharedPtr _costUpdateTimer;
 
-    Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
-    Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _posePublisher;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePublisher;
+    Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _hypoPublisher;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
@@ -86,7 +55,6 @@ private:
     Pose _lastStoredPose = Pose::Identity();
     Pose _stablePose = Pose::Identity();
     std::vector<PoseMatchResult> _hypotheses;
-    std::unordered_map<size_t, ScanContext> _scanContexts;
 
     MappingEngineState _state = MappingEngineState::Initializing;
     Time _lostTime;
@@ -105,11 +73,7 @@ private:
     void UpdateHypotheses(const Pose& odomDelta);
     void UpdateState();
 
-    void TryRelocalize();
-    void StoreScanContext();
-    static ScanContext ComputeScanContext(const std::vector<Vector2>& points, const Pose& pose);
-    static double ComputeScanContextSimilarity(const ScanContext& a, const ScanContext& b);
-    static Pose EstimatePoseFromScanContext(const ScanContext& current, const ScanContext& reference);
+    void CreateHypothesis();
 
     void Reset();
 
@@ -117,9 +81,7 @@ private:
 
     void Publish();
 
-    void PublishScan() const;
-    void PublishPose() const;
-
+    void PublishPose();
     void PublishGrid();
     void PublishGridMap();
 };

@@ -15,6 +15,7 @@ public:
     void Enable();
 
     void Disable();
+
 protected:
     const App& _app;
 

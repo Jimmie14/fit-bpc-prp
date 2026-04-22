@@ -32,10 +32,7 @@ int main(const int argc, char* argv[])
     app->AddComponent<Core::MappingEngine>();
     app->AddComponent<Core::NavigatorEngine>();
     app->AddComponent<Core::FollowerEngine>();
-    app->AddComponent<Core::ExplorerEngine>();
-
-    app->GetComponent<Core::FollowerEngine>()->Enable();
-    // app->GetController<Core::ExplorerController>()->Enable();
+    app->AddComponent<Core::ExplorerEngine>()->Enable();
 
     app->Run();
 

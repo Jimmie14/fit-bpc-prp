@@ -5,7 +5,7 @@
 #include <limits>
 #include <vector>
 
-#include "Vector2.hpp"
+#include "Math/Vector2.hpp"
 
 namespace Manhattan::Core {
 class SplineMath {

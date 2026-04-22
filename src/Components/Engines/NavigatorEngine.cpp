@@ -177,7 +177,6 @@ void NavigatorEngine::SetDestination(GridCell* destination)
     SetPath(path);
 }
 
-
 std::vector<Vector2> NavigatorEngine::SmoothPath(const std::vector<GridCell*>& path) const
 {
     std::vector<Vector2> points;

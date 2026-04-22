@@ -3,13 +3,14 @@
 #include <cmath>
 #include <numbers>
 
-Kinematics::Kinematics(double wheelRadius, double wheelBase, int32_t pulsesPerRotation)
+namespace Manhattan::Core {
+Kinematics::Kinematics(const double wheelRadius, const double wheelBase, const int32_t pulsesPerRotation)
     : _wheelRadius(wheelRadius)
     , _wheelBase(wheelBase)
     , _pulsesPerRotation(pulsesPerRotation)
 {
 }
-WheelSpeed Kinematics::inverse(RobotSpeed speed) const
+WheelSpeed Kinematics::inverse(const RobotSpeed speed) const
 {
     WheelSpeed result = {};
 
@@ -19,7 +20,7 @@ WheelSpeed Kinematics::inverse(RobotSpeed speed) const
     return result;
 }
 
-RobotSpeed Kinematics::forward(WheelSpeed speed) const
+RobotSpeed Kinematics::forward(const WheelSpeed speed) const
 {
     RobotSpeed result = {};
 
@@ -29,19 +30,20 @@ RobotSpeed Kinematics::forward(WheelSpeed speed) const
     return result;
 }
 
-double Kinematics::ticksToMeters(int32_t deltaTicks) const
+double Kinematics::ticksToMeters(const int32_t deltaTicks) const
 {
     return static_cast<double>(deltaTicks) * 2.0 * M_PI * _wheelRadius / static_cast<double>(_pulsesPerRotation);
 }
 
-Pose2D Kinematics::integrate(Pose2D pose, double leftLinear, double rightLinear) const
+Pose Kinematics::integrate(Pose pose, const double leftLinear, const double rightLinear) const
 {
     const double dPos = (leftLinear + rightLinear) / 2.0;
     const double dTheta = (rightLinear - leftLinear) / _wheelBase;
 
-    pose.x += dPos * std::cos(pose.theta + dTheta / 2.0);
-    pose.y += dPos * std::sin(pose.theta + dTheta / 2.0);
-    pose.theta += dTheta;
+    pose.position.x += dPos * std::cos(pose.rotation + dTheta / 2.0);
+    pose.position.y += dPos * std::sin(pose.rotation + dTheta / 2.0);
+    pose.rotation += dTheta;
 
     return pose;
+}
 }

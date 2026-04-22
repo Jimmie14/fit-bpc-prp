@@ -7,7 +7,6 @@ RosComponent::RosComponent(const App& app, const std::string& nodeName)
     : Node(nodeName, NodeOptions().use_intra_process_comms(true))
     , _app(app)
 {
-
 }
 
 void RosComponent::Enable()

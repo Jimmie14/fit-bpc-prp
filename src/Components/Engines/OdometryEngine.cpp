@@ -37,7 +37,7 @@ void OdometryEngine::OnDisable()
     RCLCPP_INFO(get_logger(), "RobotOdometry disabled");
 }
 
-void OdometryEngine::ApplyCorrection(const Pose2D& correctedPose)
+void OdometryEngine::ApplyCorrection(const Pose& correctedPose)
 {
     _pose = correctedPose;
 }
@@ -90,10 +90,6 @@ void OdometryEngine::publishOdometry(const Time& stamp)
 
     _lastPublishTime = stamp;
 
-    const double halfTheta = _pose.theta * 0.5;
-    const double qw = std::cos(halfTheta);
-    const double qz = std::sin(halfTheta);
-
     // nav_msgs/odom
     nav_msgs::msg::Odometry odomMsg;
     odomMsg.header.stamp = stamp;
@@ -101,13 +97,7 @@ void OdometryEngine::publishOdometry(const Time& stamp)
     odomMsg.child_frame_id = "base_link";
 
     // position
-    odomMsg.pose.pose.position.x = _pose.x;
-    odomMsg.pose.pose.position.y = _pose.y;
-    odomMsg.pose.pose.position.z = 0.0;
-    odomMsg.pose.pose.orientation.x = 0.0;
-    odomMsg.pose.pose.orientation.y = 0.0;
-    odomMsg.pose.pose.orientation.z = qz;
-    odomMsg.pose.pose.orientation.w = qw;
+    odomMsg.pose.pose = _pose.ToRosPoseMessage();
 
     // velocity
     odomMsg.twist.twist.linear.x = _linearVelocity;
@@ -120,6 +110,7 @@ void OdometryEngine::publishOdometry(const Time& stamp)
     // Pose covariance (x, y, z, roll, pitch, yaw)
     odomMsg.pose.covariance = { 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
         0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };
+
     // Twist covariance (vx, vy, vz, vroll, vpitch, vyaw)
     odomMsg.twist.covariance = { 0.1, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
         0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };

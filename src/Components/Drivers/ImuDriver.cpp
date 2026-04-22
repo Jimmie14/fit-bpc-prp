@@ -16,7 +16,8 @@ constexpr auto imuLinearCovariance = 0.01;
 
 namespace Manhattan::Core {
 
-ImuDriver::ImuDriver(const App& app) : RosDeviceDriver(app, "imu")
+ImuDriver::ImuDriver(const App& app)
+    : RosDeviceDriver(app, "imu")
 {
 }
 

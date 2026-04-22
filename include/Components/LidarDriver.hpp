@@ -3,8 +3,8 @@
 #include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
+#include "../Math/Vector2.hpp"
 #include "RosDeviceDriver.hpp"
-#include "Vector2.hpp"
 
 namespace Manhattan::Core {
 class LidarDriver final : public RosDeviceDriver {
