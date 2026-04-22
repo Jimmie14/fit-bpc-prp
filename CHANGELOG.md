@@ -2,7 +2,7 @@
 
 ### ⚙️ Miscellaneous Tasks
 
-- Update changelog
+- Correct skip rule for 'ci: update changelog' in cliff config
 ## [1.1.1] - 2026-04-22
 
 ### 🚀 Features
@@ -27,16 +27,6 @@
 
 ### ⚙️ Miscellaneous Tasks
 
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
-- Update changelog
 - Bump version to 1.1.1
 ## [1.1.0] - 2026-04-20
 
@@ -84,9 +74,7 @@
 - Fixed sleep bug
 - Run clang-format
 - Add generate CHANGELOG workflow
-- Update changelog
 - *(cliff)* Update cliff config to ignore save commits
-- Update changelog
 - Bump version to 1.1.0
 ## [1.0.0] - 2026-03-24
 
