@@ -15,13 +15,11 @@
 using namespace std;
 using namespace Manhattan;
 
-
 int main(const int argc, char* argv[])
 {
     rclcpp::init(argc, argv);
 
     const auto app = make_shared<Core::App>();
-
 
     app->AddDriver<Core::ImuDriver>()->Enable();
     app->AddDriver<Core::LidarDriver>()->Enable();

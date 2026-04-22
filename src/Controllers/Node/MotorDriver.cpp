@@ -12,7 +12,8 @@ constexpr double ROTATIONS_PER_SECOND = 1.5;
 constexpr double MAX_WHEEL_ANGULAR_SPEED = 2.0 * M_PI * ROTATIONS_PER_SECOND;
 constexpr double ANGULAR_TO_SPEED = 1.0 / MAX_WHEEL_ANGULAR_SPEED;
 
-MotorDriver::MotorDriver(const App& app) : RosDeviceDriver(app)
+MotorDriver::MotorDriver(const App& app)
+    : RosDeviceDriver(app)
 {
     _publisher = _node->create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
 

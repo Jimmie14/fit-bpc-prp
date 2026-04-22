@@ -19,6 +19,7 @@ public:
     {
         return nullptr;
     }
+
 protected:
     const App& _app;
     const rclcpp::Node::SharedPtr _node;

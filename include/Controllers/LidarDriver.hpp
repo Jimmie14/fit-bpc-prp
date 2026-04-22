@@ -23,5 +23,3 @@ struct LidarScan {
 };
 
 } // namespace Manhattan::Core
-
-

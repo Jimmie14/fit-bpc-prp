@@ -1,10 +1,10 @@
 #pragma once
 #include <rclcpp/rclcpp.hpp>
 
-#include "RosDeviceDriver.hpp"
-#include "RosEngine.hpp"
 #include "EventBus.hpp"
 #include "Networking/TcpServer.h"
+#include "RosDeviceDriver.hpp"
+#include "RosEngine.hpp"
 
 namespace Manhattan::Core {
 class App {

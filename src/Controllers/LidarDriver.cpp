@@ -16,7 +16,8 @@ static bool IsInRange(const double hit, const double minRange, const double maxR
     return hit > minRange && hit < maxRange;
 }
 
-LidarDriver::LidarDriver(const App& app) : RosDeviceDriver(app)
+LidarDriver::LidarDriver(const App& app)
+    : RosDeviceDriver(app)
 {
     _lidar_subscriber = _node->create_subscription<sensor_msgs::msg::LaserScan>(
         LIDAR_TOPIC, 1, [this](sensor_msgs::msg::LaserScan::SharedPtr msg) { LidarFilter(msg); });
@@ -51,6 +52,6 @@ void LidarDriver::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
 
     _points.resize(pointIndex);
 
-    _app.Events.Publish(LidarScan{_points});
+    _app.Events.Publish(LidarScan { _points });
 }
 } // namespace Manhattan::Core
