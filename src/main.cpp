@@ -11,6 +11,7 @@
 #include "NavigatorController.hpp"
 #include "OdometryEngine.hpp"
 #include "UserInputController.hpp"
+#include "NavigatorGraphBuilder.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -33,6 +34,7 @@ int main(const int argc, char* argv[])
     app->AddController<Core::NavigatorController>();
     app->AddController<Core::FollowerController>();
     app->AddController<Core::ExplorerController>();
+    app->AddController<Core::NavigatorGraphBuilder>();
 
     app->GetController<Core::FollowerController>()->Enable();
     // app->GetController<Core::ExplorerController>()->Enable();

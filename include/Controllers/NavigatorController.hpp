@@ -4,7 +4,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "../Common/RosConnector.hpp"
+#include "RosConnector.hpp"
 #include "Kinematics.hpp"
 #include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
