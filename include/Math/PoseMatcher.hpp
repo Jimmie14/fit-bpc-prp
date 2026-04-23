@@ -1,58 +1,15 @@
 #pragma once
+
 #include "OccupancyGrid.hpp"
-#include "Vector2.hpp"
+#include "Pose.hpp"
+#include <iostream>
 
 namespace Manhattan::Core {
-struct Pose {
-    Vector2 position;
-    Vector2 forward;
-    double rotation;
-
-    Pose()
-        : position(Vector2::Zero())
-        , forward(Vector2(std::cos(M_PI * 0.5), std::sin(M_PI * 0.5)))
-        , rotation(0.0)
-    {
-    }
-
-    explicit Pose(const Vector2 position, const double rotation)
-        : position(position)
-        , rotation(rotation)
-    {
-        forward = Vector2(std::cos(rotation + M_PI * 0.5), std::sin(rotation + M_PI * 0.5));
-    }
-
-    Pose operator-(const Pose& other) const
-    {
-        return Pose(position - other.position, rotation - other.rotation);
-    }
-
-    Pose operator+(const Pose& other) const
-    {
-        return Pose(position + other.position, rotation + other.rotation);
-    }
-
-    static Pose Zero()
-    {
-        return Pose(Vector2::Zero(), 0.0);
-    }
-
-    static Pose Identity()
-    {
-        return Pose(Vector2::Zero(), 0.0);
-    }
-
-    [[nodiscard]] std::string ToString() const
-    {
-        return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
-    }
-};
-
-struct PoseResult {
+struct PoseMatchResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };
 
-    [[nodiscard]] static PoseResult Combine(const PoseResult& left, const PoseResult& right)
+    [[nodiscard]] static PoseMatchResult Best(const PoseMatchResult& left, const PoseMatchResult& right)
     {
         return left.confidence > right.confidence ? left : right;
     }
@@ -67,28 +24,37 @@ public:
     {
     }
 
-    [[nodiscard]] PoseResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
+    [[nodiscard]] PoseMatchResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
     {
         auto pos = estimatedPose.position;
         auto rot = estimatedPose.rotation;
-        const auto pointsCount = static_cast<double>(scanPoints.size());
 
-        auto totalProbability = 0.0;
-        auto totalObservability = 0.0;
+        auto totalError = 0.0;
+        auto knownCount = 0;
+        auto usedPoints = 0;
+
+        auto condSum = 0.0;
+        auto validIterations = 0;
+        auto lastDeltaNorm = 0.0;
 
         for (int iter = 0; iter < _numIterations; iter++) {
-            totalProbability = 0.0;
+            // Reset per-iteration accumulators so final values reflect the converged pose
+            totalError = 0.0;
+            knownCount = 0;
+            usedPoints = 0;
 
             // Initialize 3x3 Hessian matrix and 3x1 boundary vector with zeros
             double h[3][3] = { {} };
             double b[3] = {};
 
-            auto cosVal = std::cos(rot);
-            auto sinVal = std::sin(rot);
+            const auto cosVal = std::cos(rot);
+            const auto sinVal = std::sin(rot);
 
             for (const auto& p : scanPoints) {
+
                 const auto tx = p.x * cosVal - p.y * sinVal;
                 const auto ty = p.x * sinVal + p.y * cosVal;
+
                 auto world = Vector2(pos.x + tx, pos.y + ty);
 
                 auto cellOffset = GridOffsetForInterpolation(world);
@@ -100,16 +66,14 @@ public:
                 const auto x1 = x0 + 1;
                 const auto y1 = y0 + 1;
 
-                if (!_grid.InBounds(x0, y0) || !_grid.InBounds(x1, y1))
+                if (!_grid.InBounds(x0, y0) || !_grid.InBounds(x1, y1)) {
                     continue;
+                }
 
                 const auto p00 = _grid.GetProbability(x0, y0);
                 const auto p10 = _grid.GetProbability(x1, y0);
                 const auto p01 = _grid.GetProbability(x0, y1);
                 const auto p11 = _grid.GetProbability(x1, y1);
-
-                // if (p00 <= 0.5 && p10 <= 0.5 && p01 <= 0.5 && p11 <= 0.5)
-                //     continue;
 
                 const auto m = (p00 * (1.0 - fx) * (1.0 - fy)) + (p10 * fx * (1.0 - fy)) + (p01 * (1.0 - fx) * fy) + (p11 * fx * fy);
 
@@ -139,8 +103,16 @@ public:
                 b[1] += gY * error;
                 b[2] += gTheta * error;
 
-                totalProbability += m;
+                totalError += error * error;
+
+                if (std::abs(m - 0.5) > 0.05) knownCount++;
+                usedPoints++;
             }
+
+            // Enforce hessian symmetry
+            h[1][0] = h[0][1];
+            h[2][0] = h[0][2];
+            h[2][1] = h[1][2];
 
             const auto det = h[0][0] * (h[1][1] * h[2][2] - h[1][2] * h[2][1]) - h[0][1] * (h[1][0] * h[2][2] - h[1][2] * h[2][0]) + h[0][2] * (h[1][0] * h[2][1] - h[1][1] * h[2][0]);
 
@@ -165,29 +137,51 @@ public:
                 dPosMy = i10 * b[0] + i11 * b[1] + i12 * b[2];
                 dRotM = i20 * b[0] + i21 * b[1] + i22 * b[2];
 
-                const auto quality = std::log(std::abs(det) + 1.0);
-                const auto qualityNorm = quality / (quality + 1.0);
+                const auto normH = sqrt(h[0][0] * h[0][0] + h[1][1] * h[1][1] + h[2][2] * h[2][2] + 2 * (h[0][1] * h[0][1] + h[0][2] * h[0][2] + h[1][2] * h[1][2]));
+                const auto condApprox = normH / (abs(det) + 1e-9);
 
-                const auto trace = h[0][0] + h[1][1] + h[2][2];
-                const auto traceAvg = trace / pointsCount;
-                const auto traceNorm = traceAvg / (traceAvg + 1.0); // todo: calculate k over sliding mediat window
-
-                // weighted average of determinant quality and constraint magnitude
-                totalObservability += (qualityNorm * 0.6 + traceNorm * 0.4) / static_cast<double>(_numIterations);
+                condSum += condApprox;
+                validIterations++;
             }
 
             pos.x += std::clamp(dPosMx, -0.1, 0.1);
             pos.y += std::clamp(dPosMy, -0.1, 0.1);
             rot += std::clamp(dRotM, -0.05, 0.05);
+
+            lastDeltaNorm = std::sqrt(dPosMx*dPosMx + dPosMy*dPosMy + dRotM*dRotM);
         }
 
-        const auto coverage = scanPoints.empty()
-            ? 0.0
-            : totalProbability / static_cast<double>(scanPoints.size());
+        // Fix 1: compute avgCond
+        const double avgCond = validIterations > 0 ? condSum / validIterations : 1e9;
 
-        const auto confidence = std::clamp(coverage, 0.0, 1.0);
+        constexpr double sigma2 = 0.25;
+        constexpr double deltaSigma2 = 0.01;
+        constexpr double condScale = 1e6;
 
-        return { Pose(pos, rot), confidence };
+        const double avgError = totalError / std::max(1, usedPoints);
+        const double fitScore = std::exp(-avgError / sigma2);
+        const double coverageScore = static_cast<double>(usedPoints) / std::max<size_t>(1, scanPoints.size());
+        const double deltaScore = std::exp(-(lastDeltaNorm * lastDeltaNorm) / deltaSigma2);
+        const double conditioningScore = 1.0 / (1.0 + avgCond / condScale);
+
+        const double knownRatio = static_cast<double>(knownCount) / std::max(1, usedPoints);
+
+        // Pose location penalty
+        const auto poseCell = _grid.WorldToGrid(pos);
+        const auto poseProbability = _grid.GetProbability(poseCell.x, poseCell.y);
+        const double poseKnownScore = std::clamp(std::abs(poseProbability - 0.5) * 2.0, 0.0, 1.0);
+
+        const double confidence =
+            0.35 * fitScore +            // how well scan endpoints hit occupied cells
+            0.20 * coverageScore +       // fraction of scan points that were in-bounds
+            0.20 * knownRatio +          // fraction of points in decided (non-unknown) cells
+            0.10 * deltaScore +          // convergence stability
+            0.10 * conditioningScore +   // Hessian quality
+            0.05 * poseKnownScore;       // is the pose itself in observed space?
+
+        std::cout << "conf (raw)  : " << confidence << std::endl;
+
+        return { Pose(pos, rot), std::clamp(confidence, 0.0, 1.0) };
     }
 
 private:

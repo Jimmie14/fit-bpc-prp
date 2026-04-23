@@ -8,11 +8,11 @@
 #include "LineEstimator.hpp"
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
-#include "RosConnector.hpp"
+#include "RosEngine.hpp"
 
 namespace Manhattan::Core {
-class LineController final : public RosConnector {
-    rclcpp::Subscription<std_msgs::msg::UInt16MultiArray>::SharedPtr _subscriber;
+class LineEngine final : public RosEngine {
+    Subscription<std_msgs::msg::UInt16MultiArray>::SharedPtr _subscriber;
     DiscreteLinePose _linePose = DiscreteLinePose::LineNone;
 
     std::shared_ptr<MotorDriver> _motorController;
@@ -24,13 +24,13 @@ class LineController final : public RosConnector {
     double _baseForce = 0.75f;
     double _maxCorrection = 0.45f;
     double _lastContinuousError = 0.0f;
-    rclcpp::Time _lastPidTime;
+    Time _lastPidTime;
 
-    rclcpp::Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr _lineSensorsPublisher;
-    rclcpp::Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
+    Publisher<std_msgs::msg::Float64MultiArray>::SharedPtr _lineSensorsPublisher;
+    Publisher<std_msgs::msg::Float64>::SharedPtr _linePosePublisher;
 
 public:
-    explicit LineController(const App& app);
+    explicit LineEngine(const App& app);
 
     // Relative pose to line [m]
     [[nodiscard]] float GetContinuousLinePose() const;

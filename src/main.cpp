@@ -1,16 +1,16 @@
 #include <rclcpp/rclcpp.hpp>
 
-#include "../include/Controllers/LineController.hpp"
-#include "../include/Controllers/MotorDriver.hpp"
 #include "App.hpp"
-#include "ExplorerController.hpp"
-#include "FollowerController.hpp"
+#include "ExplorerEngine.hpp"
+#include "FollowerEngine.hpp"
 #include "ImuDriver.hpp"
 #include "LidarDriver.hpp"
+#include "LineEngine.hpp"
 #include "MappingEngine.hpp"
-#include "NavigatorController.hpp"
+#include "MotorDriver.hpp"
+#include "NavigatorEngine.hpp"
 #include "OdometryEngine.hpp"
-#include "UserInputController.hpp"
+#include "UserInputDriver.hpp"
 #include "NavigatorGraphBuilder.hpp"
 
 using namespace std;
@@ -18,7 +18,7 @@ using namespace Manhattan;
 
 int main(const int argc, char* argv[])
 {
-    rclcpp::init(argc, argv);
+    init(argc, argv);
 
     const auto app = make_shared<Core::App>();
 
@@ -26,22 +26,19 @@ int main(const int argc, char* argv[])
     app->AddDriver<Core::LidarDriver>()->Enable();
     app->AddDriver<Core::MotorDriver>()->Enable();
 
-    app->AddController<Core::OdometryEngine>();
-    app->AddController<Core::LineController>();
+    app->AddComponent<Core::OdometryEngine>();
+    app->AddComponent<Core::LineEngine>();
 
-    app->AddController<Core::UserInputController>();
-    app->AddController<Core::MappingEngine>();
-    app->AddController<Core::NavigatorController>();
-    app->AddController<Core::FollowerController>();
-    app->AddController<Core::ExplorerController>();
-    app->AddController<Core::NavigatorGraphBuilder>();
-
-    app->GetController<Core::FollowerController>()->Enable();
-    // app->GetController<Core::ExplorerController>()->Enable();
+    app->AddComponent<Core::UserInputDriver>();
+    app->AddComponent<Core::MappingEngine>();
+    app->AddComponent<Core::NavigatorEngine>();
+    app->AddComponent<Core::FollowerEngine>();
+    app->AddComponent<Core::ExplorerEngine>()->Enable();
+    app->AddComponent<Core::NavigatorGraphBuilder>();
 
     app->Run();
 
     // Shutdown ROS 2
-    rclcpp::shutdown();
+    shutdown();
     return 0;
 }

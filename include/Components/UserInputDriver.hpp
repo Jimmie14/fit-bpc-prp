@@ -1,23 +1,23 @@
 #pragma once
 
-#include "../Common/RosConnector.hpp"
-#include "LineController.hpp"
+#include "LineEngine.hpp"
 #include "Networking/TcpServer.h"
 #include "OdometryEngine.hpp"
+#include "RosDeviceDriver.hpp"
 
 namespace Manhattan::Core {
-class UserInputController final : public RosConnector {
+class UserInputDriver final : public RosDeviceDriver {
     std::shared_ptr<TcpServer> _tcpServer;
 
     std::shared_ptr<MotorDriver> _motorController;
-    std::shared_ptr<LineController> _lineController;
+    std::shared_ptr<LineEngine> _lineController;
 
-    std::shared_ptr<RosConnector> _activeController;
+    std::shared_ptr<RosComponent> _activeController;
 
     Kinematics _kinematics;
 
 public:
-    explicit UserInputController(const App& app);
+    explicit UserInputDriver(const App& app);
 
     void ReceiveMessage(const std::vector<uint8_t>& data);
 

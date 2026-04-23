@@ -1,4 +1,4 @@
-#include "../../../include/Controllers/MotorDriver.hpp"
+#include "MotorDriver.hpp"
 
 using namespace std;
 using namespace rclcpp;
@@ -13,9 +13,9 @@ constexpr double MAX_WHEEL_ANGULAR_SPEED = 2.0 * M_PI * ROTATIONS_PER_SECOND;
 constexpr double ANGULAR_TO_SPEED = 1.0 / MAX_WHEEL_ANGULAR_SPEED;
 
 MotorDriver::MotorDriver(const App& app)
-    : RosDeviceDriver(app)
+    : RosDeviceDriver(app, "motor")
 {
-    _publisher = _node->create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
+    _publisher = create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
 
     _msg = msg::UInt8MultiArray();
     _msg.data.push_back(127);
@@ -29,12 +29,12 @@ void MotorDriver::OnEnable()
     if (_subscriber)
         return;
 
-    _subscriber = _node->create_subscription<msg::UInt32MultiArray>(
+    _subscriber = create_subscription<msg::UInt32MultiArray>(
         MOTOR_ENCODERS_TOPIC, 1, std::bind(&MotorDriver::SubscriberCallback, this, std::placeholders::_1));
 
-    _timer = _node->create_wall_timer(100ms, [this] { _publisher->publish(_msg); });
+    _timer = create_wall_timer(100ms, [this] { _publisher->publish(_msg); });
 
-    RCLCPP_INFO(_node->get_logger(), "Motor controller enabled");
+    RCLCPP_INFO(get_logger(), "Motor controller enabled");
 }
 
 void MotorDriver::OnDisable()
@@ -42,7 +42,7 @@ void MotorDriver::OnDisable()
     _subscriber.reset();
     _timer.reset();
 
-    RCLCPP_INFO(_node->get_logger(), "Motor controller disabled");
+    RCLCPP_INFO(get_logger(), "Motor controller disabled");
 }
 
 void MotorDriver::SetForce(double leftAngular, double rightAngular)
@@ -63,9 +63,9 @@ void MotorDriver::SubscriberCallback(const msg::UInt32MultiArray::SharedPtr msg)
     const auto length = msg->data.size();
 
     if (length >= 1)
-        RCLCPP_INFO(_node->get_logger(), "Left wheel turned: %u", msg->data[0]);
+        RCLCPP_INFO(get_logger(), "Left wheel turned: %u", msg->data[0]);
 
     if (length >= 2)
-        RCLCPP_INFO(_node->get_logger(), "Right wheel turned: %u", msg->data[1]);
+        RCLCPP_INFO(get_logger(), "Right wheel turned: %u", msg->data[1]);
 }
 } // namespace Manhattan::Core

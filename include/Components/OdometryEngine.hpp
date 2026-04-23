@@ -7,7 +7,7 @@
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
 #include "Kinematics.hpp"
-#include "RosConnector.hpp"
+#include "RosComponent.hpp"
 #include "RosEngine.hpp"
 
 namespace Manhattan::Core {
@@ -15,7 +15,7 @@ class OdometryEngine final : public RosEngine {
 public:
     explicit OdometryEngine(const App& app);
 
-    void ApplyCorrection(const Pose2D& correctedPose);
+    void ApplyCorrection(const Pose& correctedPose);
 
     [[nodiscard]] Kinematics GetKinematics() const;
 
@@ -26,12 +26,12 @@ public:
 private:
     void OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
-    void publishOdometry(const rclcpp::Time& stamp);
+    void publishOdometry(const Time& stamp);
 
     // -----------------------------------------------------------------------
     Kinematics _kinematics;
 
-    Pose2D _pose = {};
+    Pose _pose = {};
     double _linearVelocity = 0.0;
     double _angularVelocity = 0.0;
 
@@ -40,10 +40,10 @@ private:
     int32_t _prevRight = 0;
     bool _initialized = false;
 
-    rclcpp::Time _lastPublishTime { 0, 0, RCL_ROS_TIME };
+    Time _lastPublishTime { 0, 0, RCL_ROS_TIME };
 
-    rclcpp::Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
-    rclcpp::Publisher<nav_msgs::msg::Odometry>::SharedPtr _odomPub;
-    rclcpp::Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
+    Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _encoderSub;
+    Publisher<nav_msgs::msg::Odometry>::SharedPtr _odomPub;
+    Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePub;
 };
 } // namespace Manhattan::Core

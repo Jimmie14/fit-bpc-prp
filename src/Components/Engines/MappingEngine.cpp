@@ -1,43 +1,53 @@
-#include "LidarDriver.hpp"
 #include "MappingEngine.hpp"
+#include "LidarDriver.hpp"
+#include "sensor_msgs/point_cloud2_iterator.hpp"
+
 #include <grid_map_ros/GridMapRosConverter.hpp>
+#include <random>
 
 using namespace std;
 
+constexpr auto minConfidence = 0.6;
+
 namespace Manhattan::Core {
 MappingEngine::MappingEngine(App& app)
-    : RosEngine(app)
+    : RosEngine(app, "mapping")
     , _grid(Vector2Int(200, 200), 0.05, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::Identity())
-    , _odomPoseDelta(Pose::Zero())
-    , _lastStablePose(Pose::Identity())
+    , _hypotheses({ PoseMatchResult(Pose::Identity(), minConfidence) })
 {
-    app.Events.Subscribe<LidarScan>([this](const LidarScan& scan) {
+    _lostTime = now();
+
+    app.Events->Subscribe<LidarScan>([this](const LidarScan& scan) {
         this->OnLidar(scan.points);
     });
 
-    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/slam/pose", 5);
-    _pathPub = _node->create_publisher<nav_msgs::msg::Path>("~/slam/path", 5);
+    _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("slam/pose", 1);
+    _pathPublisher = create_publisher<nav_msgs::msg::Path>("slam/path", 1);
 
-    _gridPub = _node->create_publisher<nav_msgs::msg::OccupancyGrid>("~/slam/grid", 1);
-    _gridMapPub = _node->create_publisher<grid_map_msgs::msg::GridMap>("~/slam/grid_map", 1);
+    _hypoPublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/hypo", 1);
+
+    _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", 1);
+    _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", 1);
 
     _path.header.frame_id = "map";
 
-    _odometrySub = _node->create_subscription<nav_msgs::msg::Odometry>(
+    _odometrySub = create_subscription<nav_msgs::msg::Odometry>(
         "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
             this->OnOdometry(msg);
         });
 
-    _publishTimer = _node->create_wall_timer(200ms, [this] { Publish(); });
-    _costUpdateTimer = _node->create_wall_timer(1000ms, [this] {
+    _publishTimer = create_wall_timer(200ms, [this] {
+        Publish();
+    });
+    _costUpdateTimer = create_wall_timer(1000ms, [this] {
         std::lock_guard guard(_mapLock);
 
         this->_grid.RecalculateCosts();
     });
 
-    RCLCPP_INFO(_node->get_logger(), "SlamController initialized");
+    RCLCPP_INFO(get_logger(), "SlamController initialized");
 }
 
 void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
@@ -57,55 +67,170 @@ void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
     }
 }
 
-void MappingEngine::OnLidar(const std::vector<Vector2>& points)
+void MappingEngine::OnLidar(const vector<Vector2>& points)
 {
     if (points.empty())
         return;
 
-    std::lock_guard lock(_mapLock);
-
-    // todo: support ResetGridIfNeeded() if robot leaves grid
-
     Pose odomDelta;
-
     {
         std::lock_guard guard(_odomLock);
 
         odomDelta = _odomPoseDelta;
-
         _odomPoseDelta = Pose::Zero();
     }
 
-    const auto stableResult = _poseMatcher.Match(points, _lastStablePose);
-    const auto odomResult = _poseMatcher.Match(points, _lastOdomPose + odomDelta);
-    // std::cout << "odomDelta  : " << odomDelta.ToString() << std::endl;
+    std::lock_guard lock(_mapLock);
 
-    const auto result = PoseResult::Combine(stableResult, odomResult);
+    _lastScan = points;
 
-    _lastStablePose = result.pose;
-
-    // std::cout << "Matcher confidence: " << result.confidence << std::endl;
-
-    if (result.confidence < 0.5)
-        return;
+    switch (_state) {
+    case MappingEngineState::Initializing:
+        break;
+    case MappingEngineState::Stable:
+    case MappingEngineState::Degraded:
+    case MappingEngineState::Lost:
+        UpdateHypotheses(odomDelta);
+        break;
+    }
 
     MapScan(points);
 }
 
+void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
+{
+    for (auto& hypothesis : _hypotheses) {
+        auto stableResult = _poseMatcher.Match(_lastScan, hypothesis.pose);
+        auto odomResult = _poseMatcher.Match(_lastScan, hypothesis.pose + odomDelta);
+
+        hypothesis = PoseMatchResult::Best(stableResult, odomResult);
+    }
+
+    erase_if(_hypotheses, [](const PoseMatchResult& result) {
+        return result.confidence < minConfidence;
+    });
+
+    if (_state == MappingEngineState::Degraded || _hypotheses.empty())
+        CreateHypothesis();
+
+    UpdateState();
+}
+
+void MappingEngine::UpdateState()
+{
+    constexpr auto lostTimeout = 10000ms;
+
+    const auto timeNow = now();
+
+    if (_hypotheses.empty()) {
+        if (_state != MappingEngineState::Lost) {
+            _state = MappingEngineState::Lost;
+            _lostTime = timeNow;
+            return;
+        }
+
+        if (timeNow - _lostTime > lostTimeout)
+            Reset();
+
+        return;
+    }
+
+    auto best = max_element(_hypotheses.begin(), _hypotheses.end(), [](const auto& a, const auto& b) {
+        return a.confidence < b.confidence;
+    });
+
+    std::cout << "best conf : " << best->confidence << std::endl;
+    for (const auto& hypothesis : _hypotheses) {
+        std::cout << "conf       : " << hypothesis.confidence << std::endl;
+    }
+
+    if (!_hypotheses.empty() && best->confidence >= 0.8) {
+        _state = MappingEngineState::Stable;
+        _stablePose = best->pose;
+        return;
+    }
+
+    if (_hypotheses.size() < 2) {
+        _state = MappingEngineState::Degraded;
+        _stablePose = best->pose;
+        return;
+    }
+
+    if (_state != MappingEngineState::Lost) {
+        _state = MappingEngineState::Lost;
+        _lostTime = timeNow;
+        return;
+    }
+
+    if (timeNow - _lostTime > lostTimeout)
+        Reset();
+}
+
+void MappingEngine::CreateHypothesis()
+{
+    if (_hypotheses.empty()) {
+        RCLCPP_INFO(get_logger(), "MCL failed no hypothesis found.");
+        _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+        return;
+    }
+
+    const auto best = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
+        return a.confidence < b.confidence;
+    });
+
+    if (best == _hypotheses.end())
+        return;
+
+    static thread_local auto prng = std::mt19937(std::random_device {}());
+    constexpr auto attempts = 20;
+
+    auto offsetXY = std::uniform_real_distribution(-0.75, 0.75);
+    auto offsetTheta = std::uniform_real_distribution(-0.35, 0.35);
+
+    for (auto i = 0; i < attempts; i++) {
+        const auto candidatePose = Pose(
+            Vector2(best->pose.position.x + offsetXY(prng), best->pose.position.y + offsetXY(prng)),
+            best->pose.rotation + offsetTheta(prng));
+
+        const auto hypothesis = _poseMatcher.Match(_lastScan, candidatePose);
+        if (hypothesis.confidence < minConfidence)
+            continue;
+
+        _hypotheses.push_back(hypothesis);
+    }
+}
+
+void MappingEngine::Reset()
+{
+    _state = MappingEngineState::Initializing;
+    _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+    _grid.Reset();
+
+    _lastStoredPose = Pose::Identity();
+    _stablePose = Pose::Identity();
+}
+
 void MappingEngine::MapScan(const std::vector<Vector2>& points)
 {
-    // Convert robot position to grid coordinates
-    const auto startGridPos = _grid.WorldToGrid(_lastStablePose.position);
+    if (_state != MappingEngineState::Stable && _state != MappingEngineState::Initializing)
+        return;
 
-    const auto cosRot = std::cos(_lastStablePose.rotation);
-    const auto sinRot = std::sin(_lastStablePose.rotation);
+    if (_state == MappingEngineState::Initializing) {
+        _state = MappingEngineState::Lost;
+    }
+
+    // Convert robot position to grid coordinates
+    const auto startGridPos = _grid.WorldToGrid(_stablePose.position);
+
+    const auto cosRot = std::cos(_stablePose.rotation);
+    const auto sinRot = std::sin(_stablePose.rotation);
 
     // For each point in the scan
     for (const auto& p : points) {
 
         const auto point = Vector2(
-            _lastStablePose.position.x + p.x * cosRot - p.y * sinRot,
-            _lastStablePose.position.y + p.x * sinRot + p.y * cosRot);
+            _stablePose.position.x + p.x * cosRot - p.y * sinRot,
+            _stablePose.position.y + p.x * sinRot + p.y * cosRot);
 
         // Convert to grid coordinates
         const auto endGridPos = _grid.WorldToGrid(point);
@@ -114,7 +239,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         const auto bresenhamCells = OccupancyGrid::Bresenham(startGridPos, endGridPos);
         for (const auto& cell : bresenhamCells) {
             // Mark as free with distance-based cost
-            const auto distance = std::sqrt((point.x - _lastStablePose.position.x) * (point.x - _lastStablePose.position.x) + (point.y - _lastStablePose.position.y) * (point.y - _lastStablePose.position.y));
+            const auto distance = std::sqrt((point.x - _stablePose.position.x) * (point.x - _stablePose.position.x) + (point.y - _stablePose.position.y) * (point.y - _stablePose.position.y));
 
             _grid.SetFree(cell, distance);
         }
@@ -130,42 +255,43 @@ void MappingEngine::Publish()
     if (!lock.owns_lock())
         return;
 
-    PublishPose(_lastStablePose);
+    PublishPose();
     PublishGrid();
     PublishGridMap();
 }
 
-void MappingEngine::PublishPose(const Pose& pose)
+void MappingEngine::PublishPose()
 {
-    auto pose_msg = geometry_msgs::msg::PoseStamped();
-    pose_msg.header.stamp = _node->now();
-    pose_msg.header.frame_id = "map";
+    auto msg = geometry_msgs::msg::PoseArray();
+    msg.header.stamp = now();
+    msg.header.frame_id = "map";
 
-    pose_msg.pose.position.x = pose.position.x;
-    pose_msg.pose.position.y = pose.position.y;
-    pose_msg.pose.position.z = 0.0;
+    for (const auto hypothesis : _hypotheses) {
+        msg.poses.push_back(hypothesis.pose.ToRosPoseMessage());
+    }
 
-    // Convert rotation angle to quaternion
-    double halfRotation = (pose.rotation + M_PI * 0.5) * 0.5;
+    _hypoPublisher->publish(msg);
 
-    pose_msg.pose.orientation.x = 0.0;
-    pose_msg.pose.orientation.y = 0.0;
-    pose_msg.pose.orientation.z = std::sin(halfRotation);
-    pose_msg.pose.orientation.w = std::cos(halfRotation);
+    auto poseMsg = geometry_msgs::msg::PoseStamped();
 
-    _path.poses.push_back(pose_msg);
-    if (_path.poses.size() > 1000)
+    poseMsg.header.stamp = now();
+    poseMsg.header.frame_id = "map";
+
+    poseMsg.pose = _stablePose.ToRosPoseMessage();
+
+    _posePublisher->publish(poseMsg);
+
+    _path.poses.push_back(poseMsg);
+    if (_path.poses.size() > 100)
         _path.poses.erase(_path.poses.begin());
 
-    _pathPub->publish(_path);
-
-    _posePub->publish(pose_msg);
+    _pathPublisher->publish(_path);
 }
 
 void MappingEngine::PublishGrid()
 {
     nav_msgs::msg::OccupancyGrid gridMsg;
-    gridMsg.header.stamp = _node->now();
+    gridMsg.header.stamp = now();
     gridMsg.header.frame_id = "map";
 
     gridMsg.info.origin.position.x = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
@@ -193,7 +319,7 @@ void MappingEngine::PublishGrid()
         }
     }
 
-    _gridPub->publish(gridMsg);
+    _gridPublisher->publish(gridMsg);
 }
 
 void MappingEngine::PublishGridMap()
@@ -239,7 +365,7 @@ void MappingEngine::PublishGridMap()
     // -----------------------------
     const auto msg = grid_map::GridMapRosConverter::toMessage(map);
 
-    _gridMapPub->publish(*msg);
+    _gridMapPublisher->publish(*msg);
 }
 
 GridCell* MappingEngine::GetCell(const Vector2& position)

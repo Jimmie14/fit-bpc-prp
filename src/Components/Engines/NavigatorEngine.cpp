@@ -1,4 +1,4 @@
-#include "NavigatorController.hpp"
+#include "NavigatorEngine.hpp"
 
 #include "OdometryEngine.hpp"
 #include "SplinePath.hpp"
@@ -40,24 +40,24 @@ static double MoveTowards(const double current, const double target, const doubl
 }
 
 namespace Manhattan::Core {
-NavigatorController::NavigatorController(const App& app)
-    : RosConnector(app)
-    , _kinematics(app.GetController<OdometryEngine>()->GetKinematics())
+NavigatorEngine::NavigatorEngine(const App& app)
+    : RosEngine(app, "navigator")
+    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
     , _angularPid(angularKp, angularKi, angularKd)
     , _lastTime(std::chrono::steady_clock::now())
 {
 
-    _motor = app.GetController<MotorDriver>();
-    _slam = app.GetController<MappingEngine>();
+    _motor = app.GetComponent<MotorDriver>();
+    _slam = app.GetComponent<MappingEngine>();
 
-    _pathPublisher = _node->create_publisher<nav_msgs::msg::Path>("~/nav/desired_path", 10);
-    _rayCastPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav/ray_cast", 10);
+    _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 1);
+    _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 1);
 
-    _timer = _node->create_wall_timer(10ms, // todo: timer frequency config duplication
+    _timer = create_wall_timer(10ms, // todo: timer frequency config duplication
         [this] { Update(); });
 }
 
-void NavigatorController::SetPath(const std::vector<GridCell*>& path)
+void NavigatorEngine::SetPath(const std::vector<GridCell*>& path)
 {
     const auto waypoints = SmoothPath(path);
     // for (const auto waypoint : path)
@@ -66,11 +66,11 @@ void NavigatorController::SetPath(const std::vector<GridCell*>& path)
     _path.Initialize(waypoints);
 }
 
-void NavigatorController::PublishPath() const
+void NavigatorEngine::PublishPath() const
 {
     nav_msgs::msg::Path msg;
     msg.header.frame_id = "map";
-    msg.header.stamp = _node->now();
+    msg.header.stamp = now();
 
     auto poseMsg = geometry_msgs::msg::PoseStamped();
     poseMsg.header.stamp = msg.header.stamp;
@@ -91,7 +91,7 @@ void NavigatorController::PublishPath() const
     _pathPublisher->publish(msg);
 }
 
-void NavigatorController::SetDestination(GridCell* destination)
+void NavigatorEngine::SetDestination(GridCell* destination)
 {
     struct QueueItem {
         GridCell* cell;
@@ -177,8 +177,7 @@ void NavigatorController::SetDestination(GridCell* destination)
     SetPath(path);
 }
 
-
-std::vector<Vector2> NavigatorController::SmoothPath(const std::vector<GridCell*>& path) const
+std::vector<Vector2> NavigatorEngine::SmoothPath(const std::vector<GridCell*>& path) const
 {
     std::vector<Vector2> points;
     points.reserve(path.size());
@@ -231,13 +230,13 @@ std::vector<Vector2> NavigatorController::SmoothPath(const std::vector<GridCell*
     return points;
 }
 
-void NavigatorController::ClearPath()
+void NavigatorEngine::ClearPath()
 {
     _path.Initialize({});
     _t = 0.0;
 }
 
-bool NavigatorController::IsInDestination() const
+bool NavigatorEngine::IsInDestination() const
 {
     const auto pose = _slam->CurrentPose();
     const auto result = _path.FindClosestPoint(pose.position);
@@ -246,7 +245,7 @@ bool NavigatorController::IsInDestination() const
     // return _t > 0.9 || !_path.HasPath();
 }
 
-vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
+vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
 {
     vector<RayHit> hits;
 
@@ -267,7 +266,7 @@ vector<RayHit> NavigatorController::RayCastAround(const Pose& pose) const
     return hits;
 }
 
-void NavigatorController::PublishRayCast(const vector<RayHit>& hits, const Pose& pose,
+void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pose,
     const Vector2& desiredDirection) const
 {
     visualization_msgs::msg::MarkerArray markerArray;
@@ -280,7 +279,7 @@ void NavigatorController::PublishRayCast(const vector<RayHit>& hits, const Pose&
     for (const auto& rayHit : hits) {
         visualization_msgs::msg::Marker marker;
         marker.header.frame_id = "map";
-        marker.header.stamp = _node->now();
+        marker.header.stamp = now();
         marker.ns = "raycasts";
         marker.id = id++;
         marker.type = visualization_msgs::msg::Marker::LINE_LIST;
@@ -310,7 +309,7 @@ void NavigatorController::PublishRayCast(const vector<RayHit>& hits, const Pose&
 
     visualization_msgs::msg::Marker marker;
     marker.header.frame_id = "map";
-    marker.header.stamp = _node->now();
+    marker.header.stamp = now();
     marker.ns = "raycasts";
     marker.id = id++;
     marker.type = visualization_msgs::msg::Marker::LINE_LIST;
@@ -338,7 +337,7 @@ void NavigatorController::PublishRayCast(const vector<RayHit>& hits, const Pose&
     _rayCastPublisher->publish(markerArray);
 }
 
-Vector2 NavigatorController::GetDirection(const vector<RayHit>& rayHits, const Pose& pose,
+Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose& pose,
     const Vector2& desiredDirection) const
 {
     auto direction = desiredDirection;
@@ -359,7 +358,7 @@ Vector2 NavigatorController::GetDirection(const vector<RayHit>& rayHits, const P
     return direction.Normalized();
 }
 
-double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double currentT) const
+double NavigatorEngine::GetCornerSlowFactor(const Pose& pose, const double currentT) const
 {
     if (!_path.HasPath())
         return 1.0;
@@ -393,10 +392,10 @@ double NavigatorController::GetCornerSlowFactor(const Pose& pose, const double c
     return 1.0 - t * (1.0 - cornerSlowMinFactor);
 }
 
-void NavigatorController::Update()
+void NavigatorEngine::Update()
 {
     const auto now = std::chrono::steady_clock::now();
-    const std::chrono::duration<double> delta = now - _lastTime;
+    const duration<double> delta = now - _lastTime;
     auto deltaTime = delta.count();
 
     _lastTime = now;

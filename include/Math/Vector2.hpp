@@ -1,5 +1,9 @@
 #pragma once
+
 #include <cmath>
+#include <string>
+#include <tuple>
+#include <vector>
 
 namespace Manhattan::Core {
 struct Vector2Int {

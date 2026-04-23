@@ -1,6 +1,8 @@
 #pragma once
 
-#include <cstdint>
+#include "Pose.hpp"
+
+namespace Manhattan::Core {
 
 struct RobotSpeed {
     /**
@@ -19,12 +21,6 @@ struct WheelSpeed {
     double right = 0.0; // rad/s
 };
 
-struct Pose2D {
-    double x = 0.0; // m
-    double y = 0.0; // m
-    double theta = 0.0; // rad
-};
-
 class Kinematics {
 public:
     Kinematics(double wheelRadius, double wheelBase, int32_t pulsesPerRotation);
@@ -35,7 +31,7 @@ public:
 
     [[nodiscard]] double ticksToMeters(int32_t deltaTicks) const;
 
-    [[nodiscard]] Pose2D integrate(Pose2D pose, double leftLinear, double rightLinear) const;
+    [[nodiscard]] Pose integrate(Pose pose, double leftLinear, double rightLinear) const;
 
     [[nodiscard]] double wheelRadius() const
     {
@@ -55,3 +51,5 @@ private:
     double _wheelBase;
     int32_t _pulsesPerRotation;
 };
+
+}

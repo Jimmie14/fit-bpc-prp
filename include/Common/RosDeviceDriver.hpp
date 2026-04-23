@@ -1,12 +1,12 @@
 #pragma once
 
-#include "RosConnector.hpp"
+#include "RosComponent.hpp"
 
 namespace Manhattan::Core {
-class RosDeviceDriver : public RosConnector {
+class RosDeviceDriver : public RosComponent {
 public:
-    explicit RosDeviceDriver(const App& app)
-        : RosConnector(app)
+    explicit RosDeviceDriver(const App& app, const string& name)
+        : RosComponent(app, name + "_driver")
     {
     }
 };

@@ -1,4 +1,4 @@
-#include "UserInputController.hpp"
+#include "UserInputDriver.hpp"
 
 #include "App.hpp"
 #include "Kinematics.hpp"
@@ -18,19 +18,19 @@ static std::vector<std::string> SplitBySpace(const std::string& value)
     return tokens;
 }
 
-UserInputController::UserInputController(const App& app)
-    : RosConnector(app)
-    , _kinematics(app.GetController<OdometryEngine>()->GetKinematics())
+UserInputDriver::UserInputDriver(const App& app)
+    : RosDeviceDriver(app, "user_input")
+    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
 {
     _tcpServer = app.GetTcpServer();
 
-    _motorController = app.GetController<MotorDriver>();
-    _lineController = app.GetController<LineController>();
+    _motorController = app.GetComponent<MotorDriver>();
+    _lineController = app.GetComponent<LineEngine>();
 
     Enable();
 }
 
-void UserInputController::ReceiveMessage(const std::vector<uint8_t>& data)
+void UserInputDriver::ReceiveMessage(const std::vector<uint8_t>& data)
 {
     std::istringstream iss(std::string(data.begin(), data.end()));
     std::string command;
@@ -46,7 +46,7 @@ void UserInputController::ReceiveMessage(const std::vector<uint8_t>& data)
     DecodeMessage(command, SplitBySpace(value));
 }
 
-void UserInputController::DecodeMessage(const std::string& command, const std::vector<std::string>& values)
+void UserInputDriver::DecodeMessage(const std::string& command, const std::vector<std::string>& values)
 {
     if (command == "STOP") {
         _motorController->SetForce(0, 0);
@@ -72,13 +72,13 @@ void UserInputController::DecodeMessage(const std::string& command, const std::v
     }
 }
 
-void UserInputController::DecodeModeCommand(const std::vector<std::string>& values)
+void UserInputDriver::DecodeModeCommand(const std::vector<std::string>& values)
 {
     const auto mode = values[0];
 
     if (mode == "LINE_FOLLOW") {
         _lineController->Enable();
-        _activeController = std::dynamic_pointer_cast<RosConnector>(_lineController);
+        _activeController = std::dynamic_pointer_cast<RosComponent>(_lineController);
 
         return;
     }
@@ -87,7 +87,7 @@ void UserInputController::DecodeModeCommand(const std::vector<std::string>& valu
     }
 }
 
-void UserInputController::ParseMoveCommand(const std::vector<std::string>& values) const
+void UserInputDriver::ParseMoveCommand(const std::vector<std::string>& values) const
 {
     const auto linear = CommandParser::ParseValue<double>("linear", values).value_or(0);
     const auto angular = CommandParser::ParseValue<double>("angular", values).value_or(0);
@@ -98,7 +98,7 @@ void UserInputController::ParseMoveCommand(const std::vector<std::string>& value
     _motorController->SetForce(left, right);
 }
 
-void UserInputController::ParseLineConfig(const std::vector<std::string>& values) const
+void UserInputDriver::ParseLineConfig(const std::vector<std::string>& values) const
 {
     const auto maxSpeed = CommandParser::ParseValue<double>("max_speed", values).value_or(0);
     _lineController->SetMaxSpeed(maxSpeed);
@@ -119,12 +119,12 @@ void UserInputController::ParseLineConfig(const std::vector<std::string>& values
         pid.SetKd(kd.value());
 }
 
-void UserInputController::OnEnable()
+void UserInputDriver::OnEnable()
 {
     _tcpServer->SetDataReceivedCallback([this](const std::vector<uint8_t>& data) { ReceiveMessage(data); });
 }
 
-void UserInputController::OnDisable()
+void UserInputDriver::OnDisable()
 {
     _tcpServer->ResetDataReceivedCallback();
 }

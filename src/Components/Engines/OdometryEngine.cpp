@@ -1,4 +1,4 @@
-#include "../../../include/Controllers/OdometryEngine.hpp"
+#include "OdometryEngine.hpp"
 #include <cmath>
 
 using namespace std;
@@ -13,31 +13,31 @@ constexpr int32_t PULSES_PER_ROTATION = 550;
 constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
 
 OdometryEngine::OdometryEngine(const App& app)
-    : RosEngine(app)
+    : RosEngine(app, "odometry")
     , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
     Enable();
 
-    _odomPub = _node->create_publisher<nav_msgs::msg::Odometry>("~/odom", 10);
-    _posePub = _node->create_publisher<geometry_msgs::msg::PoseStamped>("~/pose", 10);
+    _odomPub = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+    _posePub = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);
 }
 
 void OdometryEngine::OnEnable()
 {
-    _encoderSub = _node->create_subscription<std_msgs::msg::UInt32MultiArray>(
+    _encoderSub = create_subscription<std_msgs::msg::UInt32MultiArray>(
         ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
 
-    RCLCPP_INFO(_node->get_logger(), "RobotOdometry enabled");
+    RCLCPP_INFO(get_logger(), "RobotOdometry enabled");
 }
 
 void OdometryEngine::OnDisable()
 {
     _encoderSub.reset();
 
-    RCLCPP_INFO(_node->get_logger(), "RobotOdometry disabled");
+    RCLCPP_INFO(get_logger(), "RobotOdometry disabled");
 }
 
-void OdometryEngine::ApplyCorrection(const Pose2D& correctedPose)
+void OdometryEngine::ApplyCorrection(const Pose& correctedPose)
 {
     _pose = correctedPose;
 }
@@ -50,7 +50,7 @@ Kinematics OdometryEngine::GetKinematics() const
 void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
 {
     if (msg->data.size() < 2) {
-        RCLCPP_WARN_ONCE(_node->get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
+        RCLCPP_WARN_ONCE(get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
         return;
     }
 
@@ -80,7 +80,7 @@ void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr
     _linearVelocity = (dLeft + dRight) * 0.5;
     _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
 
-    publishOdometry(_node->now());
+    publishOdometry(now());
 }
 
 void OdometryEngine::publishOdometry(const Time& stamp)
@@ -90,10 +90,6 @@ void OdometryEngine::publishOdometry(const Time& stamp)
 
     _lastPublishTime = stamp;
 
-    const double halfTheta = _pose.theta * 0.5;
-    const double qw = std::cos(halfTheta);
-    const double qz = std::sin(halfTheta);
-
     // nav_msgs/odom
     nav_msgs::msg::Odometry odomMsg;
     odomMsg.header.stamp = stamp;
@@ -101,13 +97,7 @@ void OdometryEngine::publishOdometry(const Time& stamp)
     odomMsg.child_frame_id = "base_link";
 
     // position
-    odomMsg.pose.pose.position.x = _pose.x;
-    odomMsg.pose.pose.position.y = _pose.y;
-    odomMsg.pose.pose.position.z = 0.0;
-    odomMsg.pose.pose.orientation.x = 0.0;
-    odomMsg.pose.pose.orientation.y = 0.0;
-    odomMsg.pose.pose.orientation.z = qz;
-    odomMsg.pose.pose.orientation.w = qw;
+    odomMsg.pose.pose = _pose.ToRosPoseMessage();
 
     // velocity
     odomMsg.twist.twist.linear.x = _linearVelocity;
@@ -120,6 +110,7 @@ void OdometryEngine::publishOdometry(const Time& stamp)
     // Pose covariance (x, y, z, roll, pitch, yaw)
     odomMsg.pose.covariance = { 0.05, 0, 0, 0, 0, 0, 0, 0.05, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
         0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };
+
     // Twist covariance (vx, vy, vz, vroll, vpitch, vyaw)
     odomMsg.twist.covariance = { 0.1, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
         0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };

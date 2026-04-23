@@ -2,7 +2,7 @@
 // Created by guest on 3/17/26.
 //
 
-#include "../../../include/Controllers/LineController.hpp"
+#include "LineEngine.hpp"
 
 #include "App.hpp"
 
@@ -13,34 +13,34 @@ using namespace std_msgs;
 namespace Manhattan::Core {
 constexpr auto subscriber = "/bpc_prp_robot/line_sensors";
 
-LineController::LineController(const App& app)
-    : RosConnector(app)
+LineEngine::LineEngine(const App& app)
+    : RosEngine(app, "line")
     , _lineEstimator(0, 1000)
     , _linePid(0.36f, 0.03f, 0.02f)
 {
-    _motorController = _app.GetController<MotorDriver>();
+    _motorController = _app.GetComponent<MotorDriver>();
 }
 
-Pid& LineController::GetPid()
+Pid& LineEngine::GetPid()
 {
     return _linePid;
 }
 
-void LineController::SetMaxSpeed(const double speed)
+void LineEngine::SetMaxSpeed(const double speed)
 {
     _baseForce = speed;
 }
 
-void LineController::OnEnable()
+void LineEngine::OnEnable()
 {
-    _subscriber = _node->create_subscription<std_msgs::msg::UInt16MultiArray>(
-        subscriber, 1, std::bind(&LineController::OnLineSensorMsg, this, std::placeholders::_1));
+    _subscriber = create_subscription<msg::UInt16MultiArray>(
+        subscriber, 1, std::bind(&LineEngine::OnLineSensorMsg, this, std::placeholders::_1));
 
-    _motorController = _app.GetController<MotorDriver>();
+    _motorController = _app.GetComponent<MotorDriver>();
 
     // _lineSensorsPublisher =
-    // _node->create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);
-    // _linePosePublisher = _node->create_publisher<msg::Float64>("~/line_pose",
+    // create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);
+    // _linePosePublisher = create_publisher<msg::Float64>("~/line_pose",
     // 10);
 
     // _lineEstimator = LineEstimator(0, 1000);
@@ -50,31 +50,31 @@ void LineController::OnEnable()
     // _linePid.SetKi(0.03);
     // _linePid.SetKd(0.02);
 
-    _lastPidTime = _node->now();
-    RCLCPP_INFO(_node->get_logger(), "Line controller enabled");
+    _lastPidTime = now();
+    RCLCPP_INFO(get_logger(), "Line controller enabled");
 }
 
-void LineController::OnDisable()
+void LineEngine::OnDisable()
 {
     _subscriber.reset();
 
     // _lineSensorsPublisher.reset();
     // _linePosePublisher.reset();
 
-    RCLCPP_INFO(_node->get_logger(), "Line controller disabled");
+    RCLCPP_INFO(get_logger(), "Line controller disabled");
 }
 
-float LineController::GetContinuousLinePose() const
+float LineEngine::GetContinuousLinePose() const
 {
     return 0;
 }
 
-DiscreteLinePose LineController::GetDiscreteLinePose() const
+DiscreteLinePose LineEngine::GetDiscreteLinePose() const
 {
     return DiscreteLinePose::LineBoth;
 }
 
-void LineController::OnLineSensorMsg(const msg::UInt16MultiArray::SharedPtr msg)
+void LineEngine::OnLineSensorMsg(const msg::UInt16MultiArray::SharedPtr msg)
 {
     if (msg->data.size() != 2)
         return;
@@ -91,9 +91,9 @@ void LineController::OnLineSensorMsg(const msg::UInt16MultiArray::SharedPtr msg)
     linePose.data = estimation;
     // _linePosePublisher->publish(linePose);
 
-    const auto now = _node->now();
-    const auto dt = std::max(1e-3, (now - _lastPidTime).seconds());
-    _lastPidTime = now;
+    const auto timeNow = now();
+    const auto dt = std::max(1e-3, (timeNow - _lastPidTime).seconds());
+    _lastPidTime = timeNow;
 
     const auto error = 0.0 - estimation;
     const auto correction = std::clamp(_linePid.step(error, dt), -_maxCorrection, _maxCorrection);

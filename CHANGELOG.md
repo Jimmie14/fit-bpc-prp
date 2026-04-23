@@ -1,9 +1,30 @@
-## [unreleased]
+## [1.3.0] - 2026-04-22
+
+### 🚀 Features
+
+- Add Fast DDS support and optimize OccupancyGrid traversal
+- Enable Cyclone DDS, adjust ROS node options, and optimize QoS settings
+- Add monte carlo localization in MappingEngine
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.3.0
+## [1.2.0] - 2026-04-22
+
+### 🚀 Features
+
+- Add multiple hypothesis to MappingEngine
+
+### 🐛 Bug Fixes
+
+- [**breaking**] Migrate to multi-node architecture, fix performance bottleneck
 
 ### 🚜 Refactor
 
 - Major architecture refactor
 - Rename SlamController to MappingEngine
+- Enhance navigation logic and smooth path calculation in NavigatorController
+- Adjust QoS settings
 
 ### 🎨 Styling
 
@@ -12,6 +33,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Correct skip rule for 'ci: update changelog' in cliff config
+- Bump version to 1.2.0
 ## [1.1.1] - 2026-04-22
 
 ### 🚀 Features
