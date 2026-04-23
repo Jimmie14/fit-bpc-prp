@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Update NavigatorGraphBuilder to use NavigatorNode and improve graph construction
 ## [1.3.0] - 2026-04-22
 
 ### 🚀 Features
@@ -13,6 +18,7 @@
 
 ### 🚀 Features
 
+- Implement NavigatorGraphBuilder for pathfinding graph construction
 - Add multiple hypothesis to MappingEngine
 
 ### 🐛 Bug Fixes

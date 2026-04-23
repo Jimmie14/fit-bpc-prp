@@ -25,7 +25,7 @@ public:
 
 private:
     GridCell* Recenter(GridCell* cell) const;
-    std::vector<GridCell*> Explore(GridCell* startCell) const;
+    GridCell* Explore(GridCell* startCell) const;
 
     TimerBase::SharedPtr _timer;
 

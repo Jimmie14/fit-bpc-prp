@@ -25,7 +25,7 @@ void ExplorerEngine::OnDisable()
     _timer.reset();
 }
 
-std::vector<GridCell*> ExplorerEngine::Explore(GridCell* startCell) const
+GridCell* ExplorerEngine::Explore(GridCell* startCell) const
 {
     std::map<GridCell*, double> distances;
     std::map<GridCell*, GridCell*> previous;
@@ -76,20 +76,22 @@ std::vector<GridCell*> ExplorerEngine::Explore(GridCell* startCell) const
     }
 
     std::vector<GridCell*> pathList;
-    GridCell* curr = frontier;
+    // GridCell* curr = frontier;
 
-    while (curr != nullptr && curr != startCell) {
-        pathList.push_back(curr);
-        auto prevIt = previous.find(curr);
-        if (prevIt != previous.end()) {
-            curr = prevIt->second;
-        } else {
-            curr = nullptr;
-        }
-    }
-    ranges::reverse(pathList);
+    return frontier;
 
-    return pathList;
+    // while (curr != nullptr && curr != startCell) {
+    //     pathList.push_back(curr);
+    //     auto prevIt = previous.find(curr);
+    //     if (prevIt != previous.end()) {
+    //         curr = prevIt->second;
+    //     } else {
+    //         curr = nullptr;
+    //     }
+    // }
+    // ranges::reverse(pathList);
+    //
+    // return pathList;
     // std::queue<GridCell*> pathQueue;
     // long i = 0;
     // for (auto* cell : pathList) {
@@ -117,9 +119,9 @@ void ExplorerEngine::Update()
         if (startCell == nullptr)
             return;
 
-        auto path = Explore(startCell);
-        if (!path.empty()) {
-            _navigatorController->SetPath(path);
+        auto target = Explore(startCell);
+        if (target != nullptr) {
+            _navigatorController->SetDestination(target);
             break;
         }
 
