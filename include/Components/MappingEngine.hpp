@@ -25,6 +25,8 @@ class MappingEngine final : public RosEngine {
 public:
     explicit MappingEngine(App& app);
     GridCell* GetCell(const Vector2& position);
+    GridCell* GetCell(Vector2Int position);
+    Vector2 GridToWorld(const Vector2Int& position) const;
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);
 
@@ -32,6 +34,9 @@ public:
     {
         return _stablePose;
     }
+
+    [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
+    [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
 
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;

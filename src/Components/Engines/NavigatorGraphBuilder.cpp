@@ -3,10 +3,10 @@
 namespace Manhattan::Core {
 
 NavigatorGraphBuilder::NavigatorGraphBuilder(const App &app)
-    : RosConnector(app)
+    : RosEngine(app, "navigator_graph_builder")
 {
-    _mappingEngine = app.GetController<MappingEngine>();
-    _markerPublisher = _node->create_publisher<visualization_msgs::msg::MarkerArray>("~/nav_graph", 10);
+    _mappingEngine = app.GetComponent<MappingEngine>();
+    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("~/nav_graph", 10);
 }
 
 void NavigatorGraphBuilder::BuildGraph(float costThreshold)
@@ -27,7 +27,7 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
 
     // 3. Build Graph
     _graphNodes.clear();
-    std::map<std::pair<int, int>, std::shared_ptr<Node>> nodeDict;
+    std::map<std::pair<int, int>, std::shared_ptr<NavigatorNode>> nodeDict;
 
     std::vector<Vector2Int> dirs = {
         {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
@@ -43,7 +43,7 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
             }
 
             if (neighbors != 2) {
-                auto node = std::make_shared<Node>();
+                auto node = std::make_shared<NavigatorNode>();
                 node->gridPosition = Vector2Int(x, y);
                 node->worldPosition = _mappingEngine->GridToWorld(node->gridPosition);
                 _graphNodes.push_back(node);
@@ -166,7 +166,7 @@ void NavigatorGraphBuilder::PublishMarkers() {
 
     visualization_msgs::msg::Marker nodesMarker;
     nodesMarker.header.frame_id = "map";
-    nodesMarker.header.stamp = _node->now();
+    nodesMarker.header.stamp = now();
     nodesMarker.ns = "graph_nodes";
     nodesMarker.id = 0;
     nodesMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
@@ -175,7 +175,7 @@ void NavigatorGraphBuilder::PublishMarkers() {
 
     visualization_msgs::msg::Marker edgesMarker;
     edgesMarker.header.frame_id = "map";
-    edgesMarker.header.stamp = _node->now();
+    edgesMarker.header.stamp = now();
     edgesMarker.ns = "graph_edges";
     edgesMarker.id = 1;
     edgesMarker.type = visualization_msgs::msg::Marker::LINE_LIST;

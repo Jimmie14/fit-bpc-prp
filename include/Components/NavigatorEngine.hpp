@@ -4,12 +4,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "RosConnector.hpp"
+#include "RosEngine.hpp"
 #include "Kinematics.hpp"
 #include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
-#include "RosEngine.hpp"
 #include "SplinePath.hpp"
 
 namespace Manhattan::Core {
