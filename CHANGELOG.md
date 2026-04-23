@@ -1,10 +1,14 @@
-## [unreleased]
+## [1.3.1] - 2026-04-23
 
 ### 🚀 Features
 
 - Add state change handling in NavigatorEngine and update angular PID tuning
 - Implement NavigatorGraphBuilder for pathfinding graph construction
 - Update NavigatorGraphBuilder to use NavigatorNode and improve graph construction
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.3.1
 ## [1.3.0] - 2026-04-22
 
 ### 🚀 Features
