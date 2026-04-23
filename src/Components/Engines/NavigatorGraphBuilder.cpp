@@ -6,7 +6,7 @@ NavigatorGraphBuilder::NavigatorGraphBuilder(const App &app)
     : RosEngine(app, "navigator_graph_builder")
 {
     _mappingEngine = app.GetComponent<MappingEngine>();
-    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("~/nav_graph", 10);
+    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("/nav/graph", 1);
 }
 
 void NavigatorGraphBuilder::BuildGraph(float costThreshold)
@@ -14,7 +14,8 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
     int w = _mappingEngine->GetWidth();
     int h = _mappingEngine->GetHeight();
 
-    std::vector binary(w * h, false);
+    // FIXED: Explicitly define as std::vector<bool> to avoid CTAD issues
+    std::vector<bool> binary(w * h, false);
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
             auto* cell = _mappingEngine->GetCell(Vector2Int(x, y));
@@ -182,20 +183,26 @@ void NavigatorGraphBuilder::PublishMarkers() {
     edgesMarker.scale.x = 0.02;
     edgesMarker.color.g = 1.0; edgesMarker.color.a = 0.8;
 
+    visualization_msgs::msg::Marker clearMarker;
+    clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
+    markers.markers.push_back(clearMarker);
+
     for (const auto& node : _graphNodes) {
         geometry_msgs::msg::Point p;
         p.x = node->worldPosition.x; p.y = node->worldPosition.y; p.z = 0.05;
         nodesMarker.points.push_back(p);
 
         for (const auto& edge : node->connections) {
-            for (size_t i = 0; i < edge->path.size(); ++i) {
+            for (size_t i = 0; i + 1 < edge->path.size(); ++i) {
                 geometry_msgs::msg::Point p1;
-                p1.x = (i == 0) ? node->worldPosition.x : edge->path[i-1].x;
-                p1.y = (i == 0) ? node->worldPosition.y : edge->path[i-1].y;
+                p1.x = edge->path[i].x;
+                p1.y = edge->path[i].y;
                 p1.z = 0.02;
 
                 geometry_msgs::msg::Point p2;
-                p2.x = edge->path[i].x; p2.y = edge->path[i].y; p2.z = 0.02;
+                p2.x = edge->path[i+1].x;
+                p2.y = edge->path[i+1].y;
+                p2.z = 0.02;
 
                 edgesMarker.points.push_back(p1);
                 edgesMarker.points.push_back(p2);

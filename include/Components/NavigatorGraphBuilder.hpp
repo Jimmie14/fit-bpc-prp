@@ -32,6 +32,8 @@ public:
     void BuildGraph(float costThreshold = 10.0f);
     void PublishMarkers();
 
+    std::vector<std::shared_ptr<NavigatorNode>> GetNodes() const { return _graphNodes; }
+
 private:
     std::vector<bool> ZhangSuenThinning(const std::vector<bool>& binary, int w, int h);
     int CountNeighbors(const std::vector<bool>& img, int x, int y, int w, int h);

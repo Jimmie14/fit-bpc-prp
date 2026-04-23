@@ -32,9 +32,9 @@ int main(const int argc, char* argv[])
     app->AddComponent<Core::UserInputDriver>();
     app->AddComponent<Core::MappingEngine>();
     app->AddComponent<Core::NavigatorEngine>();
-    app->AddComponent<Core::FollowerEngine>();
-    app->AddComponent<Core::ExplorerEngine>()->Enable();
     app->AddComponent<Core::NavigatorGraphBuilder>();
+    app->AddComponent<Core::FollowerEngine>()->Enable();
+    app->AddComponent<Core::ExplorerEngine>();
 
     app->Run();
 
