@@ -21,6 +21,11 @@ enum class MappingEngineState {
     Lost,
 };
 
+struct MappingEngineStateChangeEvent {
+    MappingEngineState oldState;
+    MappingEngineState newState;
+};
+
 class MappingEngine final : public RosEngine {
 public:
     explicit MappingEngine(App& app);
@@ -72,6 +77,7 @@ private:
 
     void UpdateHypotheses(const Pose& odomDelta);
     void UpdateState();
+    void ChangeState(MappingEngineState newState);
 
     void CreateHypothesis();
 

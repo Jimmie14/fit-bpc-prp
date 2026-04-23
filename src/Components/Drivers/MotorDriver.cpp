@@ -26,20 +26,15 @@ MotorDriver::MotorDriver(const App& app)
 
 void MotorDriver::OnEnable()
 {
-    if (_subscriber)
-        return;
-
-    _subscriber = create_subscription<msg::UInt32MultiArray>(
-        MOTOR_ENCODERS_TOPIC, 1, std::bind(&MotorDriver::SubscriberCallback, this, std::placeholders::_1));
-
-    _timer = create_wall_timer(100ms, [this] { _publisher->publish(_msg); });
+    _timer = create_wall_timer(100ms, [this] {
+        _publisher->publish(_msg);
+    });
 
     RCLCPP_INFO(get_logger(), "Motor controller enabled");
 }
 
 void MotorDriver::OnDisable()
 {
-    _subscriber.reset();
     _timer.reset();
 
     RCLCPP_INFO(get_logger(), "Motor controller disabled");
@@ -55,17 +50,5 @@ void MotorDriver::SetForce(double leftAngular, double rightAngular)
 
     _msg.data[0] = static_cast<uint8_t>((left * .5 + .5) * 255);
     _msg.data[1] = static_cast<uint8_t>((right * .5 + .5) * 255);
-}
-
-void MotorDriver::SubscriberCallback(const msg::UInt32MultiArray::SharedPtr msg) const
-{
-    return;
-    const auto length = msg->data.size();
-
-    if (length >= 1)
-        RCLCPP_INFO(get_logger(), "Left wheel turned: %u", msg->data[0]);
-
-    if (length >= 2)
-        RCLCPP_INFO(get_logger(), "Right wheel turned: %u", msg->data[1]);
 }
 } // namespace Manhattan::Core
