@@ -59,7 +59,6 @@ void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
         std::lock_guard guard(_odomLock);
 
         const auto delta = current - _lastOdomPose;
-        // std::cout << "odom  : " << delta.ToString() << std::endl;
 
         _odomPoseDelta = _odomPoseDelta + delta;
 
@@ -124,7 +123,7 @@ void MappingEngine::UpdateState()
 
     if (_hypotheses.empty()) {
         if (_state != MappingEngineState::Lost) {
-            _state = MappingEngineState::Lost;
+            ChangeState(MappingEngineState::Lost);
             _lostTime = timeNow;
             return;
         }
@@ -139,31 +138,41 @@ void MappingEngine::UpdateState()
         return a.confidence < b.confidence;
     });
 
-    std::cout << "best conf : " << best->confidence << std::endl;
-    for (const auto& hypothesis : _hypotheses) {
-        std::cout << "conf       : " << hypothesis.confidence << std::endl;
-    }
-
     if (!_hypotheses.empty() && best->confidence >= 0.8) {
-        _state = MappingEngineState::Stable;
+        ChangeState(MappingEngineState::Stable);
         _stablePose = best->pose;
         return;
     }
 
     if (_hypotheses.size() < 2) {
-        _state = MappingEngineState::Degraded;
+        ChangeState(MappingEngineState::Degraded);
         _stablePose = best->pose;
         return;
     }
 
     if (_state != MappingEngineState::Lost) {
-        _state = MappingEngineState::Lost;
+        ChangeState(MappingEngineState::Lost);
         _lostTime = timeNow;
         return;
     }
 
     if (timeNow - _lostTime > lostTimeout)
         Reset();
+}
+
+void MappingEngine::ChangeState(const MappingEngineState newState)
+{
+    if (_state == newState)
+        return;
+
+    const auto oldState = _state;
+
+    _state = newState;
+
+    _app.Events->Publish(MappingEngineStateChangeEvent {
+        .oldState = oldState,
+        .newState = newState
+    });
 }
 
 void MappingEngine::CreateHypothesis()
@@ -202,12 +211,13 @@ void MappingEngine::CreateHypothesis()
 
 void MappingEngine::Reset()
 {
-    _state = MappingEngineState::Initializing;
     _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
     _grid.Reset();
 
     _lastStoredPose = Pose::Identity();
     _stablePose = Pose::Identity();
+
+    ChangeState(MappingEngineState::Initializing);
 }
 
 void MappingEngine::MapScan(const std::vector<Vector2>& points)
@@ -216,7 +226,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         return;
 
     if (_state == MappingEngineState::Initializing) {
-        _state = MappingEngineState::Lost;
+        ChangeState(MappingEngineState::Lost);
     }
 
     // Convert robot position to grid coordinates

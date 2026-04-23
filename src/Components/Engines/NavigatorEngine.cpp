@@ -26,9 +26,9 @@ constexpr double turnDeceleration = 1.5;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
 
-constexpr double angularKp = 0.2;
-constexpr double angularKi = 0.012;
-constexpr double angularKd = 0.001;
+constexpr double angularKp = 0.6;
+constexpr double angularKi = 0.01;
+constexpr double angularKd = 0.02;
 
 static double MoveTowards(const double current, const double target, const double maxDelta)
 {
@@ -46,7 +46,6 @@ NavigatorEngine::NavigatorEngine(const App& app)
     , _angularPid(angularKp, angularKi, angularKd)
     , _lastTime(std::chrono::steady_clock::now())
 {
-
     _motor = app.GetComponent<MotorDriver>();
     _slam = app.GetComponent<MappingEngine>();
 
@@ -55,6 +54,10 @@ NavigatorEngine::NavigatorEngine(const App& app)
 
     _timer = create_wall_timer(10ms, // todo: timer frequency config duplication
         [this] { Update(); });
+
+    _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
+        this->OnMappingEngineStateChange(event);
+    });
 }
 
 void NavigatorEngine::SetPath(const std::vector<GridCell*>& path)
@@ -437,6 +440,7 @@ void NavigatorEngine::Update()
     // const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
 
     const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
+    // const auto angularSpeedTarget = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
     _currentAngularVelocity = angularSpeedTarget;
 
     auto distanceFactor = 1.0;
@@ -457,6 +461,13 @@ void NavigatorEngine::Update()
 
     const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
+}
+
+void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)
+{
+    if (event.newState == MappingEngineState::Lost) {
+        ClearPath();
+    }
 }
 
 } // namespace Manhattan::Core

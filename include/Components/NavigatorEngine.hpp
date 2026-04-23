@@ -54,6 +54,8 @@ private:
     void PublishRayCast(const std::vector<RayHit>& hits, const Pose& pose, const Vector2& desiredDirection) const;
     double GetCornerSlowFactor(const Pose& pose, const double currentT) const;
     void Update();
+
+    void OnMappingEngineStateChange(MappingEngineStateChangeEvent event);
 };
 
 } // namespace Manhattan::Core

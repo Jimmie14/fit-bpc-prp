@@ -179,8 +179,6 @@ public:
             0.10 * conditioningScore +   // Hessian quality
             0.05 * poseKnownScore;       // is the pose itself in observed space?
 
-        std::cout << "conf (raw)  : " << confidence << std::endl;
-
         return { Pose(pos, rot), std::clamp(confidence, 0.0, 1.0) };
     }
 

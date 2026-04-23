@@ -9,13 +9,9 @@
 namespace Manhattan::Core {
 class MotorDriver final : public RosDeviceDriver {
     Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
-    Subscription<std_msgs::msg::UInt32MultiArray>::SharedPtr _subscriber;
 
     TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
-
-    void SubscriberCallback(std_msgs::msg::UInt32MultiArray::SharedPtr msg) const;
-
 public:
     explicit MotorDriver(const App& app);
 
