@@ -2,9 +2,9 @@
 
 ### 🚀 Features
 
-- Add state change handling in NavigatorEngine and update angular PID tuning
-- Implement NavigatorGraphBuilder for pathfinding graph construction
 - Update NavigatorGraphBuilder to use NavigatorNode and improve graph construction
+- Integrate NavigatorGraphBuilder into FollowerEngine for enhanced navigation
+- Add state change handling in NavigatorEngine and update angular PID tuning
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -24,6 +24,7 @@
 
 ### 🚀 Features
 
+- Implement NavigatorGraphBuilder for pathfinding graph construction
 - Add multiple hypothesis to MappingEngine
 
 ### 🐛 Bug Fixes
