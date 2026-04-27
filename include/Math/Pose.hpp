@@ -44,6 +44,14 @@ struct Pose {
         return Pose(Vector2::Zero(), 0.0);
     }
 
+    [[nodiscard]] Pose Normalized() const
+    {
+        auto angle = fmod(rotation, 2.0 * M_PI);
+        if (angle < 0) angle += 2.0 * M_PI;
+
+        return Pose(position, angle);
+    }
+
     void TransformPointsInplace(std::vector<Vector2>& points) const
     {
         const auto c = std::cos(rotation);

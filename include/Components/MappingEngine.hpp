@@ -28,7 +28,7 @@ struct MappingEngineStateChangeEvent {
 
 class MappingEngine final : public RosEngine {
 public:
-    explicit MappingEngine(App& app);
+    explicit MappingEngine(const App& app);
     GridCell* GetCell(const Vector2& position);
     GridCell* GetCell(Vector2Int position);
     Vector2 GridToWorld(const Vector2Int& position) const;
@@ -64,6 +64,8 @@ private:
 
     Pose _lastStoredPose = Pose::Identity();
     Pose _stablePose = Pose::Identity();
+
+    PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;
 
     MappingEngineState _state = MappingEngineState::Initializing;
@@ -81,6 +83,7 @@ private:
     void OnLidar(const std::vector<Vector2>& points);
 
     void UpdateHypotheses(const Pose& odomDelta);
+
     void UpdateState();
     void ChangeState(MappingEngineState newState);
 

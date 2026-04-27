@@ -7,15 +7,20 @@
 
 using namespace std;
 
+constexpr auto gridResolution = 0.05;
+constexpr auto rotationResolution = M_PI * 0.25;
+
 constexpr auto minConfidence = 0.6;
+constexpr auto poseThreshold = 0.05;
 
 namespace Manhattan::Core {
-MappingEngine::MappingEngine(App& app)
+MappingEngine::MappingEngine(const App& app)
     : RosEngine(app, "mapping")
-    , _grid(Vector2Int(200, 200), 0.05, 8, 20)
+    , _grid(Vector2Int(200, 200), gridResolution, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::Identity())
-    , _hypotheses({ PoseMatchResult(Pose::Identity(), minConfidence) })
+    , _activeHypothesis(PoseMatchResult(Pose::Identity(), minConfidence))
+    , _hypotheses({})
 {
     _lostTime = now();
 
@@ -99,21 +104,39 @@ void MappingEngine::OnLidar(const vector<Vector2>& points)
 void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
 {
     for (auto& hypothesis : _hypotheses) {
-        auto stableResult = _poseMatcher.Match(_lastScan, hypothesis.pose);
-        auto odomResult = _poseMatcher.Match(_lastScan, hypothesis.pose + odomDelta);
+        const auto stableResult = _poseMatcher.Match(_lastScan, hypothesis.pose);
+        const auto odomResult = _poseMatcher.Match(_lastScan, hypothesis.pose + odomDelta);
 
         hypothesis = PoseMatchResult::Best(stableResult, odomResult);
     }
+
+    const auto stableResult = _poseMatcher.Match(_lastScan, _activeHypothesis.pose);
+    const auto odomResult = _poseMatcher.Match(_lastScan, _activeHypothesis.pose + odomDelta);
+
+    _activeHypothesis = PoseMatchResult::Best(stableResult, odomResult);
 
     erase_if(_hypotheses, [](const PoseMatchResult& result) {
         return result.confidence < minConfidence;
     });
 
-    if (_state == MappingEngineState::Degraded || _hypotheses.empty())
+    auto best = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
+        return a.confidence < b.confidence;
+    });
+
+    if (best != _hypotheses.end() && best->confidence > _activeHypothesis.confidence + poseThreshold) {
+        _hypotheses.push_back(_activeHypothesis);
+        _activeHypothesis = *best;
+
+        _hypotheses.erase(best);
+    }
+
+    if (_state == MappingEngineState::Degraded || _hypotheses.size() < 5)
         CreateHypothesis();
 
     UpdateState();
 }
+
+
 
 void MappingEngine::UpdateState()
 {
@@ -134,19 +157,17 @@ void MappingEngine::UpdateState()
         return;
     }
 
-    auto best = max_element(_hypotheses.begin(), _hypotheses.end(), [](const auto& a, const auto& b) {
-        return a.confidence < b.confidence;
-    });
+    if (_activeHypothesis.confidence > minConfidence) {
+        _stablePose = _activeHypothesis.pose;
+    }
 
-    if (!_hypotheses.empty() && best->confidence >= 0.8) {
+    if (_activeHypothesis.confidence >= 0.8) {
         ChangeState(MappingEngineState::Stable);
-        _stablePose = best->pose;
         return;
     }
 
     if (_hypotheses.size() < 2) {
         ChangeState(MappingEngineState::Degraded);
-        _stablePose = best->pose;
         return;
     }
 
@@ -178,36 +199,67 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 void MappingEngine::CreateHypothesis()
 {
     if (_hypotheses.empty()) {
-        RCLCPP_INFO(get_logger(), "MCL failed no hypothesis found.");
-        _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+        _hypotheses = { _activeHypothesis };
         return;
     }
 
-    const auto best = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
+    const auto it = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
         return a.confidence < b.confidence;
     });
 
-    if (best == _hypotheses.end())
-        return;
+    if (it == _hypotheses.end()) return;
+
+    auto best = *it;
 
     static thread_local auto prng = std::mt19937(std::random_device {}());
-    constexpr auto attempts = 20;
+    constexpr auto attempts = 30;
 
     auto offsetXY = std::uniform_real_distribution(-0.75, 0.75);
-    auto offsetTheta = std::uniform_real_distribution(-0.35, 0.35);
+    auto offsetTheta = std::uniform_real_distribution(-M_PI, M_PI);
 
     for (auto i = 0; i < attempts; i++) {
         const auto candidatePose = Pose(
-            Vector2(best->pose.position.x + offsetXY(prng), best->pose.position.y + offsetXY(prng)),
-            best->pose.rotation + offsetTheta(prng));
+            Vector2(best.pose.position.x + offsetXY(prng), best.pose.position.y + offsetXY(prng)),
+            best.pose.rotation + offsetTheta(prng));
 
         const auto hypothesis = _poseMatcher.Match(_lastScan, candidatePose);
         if (hypothesis.confidence < minConfidence)
             continue;
 
         _hypotheses.push_back(hypothesis);
+
+        best = PoseMatchResult::Best(best, hypothesis);
     }
 }
+
+
+
+void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
+{
+    using Key = std::tuple<int, int, int>;
+    auto keyHash = [](const Key& k) -> size_t {
+        auto [a, b, c] = k;
+        return std::hash<int>()(a) ^ std::hash<int>()(b) ^ std::hash<int>()(c);
+    };
+
+    auto seen = std::unordered_set<std::tuple<int, int, int>, decltype(keyHash)>(0, keyHash);
+    seen.reserve(hypotheses.size());
+
+    size_t write = 0;
+
+    for (size_t read = 0; read < hypotheses.size(); read++) {
+        const auto p = hypotheses[read].pose.Normalized();
+
+        const auto key = std::tuple<int, int, int>(static_cast<int>(std::round(p.position.x / gridResolution)),
+            static_cast<int>(std::round(p.position.y / gridResolution)),
+            static_cast<int>(std::round(p.rotation / rotationResolution)));
+
+
+
+
+    }
+}
+
 
 void MappingEngine::Reset()
 {
