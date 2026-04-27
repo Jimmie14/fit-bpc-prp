@@ -1,4 +1,4 @@
-## [unreleased]
+## [1.4.0] - 2026-04-27
 
 ### 🚀 Features
 
@@ -9,6 +9,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Tune camera matrix and coefficients
+- Bump version to 1.4.0
 ## [1.3.2] - 2026-04-27
 
 ### 🚀 Features
