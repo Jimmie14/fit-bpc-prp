@@ -7,6 +7,7 @@
 
 ### 🚀 Features
 
+- Enhance FollowerEngine with improved target acquisition and navigation logic
 - Improve hypothesis management and pose matching in MappingEngine
 
 ### ⚙️ Miscellaneous Tasks
