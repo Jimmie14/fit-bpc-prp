@@ -7,11 +7,11 @@ using namespace std;
 
 constexpr int rayCount = 32;
 constexpr double rayDistance = 1;
-constexpr double avoidanceDistance = 0.16;
-constexpr double avoidanceStrength = 1;
+constexpr double avoidanceDistance = 0.2;
+constexpr double avoidanceStrength = 2.0;
 
-constexpr double aimDistance = 0.2;
-constexpr double destinationDistance = 0.3;
+constexpr double aimDistance = 0.3;
+constexpr double destinationDistance = 0.2;
 constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
@@ -19,16 +19,16 @@ constexpr double cornerSlowMinFactor = 0.25;
 constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
 constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
-constexpr double maxLinearSpeed = 0.2;
-constexpr double maxAngularSpeed = 0.2;
+constexpr double maxLinearSpeed = 0.15;
+constexpr double maxAngularSpeed = 0.15;
 
 constexpr double turnDeceleration = 1.5;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
 
-constexpr double angularKp = 0.6;
-constexpr double angularKi = 0.01;
-constexpr double angularKd = 0.02;
+constexpr double angularKp = 0.4;
+constexpr double angularKi = 0.0;
+constexpr double angularKd = 0.1;
 
 static double MoveTowards(const double current, const double target, const double maxDelta)
 {
@@ -171,7 +171,7 @@ void NavigatorEngine::SetDestination(GridCell* destination)
 
     ranges::reverse(path);
     // path = SmoothPath(path);
-
+    //
     // std::queue<GridCell*> result;
     // for (auto* cell : path) {
     //     result.push(cell);

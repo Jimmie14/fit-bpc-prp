@@ -18,6 +18,8 @@ private:
     std::vector<RayHit> _rayHits;
     Vector2 _startPosition;
 
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
+
     double _fov;
     double _rayDistance;
     int _rayCount;
@@ -30,7 +32,9 @@ private:
     std::shared_ptr<MappingEngine> _map;
     std::shared_ptr<NavigatorEngine> _navigator;
 
-    Vector2 GetTarget(const Pose& pose) const;
+    Vector2 GetTarget(const Pose& pose, double adjustedRotation) const;
+
+    void PublishRayCast(const std::vector<RayHit>& hits, const Pose& pose) const;
 
     void FollowCorridor();
 
