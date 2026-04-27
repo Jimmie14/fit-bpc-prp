@@ -3,6 +3,8 @@
 ### 🚀 Features
 
 - Add ArucoDetectionEngine
+- Add aruco marker topic
+- Enhance FollowerEngine with improved target acquisition and navigation logic
 ## [1.3.2] - 2026-04-27
 
 ### 🚀 Features
