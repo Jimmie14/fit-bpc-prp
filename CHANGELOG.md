@@ -3,11 +3,12 @@
 ### 🚀 Features
 
 - Add ArucoDetectionEngine
+- Add aruco marker topic
+- Enhance FollowerEngine with improved target acquisition and navigation logic
 ## [1.3.2] - 2026-04-27
 
 ### 🚀 Features
 
-- Enhance FollowerEngine with improved target acquisition and navigation logic
 - Improve hypothesis management and pose matching in MappingEngine
 
 ### ⚙️ Miscellaneous Tasks
