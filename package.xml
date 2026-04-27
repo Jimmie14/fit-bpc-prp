@@ -21,6 +21,7 @@
   <exec_depend>geometry_msgs</exec_depend>
   <exec_depend>grid_map_ros</exec_depend>
   <exec_depend>grid_map_msgs</exec_depend>
+  <exec_depend>OpenCV</exec_depend>
 
   <export>
     <build_type>ament_cmake</build_type>

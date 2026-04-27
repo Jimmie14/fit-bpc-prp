@@ -1,6 +1,7 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.hpp"
+#include "ArucoDetectionEngine.hpp"
 #include "ExplorerEngine.hpp"
 #include "FollowerEngine.hpp"
 #include "ImuDriver.hpp"
@@ -9,9 +10,9 @@
 #include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
 #include "NavigatorEngine.hpp"
+#include "NavigatorGraphBuilder.hpp"
 #include "OdometryEngine.hpp"
 #include "UserInputDriver.hpp"
-#include "NavigatorGraphBuilder.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -26,15 +27,18 @@ int main(const int argc, char* argv[])
     app->AddDriver<Core::LidarDriver>()->Enable();
     app->AddDriver<Core::MotorDriver>()->Enable();
 
-    app->AddComponent<Core::OdometryEngine>();
-    app->AddComponent<Core::LineEngine>();
+    app->AddEngine<Core::OdometryEngine>();
+    app->AddEngine<Core::LineEngine>();
 
-    app->AddComponent<Core::UserInputDriver>();
-    app->AddComponent<Core::MappingEngine>();
-    app->AddComponent<Core::NavigatorEngine>();
-    app->AddComponent<Core::NavigatorGraphBuilder>();
-    app->AddComponent<Core::FollowerEngine>()->Enable();
-    app->AddComponent<Core::ExplorerEngine>();
+    app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
+
+    app->AddDriver<Core::UserInputDriver>();
+
+    app->AddEngine<Core::MappingEngine>();
+    app->AddEngine<Core::NavigatorEngine>();
+    app->AddEngine<Core::NavigatorGraphBuilder>();
+    app->AddEngine<Core::FollowerEngine>()->Enable();
+    app->AddEngine<Core::ExplorerEngine>();
 
     app->Run();
 

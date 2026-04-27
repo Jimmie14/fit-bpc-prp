@@ -25,6 +25,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(grid_map_ros REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # Setup ament package
 ament_package()

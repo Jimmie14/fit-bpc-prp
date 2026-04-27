@@ -105,7 +105,8 @@ public:
 
                 totalError += error * error;
 
-                if (std::abs(m - 0.5) > 0.05) knownCount++;
+                if (std::abs(m - 0.5) > 0.05)
+                    knownCount++;
                 usedPoints++;
             }
 
@@ -148,7 +149,7 @@ public:
             pos.y += std::clamp(dPosMy, -0.1, 0.1);
             rot += std::clamp(dRotM, -0.05, 0.05);
 
-            lastDeltaNorm = std::sqrt(dPosMx*dPosMx + dPosMy*dPosMy + dRotM*dRotM);
+            lastDeltaNorm = std::sqrt(dPosMx * dPosMx + dPosMy * dPosMy + dRotM * dRotM);
         }
 
         // Fix 1: compute avgCond
@@ -171,13 +172,12 @@ public:
         const auto poseProbability = _grid.GetProbability(poseCell.x, poseCell.y);
         const double poseKnownScore = std::clamp(std::abs(poseProbability - 0.5) * 2.0, 0.0, 1.0);
 
-        const double confidence =
-            0.35 * fitScore +            // how well scan endpoints hit occupied cells
-            0.20 * coverageScore +       // fraction of scan points that were in-bounds
-            0.20 * knownRatio +          // fraction of points in decided (non-unknown) cells
-            0.10 * deltaScore +          // convergence stability
-            0.10 * conditioningScore +   // Hessian quality
-            0.05 * poseKnownScore;       // is the pose itself in observed space?
+        const double confidence = 0.35 * fitScore + // how well scan endpoints hit occupied cells
+            0.20 * coverageScore + // fraction of scan points that were in-bounds
+            0.20 * knownRatio + // fraction of points in decided (non-unknown) cells
+            0.10 * deltaScore + // convergence stability
+            0.10 * conditioningScore + // Hessian quality
+            0.05 * poseKnownScore; // is the pose itself in observed space?
 
         return { Pose(pos, rot), std::clamp(confidence, 0.0, 1.0) };
     }

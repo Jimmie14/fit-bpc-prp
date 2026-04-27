@@ -15,6 +15,7 @@ ament_target_dependencies(manhattan PUBLIC
         sensor_msgs visualization_msgs
         grid_map_msgs grid_map_ros
         tf2
+        OpenCV
 )
 
 install(TARGETS manhattan DESTINATION lib/${PROJECT_NAME})

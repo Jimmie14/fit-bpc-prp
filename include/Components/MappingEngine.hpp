@@ -44,7 +44,7 @@ public:
     [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
 
 private:
-    Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySub;
+    Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
 
     TimerBase::SharedPtr _publishTimer;
     TimerBase::SharedPtr _costUpdateTimer;

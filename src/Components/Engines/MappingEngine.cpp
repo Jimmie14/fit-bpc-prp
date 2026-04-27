@@ -38,7 +38,7 @@ MappingEngine::MappingEngine(const App& app)
 
     _path.header.frame_id = "map";
 
-    _odometrySub = create_subscription<nav_msgs::msg::Odometry>(
+    _odometrySubscription = create_subscription<nav_msgs::msg::Odometry>(
         "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
             this->OnOdometry(msg);
         });
@@ -136,8 +136,6 @@ void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
     UpdateState();
 }
 
-
-
 void MappingEngine::UpdateState()
 {
     constexpr auto lostTimeout = 10000ms;
@@ -192,8 +190,7 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 
     _app.Events->Publish(MappingEngineStateChangeEvent {
         .oldState = oldState,
-        .newState = newState
-    });
+        .newState = newState });
 }
 
 void MappingEngine::CreateHypothesis()
@@ -207,7 +204,8 @@ void MappingEngine::CreateHypothesis()
         return a.confidence < b.confidence;
     });
 
-    if (it == _hypotheses.end()) return;
+    if (it == _hypotheses.end())
+        return;
 
     auto best = *it;
 
@@ -232,8 +230,6 @@ void MappingEngine::CreateHypothesis()
     }
 }
 
-
-
 void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
 {
     using Key = std::tuple<int, int, int>;
@@ -253,13 +249,8 @@ void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
         const auto key = std::tuple<int, int, int>(static_cast<int>(std::round(p.position.x / gridResolution)),
             static_cast<int>(std::round(p.position.y / gridResolution)),
             static_cast<int>(std::round(p.rotation / rotationResolution)));
-
-
-
-
     }
 }
-
 
 void MappingEngine::Reset()
 {

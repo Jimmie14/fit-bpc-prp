@@ -1,9 +1,9 @@
 #pragma once
 
-#include "RosEngine.hpp"
-#include "NavigatorEngine.hpp"
 #include "MappingEngine.hpp"
+#include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"
+#include "RosEngine.hpp"
 
 namespace Manhattan::Core {
 
@@ -18,7 +18,7 @@ private:
     void Update();
     void FollowCorridor();
 
-    std::shared_ptr<MappingEngine>_map;
+    std::shared_ptr<MappingEngine> _map;
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<NavigatorGraphBuilder> _graphBuilder;
 

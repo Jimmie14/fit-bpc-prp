@@ -13,23 +13,27 @@ FollowerEngine::FollowerEngine(const App& app)
     _graphBuilder = app.GetComponent<NavigatorGraphBuilder>();
 }
 
-void FollowerEngine::OnEnable() {
+void FollowerEngine::OnEnable()
+{
     _initialTimer = create_wall_timer(1s, [this]() {
         _initialTimer->cancel();
         _timer = create_wall_timer(100ms, [this] { Update(); });
     });
 }
 
-void FollowerEngine::OnDisable() {
+void FollowerEngine::OnDisable()
+{
     _timer.reset();
     _initialTimer.reset();
 }
 
-void FollowerEngine::Update() {
+void FollowerEngine::Update()
+{
     FollowCorridor();
 }
 
-void FollowerEngine::FollowCorridor() {
+void FollowerEngine::FollowCorridor()
+{
     if (!_navigator->IsInDestination())
         return;
 
@@ -37,7 +41,8 @@ void FollowerEngine::FollowCorridor() {
     _graphBuilder->PublishMarkers();
 
     const auto& graphNodes = _graphBuilder->GetNodes();
-    if (graphNodes.empty()) return;
+    if (graphNodes.empty())
+        return;
 
     auto pose = _map->CurrentPose();
     Vector2 poseForward(cos(pose.rotation), sin(pose.rotation));
@@ -67,7 +72,8 @@ void FollowerEngine::FollowCorridor() {
 
         if (_currentNode != nullptr) {
             auto* cell = _map->GetCell(_currentNode->worldPosition);
-            if (cell) _navigator->SetDestination(cell);
+            if (cell)
+                _navigator->SetDestination(cell);
         }
         return;
     }
@@ -95,7 +101,8 @@ void FollowerEngine::FollowCorridor() {
     for (const auto& edge : _currentNode->connections) {
         if (_currentEdge != nullptr && _currentEdge->from != nullptr) {
             if (Vector2::Distance(edge->to->worldPosition, _currentEdge->from->worldPosition) < 0.1f) {
-                if (_currentNode->connections.size() > 1) continue;
+                if (_currentNode->connections.size() > 1)
+                    continue;
             }
         }
 

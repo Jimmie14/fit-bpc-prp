@@ -47,7 +47,8 @@ struct Pose {
     [[nodiscard]] Pose Normalized() const
     {
         auto angle = fmod(rotation, 2.0 * M_PI);
-        if (angle < 0) angle += 2.0 * M_PI;
+        if (angle < 0)
+            angle += 2.0 * M_PI;
 
         return Pose(position, angle);
     }
