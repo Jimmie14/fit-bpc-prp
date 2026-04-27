@@ -6,9 +6,9 @@
 using namespace std;
 
 constexpr int rayCount = 32;
-constexpr double rayDistance = 3;
-constexpr double avoidanceDistance = 0.22;
-constexpr double avoidanceStrength = 20.0;
+constexpr double rayDistance = 1;
+constexpr double avoidanceDistance = 0.16;
+constexpr double avoidanceStrength = 1;
 
 constexpr double aimDistance = 0.2;
 constexpr double destinationDistance = 0.3;
@@ -343,22 +343,17 @@ void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pos
 Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose& pose,
     const Vector2& desiredDirection) const
 {
-    auto direction = desiredDirection;
-    constexpr auto rayWeight = 1.0 / rayCount;
+    Vector2 avoidance(0, 0);
+    for (const auto& rayHit : rayHits) {
+        const auto dist = Vector2::Distance(pose.position, rayHit.hit);
+        if (dist >= avoidanceDistance) continue;
 
-    for (const auto rayHit : rayHits) {
-        const auto dst = Vector2::Distance(pose.position, rayHit.hit);
-
-        if (dst >= avoidanceDistance)
-            continue;
-
-        const auto proximity = 1.0 - dst / avoidanceDistance;
-        const auto pushForce = proximity * proximity * avoidanceStrength;
-
-        direction = direction + rayHit.normal * (pushForce * rayWeight);
+        const auto proximity = 1.0 - dist / avoidanceDistance;
+        const auto force = std::pow(proximity, 2) * avoidanceStrength;
+        avoidance = avoidance + rayHit.normal * force;
     }
 
-    return direction.Normalized();
+    return(desiredDirection + avoidance).Normalized();
 }
 
 double NavigatorEngine::GetCornerSlowFactor(const Pose& pose, const double currentT) const
@@ -434,6 +429,19 @@ void NavigatorEngine::Update()
     const auto rayHits = RayCastAround(pose);
     const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
 
+    double forwardMinDist = rayDistance;
+    constexpr double robotHalfWidth = 0.06;
+
+    for (const auto& rayHit : rayHits) {
+        Vector2 relativePos = rayHit.hit - pose.position;
+        double forwardDist = Vector2::Dot(relativePos, pose.forward);
+        double sideDist = std::abs(Vector2::Dot(relativePos, Vector2(-pose.forward.y, pose.forward.x))); // Right axis
+
+        if (forwardDist > 0 && forwardDist < distanceToSlow && sideDist < robotHalfWidth)
+            forwardMinDist = std::min(forwardMinDist, forwardDist);
+    }
+    auto distanceFactor = clamp(forwardMinDist / distanceToSlow, 0.0, 1.0);
+
     PublishRayCast(rayHits, pose, desiredDirection);
 
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
@@ -443,14 +451,6 @@ void NavigatorEngine::Update()
     // const auto angularSpeedTarget = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
     _currentAngularVelocity = angularSpeedTarget;
 
-    auto distanceFactor = 1.0;
-    if (!rayHits.empty()) {
-        const auto forwardHit = rayHits[0];
-        const auto distanceAhead = Vector2::Distance(forwardHit.hit, pose.position);
-
-        distanceFactor = clamp(distanceAhead / distanceToSlow, 0.0, 1.0);
-    }
-
     const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
     const auto cornerFactor = GetCornerSlowFactor(pose, _t);
 
@@ -459,7 +459,8 @@ void NavigatorEngine::Update()
     _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
         (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * maxLinearSpeed * deltaTime);
 
-    const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
+    const auto reverse = abs(angleToTarget) > M_PI * .9;
+    const auto speed = _kinematics.inverse(RobotSpeed { reverse ? -_currentLinearVelocity : _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
 }
 

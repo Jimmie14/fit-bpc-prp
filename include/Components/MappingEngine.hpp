@@ -37,7 +37,7 @@ public:
 
     [[nodiscard]] Pose CurrentPose() const
     {
-        return _stablePose;
+        return _stablePose + _odomPoseDelta;
     }
 
     [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
