@@ -3,8 +3,8 @@
 ### 🚀 Features
 
 - Add ArucoDetectionEngine
+- Enhance FollowerEngine with ray casting visualization and target adjustment logic
 - Add aruco marker topic
-- Enhance FollowerEngine with improved target acquisition and navigation logic
 
 ### ⚙️ Miscellaneous Tasks
 
@@ -13,6 +13,7 @@
 
 ### 🚀 Features
 
+- Enhance FollowerEngine with improved target acquisition and navigation logic
 - Improve hypothesis management and pose matching in MappingEngine
 
 ### ⚙️ Miscellaneous Tasks
