@@ -37,7 +37,7 @@ int main(const int argc, char* argv[])
     app->AddEngine<Core::MappingEngine>();
     app->AddEngine<Core::NavigatorEngine>();
     app->AddEngine<Core::NavigatorGraphBuilder>();
-    app->AddEngine<Core::FollowerEngine>()->Enable();
+    app->AddEngine<Core::FollowerEngine>();//->Enable();
     app->AddEngine<Core::ExplorerEngine>();
 
     app->Run();
