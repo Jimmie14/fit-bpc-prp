@@ -30,12 +30,14 @@ int main(const int argc, char* argv[])
     app->AddEngine<Core::OdometryEngine>();
     app->AddEngine<Core::LineEngine>();
 
-    app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
 
     app->AddDriver<Core::UserInputDriver>();
 
     app->AddEngine<Core::MappingEngine>();
+
+    app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
     app->AddEngine<Core::NavigatorEngine>();
+
     app->AddEngine<Core::NavigatorGraphBuilder>();
     app->AddEngine<Core::FollowerEngine>();//->Enable();
     app->AddEngine<Core::ExplorerEngine>();
