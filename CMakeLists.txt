@@ -2,7 +2,7 @@
 # Root CMake file
 cmake_minimum_required(VERSION 3.22)
 project(project
-        VERSION 1.3.1
+        VERSION 1.3.2
         DESCRIPTION "" # todo: add description
         LANGUAGES CXX)
 
@@ -25,6 +25,7 @@ find_package(nav_msgs REQUIRED)
 find_package(geometry_msgs REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(grid_map_ros REQUIRED)
+find_package(OpenCV REQUIRED)
 
 # Setup ament package
 ament_package()

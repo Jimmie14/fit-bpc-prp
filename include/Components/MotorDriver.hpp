@@ -12,6 +12,7 @@ class MotorDriver final : public RosDeviceDriver {
 
     TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
+
 public:
     explicit MotorDriver(const App& app);
 

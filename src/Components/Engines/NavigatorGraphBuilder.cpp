@@ -2,7 +2,7 @@
 
 namespace Manhattan::Core {
 
-NavigatorGraphBuilder::NavigatorGraphBuilder(const App &app)
+NavigatorGraphBuilder::NavigatorGraphBuilder(const App& app)
     : RosEngine(app, "navigator_graph_builder")
 {
     _mappingEngine = app.GetComponent<MappingEngine>();
@@ -31,16 +31,18 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
     std::map<std::pair<int, int>, std::shared_ptr<NavigatorNode>> nodeDict;
 
     std::vector<Vector2Int> dirs = {
-        {0, 1}, {1, 1}, {1, 0}, {1, -1}, {0, -1}, {-1, -1}, {-1, 0}, {-1, 1}
+        { 0, 1 }, { 1, 1 }, { 1, 0 }, { 1, -1 }, { 0, -1 }, { -1, -1 }, { -1, 0 }, { -1, 1 }
     };
 
     for (int x = 1; x < w - 1; x++) {
         for (int y = 1; y < h - 1; y++) {
-            if (!skeleton[y * w + x]) continue;
+            if (!skeleton[y * w + x])
+                continue;
 
             int neighbors = 0;
             for (const auto& d : dirs) {
-                if (skeleton[(y + d.y) * w + (x + d.x)]) neighbors++;
+                if (skeleton[(y + d.y) * w + (x + d.x)])
+                    neighbors++;
             }
 
             if (neighbors != 2) {
@@ -48,7 +50,7 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
                 node->gridPosition = Vector2Int(x, y);
                 node->worldPosition = _mappingEngine->GridToWorld(node->gridPosition);
                 _graphNodes.push_back(node);
-                nodeDict[{x, y}] = node;
+                nodeDict[{ x, y }] = node;
             }
         }
     }
@@ -57,7 +59,8 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
     for (auto& node : _graphNodes) {
         for (const auto& d : dirs) {
             Vector2Int current = node->gridPosition + d;
-            if (!InBounds(current.x, current.y, w, h) || !skeleton[current.y * w + current.x]) continue;
+            if (!InBounds(current.x, current.y, w, h) || !skeleton[current.y * w + current.x])
+                continue;
 
             Vector2Int prev = node->gridPosition;
             std::vector<Vector2> path;
@@ -65,8 +68,8 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
             while (true) {
                 path.push_back(_mappingEngine->GridToWorld(current));
 
-                if (nodeDict.count({current.x, current.y})) {
-                    auto target = nodeDict[{current.x, current.y}];
+                if (nodeDict.count({ current.x, current.y })) {
+                    auto target = nodeDict[{ current.x, current.y }];
                     if (target != node) {
                         auto edge = std::make_shared<Edge>();
                         edge->from = node;
@@ -81,7 +84,8 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
                 bool found = false;
                 for (const auto& nd : dirs) {
                     Vector2Int cand = current + nd;
-                    if (cand.x == prev.x && cand.y == prev.y) continue;
+                    if (cand.x == prev.x && cand.y == prev.y)
+                        continue;
                     if (InBounds(cand.x, cand.y, w, h) && skeleton[cand.y * w + cand.x]) {
                         next = cand;
                         found = true;
@@ -89,7 +93,8 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
                     }
                 }
 
-                if (!found) break;
+                if (!found)
+                    break;
                 prev = current;
                 current = next;
             }
@@ -109,7 +114,8 @@ std::vector<bool> NavigatorGraphBuilder::ZhangSuenThinning(const std::vector<boo
             toRemove.clear();
             for (int x = 1; x < w - 1; x++) {
                 for (int y = 1; y < h - 1; y++) {
-                    if (!skeleton[y * w + x]) continue;
+                    if (!skeleton[y * w + x])
+                        continue;
 
                     int B = CountNeighbors(skeleton, x, y, w, h);
                     int A = CountTransitions(skeleton, x, y, w, h);
@@ -126,12 +132,13 @@ std::vector<bool> NavigatorGraphBuilder::ZhangSuenThinning(const std::vector<boo
                         condition = !(p2 && p4 && p8) && !(p2 && p6 && p8);
 
                     if (B >= 2 && B <= 6 && A == 1 && condition) {
-                        toRemove.push_back({x, y});
+                        toRemove.push_back({ x, y });
                         changed = true;
                     }
                 }
             }
-            for (auto& p : toRemove) skeleton[p.second * w + p.first] = false;
+            for (auto& p : toRemove)
+                skeleton[p.second * w + p.first] = false;
         }
     } while (changed);
     return skeleton;
@@ -142,7 +149,8 @@ int NavigatorGraphBuilder::CountNeighbors(const std::vector<bool>& img, int x, i
     int count = 0;
     for (int i = -1; i <= 1; i++)
         for (int j = -1; j <= 1; j++)
-            if ((i != 0 || j != 0) && img[(y + j) * w + (x + i)]) count++;
+            if ((i != 0 || j != 0) && img[(y + j) * w + (x + i)])
+                count++;
     return count;
 }
 
@@ -154,15 +162,18 @@ int NavigatorGraphBuilder::CountTransitions(const std::vector<bool>& img, int x,
     };
     int transitions = 0;
     for (int i = 0; i < 8; i++)
-        if (!p[i] && p[(i + 1) % 8]) transitions++;
+        if (!p[i] && p[(i + 1) % 8])
+            transitions++;
     return transitions;
 }
 
-bool NavigatorGraphBuilder::InBounds(int x, int y, int w, int h) const {
+bool NavigatorGraphBuilder::InBounds(int x, int y, int w, int h) const
+{
     return x >= 0 && y >= 0 && x < w && y < h;
 }
 
-void NavigatorGraphBuilder::PublishMarkers() {
+void NavigatorGraphBuilder::PublishMarkers()
+{
     visualization_msgs::msg::MarkerArray markers;
 
     visualization_msgs::msg::Marker nodesMarker;
@@ -172,7 +183,8 @@ void NavigatorGraphBuilder::PublishMarkers() {
     nodesMarker.id = 0;
     nodesMarker.type = visualization_msgs::msg::Marker::SPHERE_LIST;
     nodesMarker.scale.x = nodesMarker.scale.y = nodesMarker.scale.z = _nodeSize;
-    nodesMarker.color.r = 1.0; nodesMarker.color.a = 1.0;
+    nodesMarker.color.r = 1.0;
+    nodesMarker.color.a = 1.0;
 
     visualization_msgs::msg::Marker edgesMarker;
     edgesMarker.header.frame_id = "map";
@@ -181,7 +193,8 @@ void NavigatorGraphBuilder::PublishMarkers() {
     edgesMarker.id = 1;
     edgesMarker.type = visualization_msgs::msg::Marker::LINE_LIST;
     edgesMarker.scale.x = 0.02;
-    edgesMarker.color.g = 1.0; edgesMarker.color.a = 0.8;
+    edgesMarker.color.g = 1.0;
+    edgesMarker.color.a = 0.8;
 
     visualization_msgs::msg::Marker clearMarker;
     clearMarker.action = visualization_msgs::msg::Marker::DELETEALL;
@@ -189,7 +202,9 @@ void NavigatorGraphBuilder::PublishMarkers() {
 
     for (const auto& node : _graphNodes) {
         geometry_msgs::msg::Point p;
-        p.x = node->worldPosition.x; p.y = node->worldPosition.y; p.z = 0.05;
+        p.x = node->worldPosition.x;
+        p.y = node->worldPosition.y;
+        p.z = 0.05;
         nodesMarker.points.push_back(p);
 
         for (const auto& edge : node->connections) {
@@ -200,8 +215,8 @@ void NavigatorGraphBuilder::PublishMarkers() {
                 p1.z = 0.02;
 
                 geometry_msgs::msg::Point p2;
-                p2.x = edge->path[i+1].x;
-                p2.y = edge->path[i+1].y;
+                p2.x = edge->path[i + 1].x;
+                p2.y = edge->path[i + 1].y;
                 p2.z = 0.02;
 
                 edgesMarker.points.push_back(p1);
