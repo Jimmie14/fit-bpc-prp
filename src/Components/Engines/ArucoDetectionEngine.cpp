@@ -10,7 +10,7 @@
 
 constexpr auto imageTopic = "/bpc_prp_robot/camera/compressed";
 constexpr auto cameraInfoTopic = "/bpc_prp_robot/camera_info";
-constexpr auto markerSize = 0.05;
+constexpr auto markerSize = 0.065;
 
 constexpr auto cameraHeight = 0.165;
 constexpr auto cameraPitchToFloor = M_PI * 0.25;
@@ -28,11 +28,16 @@ ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
     // height: 16.5cm, pi/4 rad
     _hasCameraInfo = true;
     _cameraMatrix = (cv::Mat_<double>(3,3) <<
-        2450, 0,    1640,
-        0,    2450, 1232,
-        0,    0,    1);
+        1416.63028, 0.0,        305.805287,
+        0.0,        1431.56593, 336.313952,
+        0.0,        0.0,        1.0);
 
-    _distanceCoefficients = (cv::Mat_<double>(1,5) << -0.1, 0.05, 0, 0, 0);
+    _distanceCoefficients = (cv::Mat_<double>(1,5) <<
+        0.244797162,
+        2.10394640,
+        0.0514261080,
+       -0.00469037072,
+       -20.3582855);
 
     _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
@@ -134,15 +139,6 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
             const double cameraDown = tvecs[i][1];
             const double cameraForward = tvecs[i][2];
 
-            /*
-             * OpenCV ArUco tvec is in camera optical coordinates:
-             *   +X = image right
-             *   +Y = image down
-             *   +Z = camera forward
-             *
-             * Camera is pitched down by cameraPitchToFloor.
-             * We project the marker direction onto the floor plane.
-             */
             const double floorDown =
                 cameraForward * std::sin(cameraPitchToFloor) +
                 cameraDown * std::cos(cameraPitchToFloor);
@@ -157,30 +153,30 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
                 (cameraForward * std::cos(cameraPitchToFloor) -
                  cameraDown * std::sin(cameraPitchToFloor)) * scaleToFloor;
 
-            /*
-             * Project robot-local coordinates into world/map.
-             * In this codebase Pose rotation == 0 means robot forward is +Y.
-             */
-            const double rightX = std::cos(robotPose.rotation);
-            const double rightY = std::sin(robotPose.rotation);
+            const auto forward = robotPose.forward;
 
-            const double forwardX = std::cos(robotPose.rotation + M_PI * 0.5);
-            const double forwardY = std::sin(robotPose.rotation + M_PI * 0.5);
+            const auto right = Vector2(
+                std::cos(robotPose.rotation - M_PI * 0.5),
+                std::sin(robotPose.rotation - M_PI * 0.5));
 
             const double worldX =
                 robotPose.position.x +
-                rightX * robotLocalRight +
-                forwardX * robotLocalForward;
+                right.x * robotLocalRight +
+                forward.x * robotLocalForward;
 
             const double worldY =
                 robotPose.position.y +
-                rightY * robotLocalRight +
-                forwardY * robotLocalForward;
+                right.y * robotLocalRight +
+                forward.y * robotLocalForward;
+
+            const auto worldPosition = Vector2(worldX, worldY);
+                //_mappingEngine->GetCell(Vector2(worldX, worldY))->GetWorldPosition();
+
 
             geometry_msgs::msg::Pose p;
 
-            p.position.x = worldX;
-            p.position.y = worldY;
+            p.position.x = worldPosition.x;
+            p.position.y = worldPosition.y;
             p.position.z = 0.0;
 
             p.orientation.x = 0.0;

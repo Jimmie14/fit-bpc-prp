@@ -18,3 +18,5 @@ sudo apt install -y ros-humble-rmw-cyclonedds-cpp
 
 sudo apt update
 sudo apt install ros-humble-image-transport-plugins
+sudo apt install ros-humble-image-view
+
