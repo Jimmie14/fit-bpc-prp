@@ -1,8 +1,12 @@
-## [unreleased]
+## [1.3.2] - 2026-04-27
 
 ### 🚀 Features
 
 - Improve hypothesis management and pose matching in MappingEngine
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.3.2
 ## [1.3.1] - 2026-04-23
 
 ### 🚀 Features
