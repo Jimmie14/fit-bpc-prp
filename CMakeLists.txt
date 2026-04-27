@@ -2,7 +2,7 @@
 # Root CMake file
 cmake_minimum_required(VERSION 3.22)
 project(project
-        VERSION 1.3.2
+        VERSION 1.4.0
         DESCRIPTION "" # todo: add description
         LANGUAGES CXX)
 
