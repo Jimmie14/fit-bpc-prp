@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🚀 Features
+
+- Add ArucoDetectionEngine
 ## [1.3.2] - 2026-04-27
 
 ### 🚀 Features
