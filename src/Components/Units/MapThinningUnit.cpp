@@ -1,0 +1,123 @@
+#include "MapThinningUnit.hpp"
+
+#include "Nav/Grid.hpp"
+#include "Viz/Grid.hpp"
+
+namespace Manhattan::Core {
+
+Grid<bool> ZhangSuenThinning(const Grid<bool>& grid);
+
+int CountNeighbors(const Grid<bool>& grid, const int x, const int y);
+
+int CountTransitions(const Grid<bool>& grid, const int x, const int y);
+
+MapThinningUnit::MapThinningUnit(const App& app) : RosUnit(app, "map_thinning")
+{
+}
+
+
+void MapThinningUnit::OnEnable()
+{
+    _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+        this->OnMap(msg);
+    });
+
+    _mapPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1);
+}
+
+void MapThinningUnit::OnDisable()
+{
+    _mapSubscription.reset();
+    _mapPublisher.reset();
+}
+
+
+void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const
+{
+    const auto grid = Viz::ToOccupancyGrid(*msg, 20);
+
+    const auto skeleton = ZhangSuenThinning(grid);
+
+    _mapPublisher->publish(Viz::ToOccupancyGridMessage(skeleton, "map"));
+}
+
+
+Grid<bool> ZhangSuenThinning(const Grid<bool>& grid)
+{
+    Grid<bool> skeleton = grid;
+
+    bool changed;
+    do {
+        changed = false;
+        std::vector<std::pair<int, int>> toRemove;
+
+        for (int step = 0; step < 2; step++) {
+            toRemove.clear();
+            for (int x = 1; x < grid.width - 1; x++) {
+                for (int y = 1; y < grid.height - 1; y++) {
+                    if (!skeleton.get(x, y)) continue;
+
+                    const auto B = CountNeighbors(skeleton, x, y);
+                    const auto A = CountTransitions(skeleton, x, y);
+
+                    const auto p2 = skeleton.get(x, y + 1);
+                    const auto p4 = skeleton.get(x + 1, y);
+                    const auto p6 = skeleton.get(x, y - 1);
+                    const auto p8 = skeleton.get(x - 1, y);
+
+                    bool condition;
+                    if (step == 0)
+                        condition = !(p2 && p4 && p6) && !(p4 && p6 && p8);
+                    else
+                        condition = !(p2 && p4 && p8) && !(p2 && p6 && p8);
+
+                    if (B >= 2 && B <= 6 && A == 1 && condition) {
+                        toRemove.push_back({ x, y });
+                        changed = true;
+                    }
+                }
+            }
+
+            for (auto& [x, y] : toRemove)
+                skeleton.set(x, y, false);
+        }
+    } while (changed);
+
+    return skeleton;
+}
+
+int CountNeighbors(const Grid<bool>& grid, const int x, const int y)
+{
+    int count = 0;
+
+    for (int i = -1; i <= 1; i++) {
+        for (int j = -1; j <= 1; j++) {
+            if (i == 0 && j == 0) continue;
+
+            if (grid(x + j, y + i))
+                count++;
+        }
+    }
+
+    return count;
+}
+
+int CountTransitions(const Grid<bool>& grid, const int x, const int y)
+{
+    const bool p[8] = {
+        grid(x, y + 1), grid(x + 1, y + 1), grid(x + 1, y), grid(x + 1, y - 1),
+        grid(x, y - 1), grid(x - 1, y - 1), grid(x - 1, y), grid(x - 1, y + 1)
+    };
+
+    int transitions = 0;
+
+    for (int i = 0; i < 8; i++) {
+        if (p[i] || !p[(i + 1) % 8]) continue;
+
+        transitions++;
+    }
+
+    return transitions;
+}
+
+} // namespace Manhattan::Core

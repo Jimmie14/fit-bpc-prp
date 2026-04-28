@@ -13,6 +13,7 @@
 #include "NavigatorGraphBuilder.hpp"
 #include "OdometryEngine.hpp"
 #include "UserInputDriver.hpp"
+#include "MapThinningUnit.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -41,6 +42,8 @@ int main(const int argc, char* argv[])
     app->AddEngine<Core::NavigatorGraphBuilder>();
     app->AddEngine<Core::FollowerEngine>();//->Enable();
     app->AddEngine<Core::ExplorerEngine>();
+
+    app->AddComponent<Core::MapThinningUnit>()->Enable();
 
     // app->GetComponent<Core::ExplorerEngine>()->Enable();
 

@@ -1,7 +1,7 @@
 #include "ArucoDetectionEngine.hpp"
 
-#include "Helpers/Marker.hpp"
-#include "Helpers/Vec3.hpp"
+#include "../../../include/Math/Vec3.hpp"
+#include "Viz/Marker.hpp"
 
 #include <cv_bridge/cv_bridge.h>
 #include <geometry_msgs/msg/pose_array.hpp>
@@ -148,7 +148,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
             dir = tf2::quatRotate(tf2::Quaternion(vec3::Up, robotPose.rotation), dir);
 
-            markerArray.markers.push_back(viz::ToDirection(Vector3(robotPose.position.x, robotPose.position.y, 16.5), dir, "map"));
+            markerArray.markers.push_back(Viz::ToDirection(Vector3(robotPose.position.x, robotPose.position.y, 16.5), dir, "map"));
 
             const double floorDown =
                 cameraForward * std::sin(cameraPitchToFloor) +

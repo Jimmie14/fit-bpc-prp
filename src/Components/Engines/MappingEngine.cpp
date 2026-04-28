@@ -368,7 +368,7 @@ void MappingEngine::PublishGrid()
             auto cell = _grid.GetCell({ x, y });
             auto cost = cell->GetCost();
 
-            gridMsg.data[_grid.GetIndex(x, y)] = static_cast<int8_t>(cell->GetProbability() * 100.0);
+            gridMsg.data[_grid.GetIndex(x, y)] = cell->IsUnknown() ? -1 : static_cast<int8_t>(cell->GetProbability() * 100.0);
         }
     }
 

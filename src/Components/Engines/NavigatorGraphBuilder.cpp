@@ -355,7 +355,7 @@ void NavigatorGraphBuilder::PublishGrid(const vector<bool>& img, const int w, co
 
     for (auto x = 0; x < gridMsg.info.width; x++) {
         for (auto y = 0; y < gridMsg.info.height; y++) {
-            gridMsg.data[y * w + x] = img[y * w + x] ? 255 : 0;
+            gridMsg.data[y * w + x] = img[y * w + x] ? 127 : -1;
         }
     }
 

@@ -1,0 +1,28 @@
+#pragma once
+
+#include "Nav/Grid.hpp"
+#include "RosUnit.hpp"
+
+#include <nav_msgs/msg/occupancy_grid.hpp>
+#include <rclcpp/rclcpp.hpp>
+
+using namespace Manhattan::Nav;
+
+namespace Manhattan::Core {
+class MapThinningUnit : public RosUnit {
+public:
+    explicit MapThinningUnit(const App& app);
+
+protected:
+    void OnEnable() override;
+
+    void OnDisable() override;
+private:
+    Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
+
+    Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapPublisher;
+
+    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const;
+
+};
+}

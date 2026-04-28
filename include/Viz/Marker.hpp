@@ -5,7 +5,7 @@
 #include <visualization_msgs/msg/marker.hpp>
 #include <geometry_msgs/msg/point.hpp>
 
-namespace viz {
+namespace Viz {
 inline geometry_msgs::msg::Point ToPoint(const tf2::Vector3 & v)
 {
     geometry_msgs::msg::Point p;
