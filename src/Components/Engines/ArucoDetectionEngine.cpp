@@ -1,11 +1,14 @@
 #include "ArucoDetectionEngine.hpp"
 
+#include "Helpers/Marker.hpp"
+#include "Helpers/Vec3.hpp"
+
+#include <cv_bridge/cv_bridge.h>
+#include <geometry_msgs/msg/pose_array.hpp>
+#include <opencv2/aruco.hpp>
+#include <opencv2/opencv.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/image.hpp>
-#include <geometry_msgs/msg/pose_array.hpp>
-#include <cv_bridge/cv_bridge.h>
-#include <opencv2/opencv.hpp>
-#include <opencv2/aruco.hpp>
 #include <tf2/LinearMath/Matrix3x3.h>
 
 constexpr auto imageTopic = "/bpc_prp_robot/camera/compressed";
@@ -16,7 +19,7 @@ constexpr auto cameraHeight = 0.165;
 constexpr auto cameraPitchToFloor = M_PI * 0.25;
 
 namespace Manhattan::Core {
-struct MappingEngineStateChangeEvent;
+
 ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
     : RosEngine(app, "aruco_detection")
 {
@@ -28,16 +31,17 @@ ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
     // height: 16.5cm, pi/4 rad
     _hasCameraInfo = true;
     _cameraMatrix = (cv::Mat_<double>(3,3) <<
-        1416.63028, 0.0,        305.805287,
-        0.0,        1431.56593, 336.313952,
+        1312.66874, 0.0,        308.222153,
+        0.0,        1316.64822, 298.881634,
         0.0,        0.0,        1.0);
 
     _distanceCoefficients = (cv::Mat_<double>(1,5) <<
-        0.244797162,
-        2.10394640,
-        0.0514261080,
-       -0.00469037072,
-       -20.3582855);
+        -0.263544599,
+        6.59905618,
+        0.0197602951,
+        0.0000215995344,
+        -36.5553743);
+
 
     _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
@@ -135,9 +139,16 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
         for (size_t i = 0; i < ids.size(); i++)
         {
-            const double cameraRight = tvecs[i][0];
-            const double cameraDown = tvecs[i][1];
-            const double cameraForward = tvecs[i][2];
+            const auto cameraRight = tvecs[i][0];
+            const auto cameraDown = tvecs[i][1];
+            const auto cameraForward = tvecs[i][2];
+
+            auto dir = tf2::quatRotate(tf2::Quaternion(vec3::Right, M_PI / 4),
+                Vector3(tvecs[i][0], -tvecs[i][2], tvecs[i][1]));
+
+            dir = tf2::quatRotate(tf2::Quaternion(vec3::Up, robotPose.rotation), dir);
+
+            markerArray.markers.push_back(viz::ToDirection(Vector3(robotPose.position.x, robotPose.position.y, 16.5), dir, "map"));
 
             const double floorDown =
                 cameraForward * std::sin(cameraPitchToFloor) +
@@ -226,22 +237,12 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
                 tvecs[i],
                 0.03
             );
-
-            const auto center = (corners[i][0] + corners[i][1] + corners[i][2] + corners[i][3]) * 0.25f;
-            cv::putText(
-                frame,
-                "id=" + std::to_string(ids[i]) +
-                    " map=(" + std::to_string(worldX).substr(0, 5) +
-                    ", " + std::to_string(worldY).substr(0, 5) + ")",
-                center,
-                cv::FONT_HERSHEY_SIMPLEX,
-                0.7,
-                cv::Scalar(0, 255, 0),
-                2);
         }
     }
 
     _markerPublisher->publish(markerArray);
+
+    cv::flip(frame, frame, -1);
 
     auto outMessage = cv_bridge::CvImage(
         msg->header,
