@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- GraphBuilder bugs
 ## [1.4.0] - 2026-04-27
 
 ### 🚀 Features
