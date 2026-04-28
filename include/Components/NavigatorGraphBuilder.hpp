@@ -2,12 +2,11 @@
 
 #include <memory>
 #include <rclcpp/rclcpp.hpp>
-#include <unordered_map>
 #include <vector>
 #include <visualization_msgs/msg/marker_array.hpp>
 
 #include "MappingEngine.hpp"
-#include "Vector2.hpp"
+#include "Math/Vector2.hpp"
 
 namespace Manhattan::Core {
 

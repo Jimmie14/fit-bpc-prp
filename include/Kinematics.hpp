@@ -1,6 +1,6 @@
 #pragma once
 
-#include "Pose.hpp"
+#include "Math/Pose.hpp"
 
 namespace Manhattan::Core {
 

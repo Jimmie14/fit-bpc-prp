@@ -5,7 +5,7 @@
 #include <tuple>
 #include <vector>
 
-namespace Manhattan::Core {
+namespace Manhattan::Math {
 struct Vector2Int {
     int x, y;
 

@@ -7,6 +7,9 @@
 #include "Math/Vector2.hpp"
 
 namespace Manhattan::Core {
+
+using namespace Manhattan::Math;
+
 class GridCell {
     double _probability = 0;
     double _cost = 0;

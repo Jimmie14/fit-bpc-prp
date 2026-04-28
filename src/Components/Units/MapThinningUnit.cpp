@@ -5,6 +5,8 @@
 
 namespace Manhattan::Core {
 
+Grid<bool> ApplyMedianFilter(const Grid<bool>& grid);
+
 Grid<bool> ZhangSuenThinning(const Grid<bool>& grid);
 
 int CountNeighbors(const Grid<bool>& grid, const int x, const int y);
@@ -34,11 +36,34 @@ void MapThinningUnit::OnDisable()
 
 void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const
 {
-    const auto grid = Viz::ToOccupancyGrid(*msg, 20);
+    auto grid = Viz::ToOccupancyGrid(*msg, 20);
 
-    const auto skeleton = ZhangSuenThinning(grid);
+    grid = ApplyMedianFilter(grid);
+    grid = ZhangSuenThinning(grid);
 
-    _mapPublisher->publish(Viz::ToOccupancyGridMessage(skeleton, "map"));
+    _mapPublisher->publish(Viz::ToOccupancyGridMessage(grid, "map"));
+}
+
+Grid<bool> ApplyMedianFilter(const Grid<bool>& grid) {
+    auto result = Grid<bool>(grid.width, grid.height, grid.resolution);
+
+    for (int x = 1; x < grid.width - 1; x++) {
+        for (int y = 1; y < grid.height - 1; y++) {
+            int trueCount = 0;
+
+            for (int i = -1; i <= 1; i++) {
+                for (int j = -1; j <= 1; j++) {
+                    if (grid.get(x + i, y + j)) {
+                        trueCount++;
+                    }
+                }
+            }
+
+            result.set(x, y, trueCount >= 5);
+        }
+    }
+
+    return result;
 }
 
 

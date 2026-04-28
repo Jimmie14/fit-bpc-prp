@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Math/Vector2.hpp"
+
 #include <assert.h>
 #include <ranges>
 #include <vector>
@@ -7,6 +9,8 @@
 using namespace std;
 
 namespace Manhattan::Nav {
+
+using namespace Manhattan::Math;
 
 template <typename T>
 class Grid {
@@ -36,9 +40,31 @@ public:
         }
     }
 
+    Grid& operator=(const Grid& other) noexcept
+    {
+        if (this == &other) return *this;
+
+        if (width != other.width || height != other.height || resolution != other.resolution) {
+            throw logic_error("Cannot assign grids with different dimensions");
+        }
+
+        _data = other._data;
+        return *this;
+    }
+
     T operator[](const int index) const
     {
         return _data[index];
+    }
+
+    T operator[](const pair<int, int> coord) const
+    {
+        return _data[coordToIndex(coord.first, coord.second)];
+    }
+
+    T operator[](const Vector2Int coord) const
+    {
+        return _data[coordToIndex(coord.x, coord.y)];
     }
 
     T& operator()(const int x, const int y)

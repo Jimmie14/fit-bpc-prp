@@ -5,6 +5,9 @@
 #include <geometry_msgs/msg/pose.hpp>
 
 namespace Manhattan::Core {
+
+using namespace Manhattan::Math;
+
 struct Pose {
     Vector2 position;
     Vector2 forward;
