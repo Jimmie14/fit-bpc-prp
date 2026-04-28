@@ -436,6 +436,11 @@ Vector2 MappingEngine::GridToWorld(const Vector2Int& pos) const
     return _grid.GridToWorld(pos);
 }
 
+Vector2Int MappingEngine::WorldToGrid(const Vector2& pos) const
+{
+    return _grid.WorldToGrid(pos);
+}
+
 std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 {
     auto neighbours = std::vector<GridCell*>();
