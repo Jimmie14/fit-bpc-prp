@@ -40,6 +40,11 @@ public:
         return _stablePose + _odomPoseDelta;
     }
 
+    [[nodiscard]] double GetCellSize() const
+    {
+        return _grid.GetCellSize();
+    }
+
     [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
     [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
 

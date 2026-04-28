@@ -29,8 +29,7 @@ class NavigatorGraphBuilder final : public RosEngine {
 public:
     NavigatorGraphBuilder(const App& app);
 
-    void BuildGraph(float costThreshold = 10.0f);
-    void PublishMarkers();
+    void BuildGraph();
 
     std::vector<std::shared_ptr<NavigatorNode>> GetNodes() const { return _graphNodes; }
 
@@ -40,12 +39,18 @@ private:
     int CountTransitions(const std::vector<bool>& img, int x, int y, int w, int h);
     bool InBounds(int x, int y, int w, int h) const;
 
+    TimerBase::SharedPtr _publishTimer;
+
     std::shared_ptr<MappingEngine> _mappingEngine;
 
     std::vector<std::shared_ptr<NavigatorNode>> _graphNodes;
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
+    Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
 
-    float _nodeSize = 0.1f;
+    float _nodeSize = 0.05f;
+
+    void PublishMarkers();
+    void PublishGrid(const vector<bool>& img, const int w, const int h);
 };
 
 } // namespace Manhattan::Core

@@ -1,15 +1,102 @@
 #include "NavigatorGraphBuilder.hpp"
 
+#include <bitset>
+
 namespace Manhattan::Core {
+
+vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h) {
+    int newW = w / 2;
+    int newH = h / 2;
+
+    vector<bool> out(newW * newH, false);
+
+    for (int y = 0; y < newH; ++y) {
+        for (int x = 0; x < newW; ++x) {
+
+            bool val =
+                grid[(2*y) * w + (2*x)] ||
+                grid[(2*y) * w + (2*x + 1)] ||
+                grid[(2*y + 1) * w + (2*x)] ||
+                grid[(2*y + 1) * w + (2*x + 1)];
+
+            out[y * newW + x] = val;
+        }
+    }
+
+    return out;
+}
+
+
+static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int w, int h)
+{
+    auto at = [&](const int dx, const int dy) -> bool {
+        return img[(y + dy) * w + (x + dx)];
+    };
+
+    const uint8_t mask =
+        (at(0, -1) ? 1 << 0 : 0) |
+        (at(1, -1) ? 1 << 1 : 0) |
+        (at(1,  0) ? 1 << 2 : 0) |
+        (at(1,  1) ? 1 << 3 : 0) |
+        (at(0,  1) ? 1 << 4 : 0) |
+        (at(-1, 1) ? 1 << 5 : 0) |
+        (at(-1, 0) ? 1 << 6 : 0) |
+        (at(-1,-1) ? 1 << 7 : 0);
+
+    if (mask == 0) return 0;
+
+    std::vector<int> runs;
+
+    // Step 1: collect linear runs
+    int i = 0;
+    while (i < 8) {
+        if (!(mask & (1 << i))) {
+            i++;
+            continue;
+        }
+
+        int start = i;
+        while (i < 8 && (mask & (1 << i))) {
+            i++;
+        }
+        runs.push_back(i - start);
+    }
+
+    if (runs.empty()) return 0;
+
+    // Step 2: handle wrap-around merge
+    const bool firstBit = mask & 1;
+    const bool lastBit  = mask & (1 << 7);
+
+    if (firstBit && lastBit && runs.size() > 1) {
+        runs.front() += runs.back();
+        runs.pop_back();
+    }
+
+    // Step 3: compute result
+    int result = 0;
+    for (int len : runs) {
+        result += (len <= 2) ? 1 : 2;
+    }
+
+
+    return result;
+}
 
 NavigatorGraphBuilder::NavigatorGraphBuilder(const App& app)
     : RosEngine(app, "navigator_graph_builder")
 {
     _mappingEngine = app.GetComponent<MappingEngine>();
-    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("/nav/graph", 1);
+    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/graph", 1);
+    _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("nav/grid", 1);
+
+    _publishTimer = create_wall_timer(100ms, [this] {
+        BuildGraph();
+        PublishMarkers();
+    });
 }
 
-void NavigatorGraphBuilder::BuildGraph(float costThreshold)
+void NavigatorGraphBuilder::BuildGraph()
 {
     int w = _mappingEngine->GetWidth();
     int h = _mappingEngine->GetHeight();
@@ -19,19 +106,28 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
             auto* cell = _mappingEngine->GetCell(Vector2Int(x, y));
-            binary[y * w + x] = (cell != nullptr && !cell->IsOccupied() && !cell->IsUnknown() && cell->GetCost() < costThreshold);
+            binary[y * w + x] = (cell != nullptr && !cell->IsOccupied() && !cell->IsUnknown());
         }
     }
 
     // 2. Skeletonize
     auto skeleton = ZhangSuenThinning(binary, w, h);
 
+    PublishGrid(skeleton, w, h);
+
     // 3. Build Graph
     _graphNodes.clear();
     std::map<std::pair<int, int>, std::shared_ptr<NavigatorNode>> nodeDict;
 
     std::vector<Vector2Int> dirs = {
-        { 0, 1 }, { 1, 1 }, { 1, 0 }, { 1, -1 }, { 0, -1 }, { -1, -1 }, { -1, 0 }, { -1, 1 }
+        { 0, 1 },
+        { 1, 0 },
+        { 0, -1 },
+        { -1, 0 },
+        { 1, 1 },
+        { 1, -1 },
+        { -1, -1 },
+        { -1, 1 }
     };
 
     for (int x = 1; x < w - 1; x++) {
@@ -39,11 +135,7 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
             if (!skeleton[y * w + x])
                 continue;
 
-            int neighbors = 0;
-            for (const auto& d : dirs) {
-                if (skeleton[(y + d.y) * w + (x + d.x)])
-                    neighbors++;
-            }
+            int neighbors = CountGroupedNeighbors(skeleton, x, y, w, h);
 
             if (neighbors != 2) {
                 auto node = std::make_shared<NavigatorNode>();
@@ -65,7 +157,14 @@ void NavigatorGraphBuilder::BuildGraph(float costThreshold)
             Vector2Int prev = node->gridPosition;
             std::vector<Vector2> path;
 
+            auto visited = vector<bool>(w * h);
+
             while (true) {
+                const auto currentIndex = current.y * w + current.x;
+                if (visited[currentIndex])
+                    break;
+
+                visited[currentIndex] = true;
                 path.push_back(_mappingEngine->GridToWorld(current));
 
                 if (nodeDict.count({ current.x, current.y })) {
@@ -204,7 +303,7 @@ void NavigatorGraphBuilder::PublishMarkers()
         geometry_msgs::msg::Point p;
         p.x = node->worldPosition.x;
         p.y = node->worldPosition.y;
-        p.z = 0.05;
+        p.z = 0.02;
         nodesMarker.points.push_back(p);
 
         for (const auto& edge : node->connections) {
@@ -229,5 +328,39 @@ void NavigatorGraphBuilder::PublishMarkers()
     markers.markers.push_back(edgesMarker);
     _markerPublisher->publish(markers);
 }
+
+void NavigatorGraphBuilder::PublishGrid(const vector<bool>& img, const int w, const int h)
+{
+    const auto cellSize = _mappingEngine->GetCellSize();
+
+    nav_msgs::msg::OccupancyGrid gridMsg;
+    gridMsg.header.stamp = now();
+    gridMsg.header.frame_id = "map";
+
+    gridMsg.info.origin.position.x = w * cellSize * -0.5;
+    gridMsg.info.origin.position.y = h * cellSize * -0.5;
+    gridMsg.info.origin.position.z = 0.0;
+
+    gridMsg.info.origin.orientation.x = 0.0;
+    gridMsg.info.origin.orientation.y = 0.0;
+    gridMsg.info.origin.orientation.z = 0.0;
+    gridMsg.info.origin.orientation.w = 1.0;
+
+    gridMsg.info.width = w;
+    gridMsg.info.height = h;
+    gridMsg.info.resolution = static_cast<float>(cellSize);
+
+    const auto size = gridMsg.info.width * gridMsg.info.height;
+    gridMsg.data.resize(size);
+
+    for (auto x = 0; x < gridMsg.info.width; x++) {
+        for (auto y = 0; y < gridMsg.info.height; y++) {
+            gridMsg.data[y * w + x] = img[y * w + x] ? 255 : 0;
+        }
+    }
+
+    _gridPublisher->publish(gridMsg);
+}
+
 
 } // namespace Manhattan::Core
