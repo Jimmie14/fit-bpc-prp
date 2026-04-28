@@ -11,7 +11,7 @@ constexpr auto gridResolution = 0.05;
 constexpr auto rotationResolution = M_PI * 0.25;
 
 constexpr auto minConfidence = 0.6;
-constexpr auto poseThreshold = 0.05;
+constexpr auto poseThreshold = 0.1;
 
 namespace Manhattan::Core {
 MappingEngine::MappingEngine(const App& app)

@@ -19,7 +19,7 @@ constexpr double cornerSlowMinFactor = 0.25;
 constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
 constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
-constexpr double maxLinearSpeed = 0.15;
+constexpr double maxLinearSpeed = 0.075;
 constexpr double maxAngularSpeed = 0.15;
 
 constexpr double turnDeceleration = 1.5;
@@ -459,8 +459,7 @@ void NavigatorEngine::Update()
     _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
         (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * maxLinearSpeed * deltaTime);
 
-    const auto reverse = abs(angleToTarget) > M_PI * .9;
-    const auto speed = _kinematics.inverse(RobotSpeed { reverse ? -_currentLinearVelocity : _currentLinearVelocity, _currentAngularVelocity });
+    const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
 }
 
