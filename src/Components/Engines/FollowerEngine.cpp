@@ -6,7 +6,7 @@ namespace Manhattan::Core {
 FollowerEngine::FollowerEngine(const App& app)
     : RosEngine(app, "follower")
     , _fov(180)
-    , _rayDistance(3)
+    , _rayDistance(6)
     , _rayCount(11)
     , _avoidanceDistance(0.2)
 {
@@ -65,8 +65,13 @@ Vector2 FollowerEngine::GetTarget(const Pose& pose) const
         auto hitPoint = hit ? ray.hit : pose.position + direction * _rayDistance;
         auto dstToHit = Vector2::Distance(pose.position, hitPoint);
 
+        if (!hit) {
+            std::cout << "Ray not hit " << i << std::endl;
+        }
+
         if (dstToHit <= dst)
             continue;
+
         dst = dstToHit;
         pos = hitPoint + ray.normal * _avoidanceDistance;
     }

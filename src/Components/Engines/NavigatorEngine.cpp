@@ -11,7 +11,7 @@ constexpr double avoidanceDistance = 0.2;
 constexpr double avoidanceStrength = 2.0;
 
 constexpr double aimDistance = 0.3;
-constexpr double destinationDistance = 0.2;
+constexpr double destinationDistance = 0.3;
 constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
