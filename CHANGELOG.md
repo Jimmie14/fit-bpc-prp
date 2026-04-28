@@ -12,6 +12,10 @@
 
 - GraphBuilder bugs
 
+### 🚜 Refactor
+
+- Minor Grid refactor
+
 ### ◀️ Revert
 
 - FollowerEngine to use GraphBuilder
