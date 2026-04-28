@@ -6,9 +6,9 @@ namespace Manhattan::Core {
 FollowerEngine::FollowerEngine(const App& app)
     : RosEngine(app, "follower")
     , _fov(180)
-    , _rayDistance(6)
-    , _rayCount(11)
-    , _avoidanceDistance(0.2)
+    , _rayDistance(8)
+    , _rayCount(111)
+    , _avoidanceDistance(0.1)
 {
     _map = app.GetComponent<MappingEngine>();
     _navigator = app.GetComponent<NavigatorEngine>();
