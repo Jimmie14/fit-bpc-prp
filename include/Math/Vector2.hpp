@@ -64,7 +64,6 @@ struct Vector2Int {
         return { Up(), Right(), Down(), Left() };
     }
 
-
     static std::vector<Vector2Int> EightDirections()
     {
         return { Up(), Right(), Down(), Left(), Up() + Left(), Up() + Right(), Down() + Right(), Down() + Left() };

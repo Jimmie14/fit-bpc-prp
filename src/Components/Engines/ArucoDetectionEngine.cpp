@@ -30,24 +30,20 @@ ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
 
     // height: 16.5cm, pi/4 rad
     _hasCameraInfo = true;
-    _cameraMatrix = (cv::Mat_<double>(3,3) <<
-        1312.66874, 0.0,        308.222153,
-        0.0,        1316.64822, 298.881634,
-        0.0,        0.0,        1.0);
+    _cameraMatrix = (cv::Mat_<double>(3, 3) << 1312.66874, 0.0, 308.222153,
+        0.0, 1316.64822, 298.881634,
+        0.0, 0.0, 1.0);
 
-    _distanceCoefficients = (cv::Mat_<double>(1,5) <<
-        -0.263544599,
+    _distanceCoefficients = (cv::Mat_<double>(1, 5) << -0.263544599,
         6.59905618,
         0.0197602951,
         0.0000215995344,
         -36.5553743);
 
-
     _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
     });
 }
-
 
 void ArucoDetectionEngine::OnEnable()
 {
@@ -80,11 +76,11 @@ void ArucoDetectionEngine::OnCameraInfo(const sensor_msgs::msg::CameraInfo::Shar
 
     _cameraMatrix = cv::Mat::zeros(3, 3, CV_64F);
 
-    _cameraMatrix.at<double>(0,0) = msg->k[0]; // fx
-    _cameraMatrix.at<double>(1,1) = msg->k[4]; // fy
-    _cameraMatrix.at<double>(0,2) = msg->k[2]; // cx
-    _cameraMatrix.at<double>(1,2) = msg->k[5]; // cy
-    _cameraMatrix.at<double>(2,2) = 1.0;
+    _cameraMatrix.at<double>(0, 0) = msg->k[0]; // fx
+    _cameraMatrix.at<double>(1, 1) = msg->k[4]; // fy
+    _cameraMatrix.at<double>(0, 2) = msg->k[2]; // cx
+    _cameraMatrix.at<double>(1, 2) = msg->k[5]; // cy
+    _cameraMatrix.at<double>(2, 2) = 1.0;
 
     _distanceCoefficients = cv::Mat(msg->d).clone();
 
@@ -122,9 +118,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
     const auto robotPose = _mappingEngine->CurrentPose();
 
-
-    if (!ids.empty())
-    {
+    if (!ids.empty()) {
         std::vector<cv::Vec3d> rvecs, tvecs;
 
         cv::aruco::estimatePoseSingleMarkers(
@@ -137,8 +131,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
         cv::aruco::drawDetectedMarkers(frame, corners, ids);
 
-        for (size_t i = 0; i < ids.size(); i++)
-        {
+        for (size_t i = 0; i < ids.size(); i++) {
             const auto cameraRight = tvecs[i][0];
             const auto cameraDown = tvecs[i][1];
             const auto cameraForward = tvecs[i][2];
@@ -150,9 +143,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
             markerArray.markers.push_back(Viz::ToDirection(Vector3(robotPose.position.x, robotPose.position.y, 16.5), dir, "map"));
 
-            const double floorDown =
-                cameraForward * std::sin(cameraPitchToFloor) +
-                cameraDown * std::cos(cameraPitchToFloor);
+            const double floorDown = cameraForward * std::sin(cameraPitchToFloor) + cameraDown * std::cos(cameraPitchToFloor);
 
             if (floorDown <= 1e-6)
                 continue;
@@ -160,9 +151,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
             const double scaleToFloor = cameraHeight / floorDown;
 
             const double robotLocalRight = cameraRight * scaleToFloor;
-            const double robotLocalForward =
-                (cameraForward * std::cos(cameraPitchToFloor) -
-                 cameraDown * std::sin(cameraPitchToFloor)) * scaleToFloor;
+            const double robotLocalForward = (cameraForward * std::cos(cameraPitchToFloor) - cameraDown * std::sin(cameraPitchToFloor)) * scaleToFloor;
 
             const auto forward = robotPose.forward;
 
@@ -170,19 +159,12 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
                 std::cos(robotPose.rotation - M_PI * 0.5),
                 std::sin(robotPose.rotation - M_PI * 0.5));
 
-            const double worldX =
-                robotPose.position.x +
-                right.x * robotLocalRight +
-                forward.x * robotLocalForward;
+            const double worldX = robotPose.position.x + right.x * robotLocalRight + forward.x * robotLocalForward;
 
-            const double worldY =
-                robotPose.position.y +
-                right.y * robotLocalRight +
-                forward.y * robotLocalForward;
+            const double worldY = robotPose.position.y + right.y * robotLocalRight + forward.y * robotLocalForward;
 
             const auto worldPosition = Vector2(worldX, worldY);
-                //_mappingEngine->GetCell(Vector2(worldX, worldY))->GetWorldPosition();
-
+            //_mappingEngine->GetCell(Vector2(worldX, worldY))->GetWorldPosition();
 
             geometry_msgs::msg::Pose p;
 
@@ -235,8 +217,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
                 _distanceCoefficients,
                 rvecs[i],
                 tvecs[i],
-                0.03
-            );
+                0.03);
         }
     }
 
@@ -247,15 +228,14 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
     auto outMessage = cv_bridge::CvImage(
         msg->header,
         "bgr8",
-        frame
-    ).toImageMsg();
+        frame)
+                          .toImageMsg();
 
     _debugPublisher->publish(*outMessage);
 }
 
 void ArucoDetectionEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)
 {
-
 }
 
 }

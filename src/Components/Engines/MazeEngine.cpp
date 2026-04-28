@@ -10,13 +10,15 @@ namespace Manhattan::Core {
 using namespace Manhattan::Nav;
 
 MazeEngine::MazeEngine(const App& app)
-    : RosEngine(app, "maze"), _thinned_map()
+    : RosEngine(app, "maze")
+    , _thinnedMap(0, 0, 0)
 {
     _navigator = app.GetComponent<NavigatorEngine>();
     _mapping = app.GetComponent<MappingEngine>();
 }
 
-void MazeEngine::OnEnable() {
+void MazeEngine::OnEnable()
+{
     _poseSubscription = create_subscription<geometry_msgs::msg::PoseStamped>("slam/pose", 1, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
         this->OnPose(msg);
     });
@@ -31,7 +33,8 @@ void MazeEngine::OnEnable() {
     });
 }
 
-void MazeEngine::OnDisable() {
+void MazeEngine::OnDisable()
+{
     _poseSubscription.reset();
     _mapSubscription.reset();
 
@@ -47,14 +50,14 @@ void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) c
 void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
     auto grid = Viz::ToOccupancyGrid(*msg, 50);
-    _thinned_map = grid;
+
+    _thinnedMap = grid;
 }
 
-void MazeEngine::Update() {
-    if (!_thinned_map)
-        return;
-    if (!_navigator->IsInDestination())
-        return;
+void MazeEngine::Update()
+{
+    if (_thinnedMap.size() == 0) return;
+    if (!_navigator->IsInDestination()) return;
 
     if (_currentWayPoint == nullptr) {
         _currentWayPoint = std::make_shared<WayPoint>();
@@ -65,8 +68,7 @@ void MazeEngine::Update() {
     }
 
     const auto target = NextJunction(_currentWayPoint);
-    if (target == nullptr)
-        return;
+    if (target == nullptr) return;
 
     _currentWayPoint->visited = true;
     _currentWayPoint = target;
@@ -75,9 +77,8 @@ void MazeEngine::Update() {
     _navigator->SetDestination(cell);
 }
 
-
-
-std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
+std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos)
+{
     const auto intPos = _mapping->WorldToGrid(pos);
 
     std::queue<Vector2Int> q;
@@ -86,18 +87,18 @@ std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
     q.push(intPos);
 
     while (!q.empty()) {
-        auto cell = q.front(); q.pop();
-        if (visited.contains(cell))
-            continue;
+        auto cell = q.front();
+        q.pop();
+
+        if (visited.contains(cell)) continue;
 
         for (auto direction : Vector2Int::EightDirections()) {
             const auto neighbour = cell + direction;
 
-            if (neighbour.x >= _thinned_map->width || neighbour.x < 0 || neighbour.y >= _thinned_map->height || neighbour.y < 0)
+            if (neighbour.x >= _thinnedMap.width() || neighbour.x < 0 || neighbour.y >= _thinnedMap.height() || neighbour.y < 0)
                 continue;
 
-            if ((*_thinned_map)[neighbour])
-                return neighbour;
+            if (_thinnedMap[neighbour]) return neighbour;
 
             q.push(neighbour);
         }
@@ -108,7 +109,8 @@ std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
     return std::nullopt;
 }
 
-std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(std::shared_ptr<WayPoint> current) {
+std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(std::shared_ptr<WayPoint> current)
+{
     std::queue<Vector2Int> q;
     std::set<Vector2Int> visited;
 
@@ -119,7 +121,8 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(std::shared_ptr<W
     visited.insert(q.front());
 
     while (!q.empty()) {
-        auto cell = q.front(); q.pop();
+        auto cell = q.front();
+        q.pop();
         int traversable_neighbors = 0;
         std::vector<Vector2Int> neighbors;
     }

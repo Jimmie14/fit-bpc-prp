@@ -17,12 +17,12 @@ protected:
     void OnEnable() override;
 
     void OnDisable() override;
+
 private:
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
 
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapPublisher;
 
     void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const;
-
 };
 }

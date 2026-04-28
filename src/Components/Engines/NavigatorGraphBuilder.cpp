@@ -4,7 +4,8 @@
 
 namespace Manhattan::Core {
 
-vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h) {
+vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h)
+{
     int newW = w / 2;
     int newH = h / 2;
 
@@ -13,11 +14,7 @@ vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h) {
     for (int y = 0; y < newH; ++y) {
         for (int x = 0; x < newW; ++x) {
 
-            bool val =
-                grid[(2*y) * w + (2*x)] ||
-                grid[(2*y) * w + (2*x + 1)] ||
-                grid[(2*y + 1) * w + (2*x)] ||
-                grid[(2*y + 1) * w + (2*x + 1)];
+            bool val = grid[(2 * y) * w + (2 * x)] || grid[(2 * y) * w + (2 * x + 1)] || grid[(2 * y + 1) * w + (2 * x)] || grid[(2 * y + 1) * w + (2 * x + 1)];
 
             out[y * newW + x] = val;
         }
@@ -26,22 +23,13 @@ vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h) {
     return out;
 }
 
-
 static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int w, int h)
 {
     auto at = [&](const int dx, const int dy) -> bool {
         return img[(y + dy) * w + (x + dx)];
     };
 
-    const uint8_t mask =
-        (at(0, -1) ? 1 << 0 : 0) |
-        (at(1, -1) ? 1 << 1 : 0) |
-        (at(1,  0) ? 1 << 2 : 0) |
-        (at(1,  1) ? 1 << 3 : 0) |
-        (at(0,  1) ? 1 << 4 : 0) |
-        (at(-1, 1) ? 1 << 5 : 0) |
-        (at(-1, 0) ? 1 << 6 : 0) |
-        (at(-1,-1) ? 1 << 7 : 0);
+    const uint8_t mask = (at(0, -1) ? 1 << 0 : 0) | (at(1, -1) ? 1 << 1 : 0) | (at(1, 0) ? 1 << 2 : 0) | (at(1, 1) ? 1 << 3 : 0) | (at(0, 1) ? 1 << 4 : 0) | (at(-1, 1) ? 1 << 5 : 0) | (at(-1, 0) ? 1 << 6 : 0) | (at(-1, -1) ? 1 << 7 : 0);
 
     if (mask == 0) return 0;
 
@@ -66,7 +54,7 @@ static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int
 
     // Step 2: handle wrap-around merge
     const bool firstBit = mask & 1;
-    const bool lastBit  = mask & (1 << 7);
+    const bool lastBit = mask & (1 << 7);
 
     if (firstBit && lastBit && runs.size() > 1) {
         runs.front() += runs.back();
@@ -78,7 +66,6 @@ static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int
     for (int len : runs) {
         result += (len <= 2) ? 1 : 2;
     }
-
 
     return result;
 }
@@ -360,6 +347,5 @@ void NavigatorGraphBuilder::PublishGrid(const vector<bool>& img, const int w, co
 
     _gridPublisher->publish(gridMsg);
 }
-
 
 } // namespace Manhattan::Core

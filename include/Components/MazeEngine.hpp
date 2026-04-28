@@ -34,24 +34,23 @@ private:
                 const auto dot = Vector2::Dot(dirToWaypoint, forward);
                 const auto perpDot = dirToWaypoint.x * forward.y - dirToWaypoint.y * forward.x;
 
-
                 switch (dir) {
-                    case Direction::Left:
-                        if (perpDot > 0.5)
-                            return point;
-                        break;
-                    case Direction::Right:
-                        if (perpDot < -0.5)
-                            return point;
-                        break;
-                    case Direction::Forward:
-                        if (dot > 0.5)
-                            return point;
-                        break;
-                    case Direction::Back:
-                        if (dot < -0.5)
-                            return point;
-                        break;
+                case Direction::Left:
+                    if (perpDot > 0.5)
+                        return point;
+                    break;
+                case Direction::Right:
+                    if (perpDot < -0.5)
+                        return point;
+                    break;
+                case Direction::Forward:
+                    if (dot > 0.5)
+                        return point;
+                    break;
+                case Direction::Back:
+                    if (dot < -0.5)
+                        return point;
+                    break;
                 }
             }
 
@@ -71,7 +70,7 @@ private:
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
 
-    std::shared_ptr<Nav::Grid<bool>> _thinned_map = nullptr;
+    Nav::Grid<bool> _thinnedMap;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
