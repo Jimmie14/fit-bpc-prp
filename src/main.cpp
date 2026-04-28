@@ -28,7 +28,7 @@ int main(const int argc, char* argv[])
     app->AddDriver<Core::MotorDriver>()->Enable();
 
     app->AddEngine<Core::OdometryEngine>();
-    app->AddEngine<Core::LineEngine>();
+    // app->AddEngine<Core::LineEngine>();
 
 
     app->AddDriver<Core::UserInputDriver>();
@@ -38,9 +38,9 @@ int main(const int argc, char* argv[])
     // app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
     app->AddEngine<Core::NavigatorEngine>();
 
-    app->AddEngine<Core::NavigatorGraphBuilder>();
+    // app->AddEngine<Core::NavigatorGraphBuilder>();
     app->AddEngine<Core::FollowerEngine>()->Enable();
-    app->AddEngine<Core::ExplorerEngine>();
+    // app->AddEngine<Core::ExplorerEngine>();
 
     app->Run();
 

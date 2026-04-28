@@ -138,9 +138,22 @@ void NavigatorGraphBuilder::BuildGraph()
             int neighbors = CountGroupedNeighbors(skeleton, x, y, w, h);
 
             if (neighbors != 2) {
+                auto gridPosition = Vector2Int(x, y);
+                auto worldPosition = _mappingEngine->GridToWorld(gridPosition);
+
+                auto skip = false;
+                for (auto graph_node : _graphNodes) {
+                    if (Vector2::Distance(graph_node->worldPosition, worldPosition) > 0.1) continue;
+
+                    skip = true;
+                    break;
+                }
+
+                if (skip) continue;
+
                 auto node = std::make_shared<NavigatorNode>();
-                node->gridPosition = Vector2Int(x, y);
-                node->worldPosition = _mappingEngine->GridToWorld(node->gridPosition);
+                node->gridPosition = gridPosition;
+                node->worldPosition = worldPosition;
                 _graphNodes.push_back(node);
                 nodeDict[{ x, y }] = node;
             }
