@@ -3,6 +3,10 @@
 ### 🐛 Bug Fixes
 
 - GraphBuilder bugs
+
+### ◀️ Revert
+
+- FollowerEngine to use GraphBuilder
 ## [1.4.0] - 2026-04-27
 
 ### 🚀 Features
