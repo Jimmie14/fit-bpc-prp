@@ -1,5 +1,9 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Add Grid.hpp abstraction
+
 ### 🐛 Bug Fixes
 
 - GraphBuilder bugs
