@@ -2,8 +2,9 @@
 
 ### 🚀 Features
 
-- Rename FollowerEngine to MazeEngine and add WorldToGrid conversion method
 - Add Grid.hpp abstraction
+- Add MapThinning node
+- Rename FollowerEngine to MazeEngine and add WorldToGrid conversion method
 
 ### 🐛 Bug Fixes
 
