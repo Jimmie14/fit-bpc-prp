@@ -32,6 +32,7 @@ public:
     GridCell* GetCell(const Vector2& position);
     GridCell* GetCell(Vector2Int position);
     Vector2 GridToWorld(const Vector2Int& position) const;
+    Vector2Int WorldToGrid(const Vector2& position) const;
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);
 

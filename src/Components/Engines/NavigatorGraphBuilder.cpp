@@ -101,7 +101,6 @@ void NavigatorGraphBuilder::BuildGraph()
     int w = _mappingEngine->GetWidth();
     int h = _mappingEngine->GetHeight();
 
-    // FIXED: Explicitly define as std::vector<bool> to avoid CTAD issues
     std::vector<bool> binary(w * h, false);
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
