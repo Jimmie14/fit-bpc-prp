@@ -1,12 +1,13 @@
 #pragma once
 
-#include "RosEngine.hpp"
+#include "Nav/Grid.hpp"
 #include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"
+#include "RosEngine.hpp"
 
 namespace Manhattan::Core {
 
-class MazeEngine : public RosEngine {
+class MazeEngine final : public RosEngine {
 public:
     explicit MazeEngine(const App& app);
 
@@ -60,7 +61,17 @@ private:
 
     void Update();
 
+    Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _poseSubscription;
+    Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
+
+    void OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const;
+    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
+
     std::shared_ptr<WayPoint> NextJunction(std::shared_ptr<WayPoint> current);
+
+    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
+
+    std::shared_ptr<Nav::Grid<bool>> _thinned_map = nullptr;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;

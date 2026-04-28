@@ -18,19 +18,18 @@ inline Grid<double> ToProbabilityGrid(const nav_msgs::msg::OccupancyGrid& grid)
     return result;
 }
 
-inline Grid<bool> ToOccupancyGrid(const nav_msgs::msg::OccupancyGrid& grid, const signed char threshold)
+inline std::shared_ptr<Grid<bool>> ToOccupancyGrid(const nav_msgs::msg::OccupancyGrid& grid, const signed char threshold)
 {
-    auto result = Grid<bool>(grid.info.width, grid.info.height, grid.info.resolution);
+    auto result = std::make_shared<Grid<bool>>(grid.info.width, grid.info.height, grid.info.resolution);
 
-    for (auto i = 0; i < result.size; i++) {
-        const auto [x, y] = result.indexToCoord(i);
+    for (auto i = 0; i < result->size; i++) {
+        const auto [x, y] = result->indexToCoord(i);
 
         const auto unknown = grid.data[y * grid.info.width + x] < 0;
         const auto free = grid.data[y * grid.info.width + x] <= threshold;
 
-        result.set(x, y, !unknown && free);
+        result->set(x, y, !unknown && free);
     }
-
     return result;
 }
 

@@ -111,6 +111,17 @@ struct Pose {
         return msg;
     }
 
+    [[nodiscard]] static Pose FromRosPoseMessage(const geometry_msgs::msg::Pose& pose) const
+    {
+        Pose result;
+
+        result.position.x = pose.position.x;
+        result.position.y = pose.position.y;
+        result.rotation = 2.0 * std::atan2(pose.orientation.z, pose.orientation.w) - M_PI * 0.5;
+
+        return result;
+    }
+
     [[nodiscard]] std::string ToString() const
     {
         return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
