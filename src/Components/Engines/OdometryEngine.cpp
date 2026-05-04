@@ -26,15 +26,11 @@ void OdometryEngine::OnEnable()
 {
     _encoderSub = create_subscription<std_msgs::msg::UInt32MultiArray>(
         ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
-
-    RCLCPP_INFO(get_logger(), "RobotOdometry enabled");
 }
 
 void OdometryEngine::OnDisable()
 {
     _encoderSub.reset();
-
-    RCLCPP_INFO(get_logger(), "RobotOdometry disabled");
 }
 
 void OdometryEngine::ApplyCorrection(const Pose& correctedPose)

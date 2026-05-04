@@ -49,6 +49,8 @@ public:
     [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
     [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
 
+    void Reset();
+
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
 
@@ -94,8 +96,6 @@ private:
     void ChangeState(MappingEngineState newState);
 
     void CreateHypothesis();
-
-    void Reset();
 
     void MapScan(const std::vector<Vector2>& points);
 

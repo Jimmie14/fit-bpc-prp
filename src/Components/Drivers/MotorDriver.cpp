@@ -29,15 +29,11 @@ void MotorDriver::OnEnable()
     _timer = create_wall_timer(100ms, [this] {
         _publisher->publish(_msg);
     });
-
-    RCLCPP_INFO(get_logger(), "Motor controller enabled");
 }
 
 void MotorDriver::OnDisable()
 {
     _timer.reset();
-
-    RCLCPP_INFO(get_logger(), "Motor controller disabled");
 }
 
 void MotorDriver::SetForce(double leftAngular, double rightAngular)
