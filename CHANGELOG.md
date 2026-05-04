@@ -7,6 +7,7 @@
 - Rename FollowerEngine to MazeEngine and add WorldToGrid conversion method
 - Minor Grid improvements
 - Refactor MazeEngine and add pose/map subscriptions with thinned map handling
+- Enhance MazeEngine with waypoint graph publishing and traversal logic
 
 ### 🐛 Bug Fixes
 
