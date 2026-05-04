@@ -35,12 +35,12 @@ void MapThinningUnit::OnDisable()
 
 void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const
 {
-    auto grid = Viz::ToOccupancyGrid(*msg, 20);
+    auto grid = viz::nav::ToOccupancyGrid(*msg, 20);
 
     grid = ApplyMedianFilter(grid);
     grid = ZhangSuenThinning(grid);
 
-    _mapPublisher->publish(Viz::ToOccupancyGridMessage(grid, "map"));
+    _mapPublisher->publish(viz::nav::ToOccupancyGridMessage(grid, "map"));
 }
 
 Grid<bool> ApplyMedianFilter(const Grid<bool>& grid)

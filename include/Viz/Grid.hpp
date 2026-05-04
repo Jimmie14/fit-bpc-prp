@@ -4,7 +4,10 @@
 #include <nav_msgs/msg/detail/occupancy_grid__struct.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-namespace Manhattan::Nav::Viz {
+namespace Manhattan::viz::nav {
+
+using namespace Manhattan::nav;
+
 inline Grid<double> ToProbabilityGrid(const nav_msgs::msg::OccupancyGrid& grid)
 {
     auto result = Grid<double>(grid.info.width, grid.info.height, grid.info.resolution);

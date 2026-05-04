@@ -7,7 +7,7 @@
 
 using namespace std;
 
-namespace Manhattan::Nav {
+namespace Manhattan::nav {
 
 using namespace Manhattan::Math;
 

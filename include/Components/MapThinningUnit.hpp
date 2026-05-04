@@ -6,7 +6,7 @@
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-using namespace Manhattan::Nav;
+using namespace Manhattan::nav;
 
 namespace Manhattan::Core {
 class MapThinningUnit : public RosUnit {

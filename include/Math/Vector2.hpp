@@ -2,6 +2,7 @@
 
 #include <cmath>
 #include <string>
+#include <tf2/LinearMath/Vector3.hpp>
 #include <tuple>
 #include <vector>
 
@@ -174,6 +175,11 @@ struct Vector2 {
         const auto c = Magnitude();
 
         return Vector2(x / c, y / c);
+    }
+
+    [[nodiscard]] tf2::Vector3 ToTf2() const
+    {
+        return { x, y, 0.0f };
     }
 
     static Vector2 Zero()

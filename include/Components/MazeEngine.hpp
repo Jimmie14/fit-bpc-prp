@@ -70,7 +70,7 @@ private:
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
 
-    Nav::Grid<bool> _thinnedMap;
+    nav::Grid<bool> _thinnedMap;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;

@@ -7,7 +7,7 @@ using namespace std;
 
 namespace Manhattan::Core {
 
-using namespace Manhattan::Nav;
+using namespace Manhattan::nav;
 
 MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze")
@@ -49,7 +49,7 @@ void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) c
 
 void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
-    auto grid = Viz::ToOccupancyGrid(*msg, 50);
+    auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
 
     _thinnedMap = grid;
 }
