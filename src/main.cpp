@@ -2,6 +2,7 @@
 
 #include "App.hpp"
 #include "ArucoDetectionEngine.hpp"
+#include "ButtonsDriver.hpp"
 #include "ExplorerEngine.hpp"
 #include "ImuDriver.hpp"
 #include "LidarDriver.hpp"
@@ -27,6 +28,7 @@ int main(const int argc, char* argv[])
     app->AddDriver<Core::ImuDriver>()->Enable();
     app->AddDriver<Core::LidarDriver>()->Enable();
     app->AddDriver<Core::MotorDriver>()->Enable();
+    app->AddDriver<Core::ButtonsDriver>()->Enable();
 
     app->AddEngine<Core::OdometryEngine>();
     app->AddEngine<Core::LineEngine>();

@@ -28,16 +28,12 @@ void ImuDriver::OnEnable()
         [this](const sensor_msgs::msg::Imu::SharedPtr msg) { this->OnImu(msg); });
 
     _imuPublisher = create_publisher<sensor_msgs::msg::Imu>(imuTopic, 2);
-
-    RCLCPP_INFO(get_logger(), "Imu driver enabled");
 }
 
 void ImuDriver::OnDisable()
 {
     _imuSubscriber.reset();
     _imuPublisher.reset();
-
-    RCLCPP_INFO(get_logger(), "Imu driver disabled");
 }
 
 void ImuDriver::OnImu(const sensor_msgs::msg::Imu::SharedPtr& msg) const

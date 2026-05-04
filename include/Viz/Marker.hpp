@@ -105,4 +105,26 @@ inline visualization_msgs::msg::Marker text(
     return marker;
 }
 
+
+class MarkerArrayBuilder {
+public:
+    visualization_msgs::msg::MarkerArray array;
+
+    int GetNextMarkerId()
+    {
+        return _nextId++;
+    }
+
+    void add(visualization_msgs::msg::Marker marker)
+    {
+        marker.id = _nextId++;
+        array.markers.push_back(marker);
+    }
+
+
+private:
+    int _nextId = 0;
+
+};
+
 } // namespace viz

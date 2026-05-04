@@ -51,8 +51,6 @@ MappingEngine::MappingEngine(const App& app)
 
         this->_grid.RecalculateCosts();
     });
-
-    RCLCPP_INFO(get_logger(), "SlamController initialized");
 }
 
 void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
