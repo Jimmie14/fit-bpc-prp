@@ -13,10 +13,10 @@ int CountNeighbors(const Grid<bool>& grid, const int x, const int y);
 
 int CountTransitions(const Grid<bool>& grid, const int x, const int y);
 
-MapThinningUnit::MapThinningUnit(const App& app) : RosUnit(app, "map_thinning")
+MapThinningUnit::MapThinningUnit(const App& app)
+    : RosUnit(app, "map_thinning")
 {
 }
-
 
 void MapThinningUnit::OnEnable()
 {
@@ -33,7 +33,6 @@ void MapThinningUnit::OnDisable()
     _mapPublisher.reset();
 }
 
-
 void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) const
 {
     auto grid = Viz::ToOccupancyGrid(*msg, 20);
@@ -44,11 +43,12 @@ void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) 
     _mapPublisher->publish(Viz::ToOccupancyGridMessage(grid, "map"));
 }
 
-Grid<bool> ApplyMedianFilter(const Grid<bool>& grid) {
-    auto result = Grid<bool>(grid.width, grid.height, grid.resolution);
+Grid<bool> ApplyMedianFilter(const Grid<bool>& grid)
+{
+    auto result = Grid<bool>(grid.width(), grid.height(), grid.resolution());
 
-    for (int x = 1; x < grid.width - 1; x++) {
-        for (int y = 1; y < grid.height - 1; y++) {
+    for (int x = 1; x < grid.width() - 1; x++) {
+        for (int y = 1; y < grid.height() - 1; y++) {
             int trueCount = 0;
 
             for (int i = -1; i <= 1; i++) {
@@ -66,7 +66,6 @@ Grid<bool> ApplyMedianFilter(const Grid<bool>& grid) {
     return result;
 }
 
-
 Grid<bool> ZhangSuenThinning(const Grid<bool>& grid)
 {
     Grid<bool> skeleton = grid;
@@ -78,8 +77,8 @@ Grid<bool> ZhangSuenThinning(const Grid<bool>& grid)
 
         for (int step = 0; step < 2; step++) {
             toRemove.clear();
-            for (int x = 1; x < grid.width - 1; x++) {
-                for (int y = 1; y < grid.height - 1; y++) {
+            for (int x = 1; x < grid.width() - 1; x++) {
+                for (int y = 1; y < grid.height() - 1; y++) {
                     if (!skeleton.get(x, y)) continue;
 
                     const auto B = CountNeighbors(skeleton, x, y);

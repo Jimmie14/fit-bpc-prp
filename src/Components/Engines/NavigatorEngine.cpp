@@ -353,7 +353,7 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
         avoidance = avoidance + rayHit.normal * force;
     }
 
-    return(desiredDirection + avoidance).Normalized();
+    return (desiredDirection + avoidance).Normalized();
 }
 
 double NavigatorEngine::GetCornerSlowFactor(const Pose& pose, const double currentT) const

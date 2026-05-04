@@ -6,13 +6,13 @@
 #include "ImuDriver.hpp"
 #include "LidarDriver.hpp"
 #include "LineEngine.hpp"
+#include "MapThinningUnit.hpp"
 #include "MappingEngine.hpp"
 #include "MotorDriver.hpp"
 #include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"
 #include "OdometryEngine.hpp"
 #include "UserInputDriver.hpp"
-#include "MapThinningUnit.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -29,7 +29,6 @@ int main(const int argc, char* argv[])
 
     app->AddEngine<Core::OdometryEngine>();
     app->AddEngine<Core::LineEngine>();
-
 
     app->AddDriver<Core::UserInputDriver>();
 

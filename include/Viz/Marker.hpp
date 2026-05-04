@@ -1,12 +1,12 @@
 #pragma once
 
+#include <geometry_msgs/msg/point.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <tf2/LinearMath/Vector3.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-#include <geometry_msgs/msg/point.hpp>
 
 namespace Viz {
-inline geometry_msgs::msg::Point ToPoint(const tf2::Vector3 & v)
+inline geometry_msgs::msg::Point ToPoint(const tf2::Vector3& v)
 {
     geometry_msgs::msg::Point p;
     p.x = v.x();
@@ -16,9 +16,9 @@ inline geometry_msgs::msg::Point ToPoint(const tf2::Vector3 & v)
 }
 
 inline visualization_msgs::msg::Marker ToDirection(
-    const tf2::Vector3 & start,
-    const tf2::Vector3 & direction,
-    const std::string & frame_id)
+    const tf2::Vector3& start,
+    const tf2::Vector3& direction,
+    const std::string& frame_id)
 {
     visualization_msgs::msg::Marker marker;
 

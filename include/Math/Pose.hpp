@@ -111,7 +111,7 @@ struct Pose {
         return msg;
     }
 
-    [[nodiscard]] static Pose FromRosPoseMessage(const geometry_msgs::msg::Pose& pose) const
+    [[nodiscard]] static Pose FromRosPoseMessage(const geometry_msgs::msg::Pose& pose)
     {
         Pose result;
 

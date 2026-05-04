@@ -2,7 +2,6 @@
 
 #include "Math/Vector2.hpp"
 
-#include <assert.h>
 #include <ranges>
 #include <vector>
 
@@ -15,23 +14,12 @@ using namespace Manhattan::Math;
 template <typename T>
 class Grid {
 public:
-    const int width;
-    const int height;
-    const size_t size;
-    const double resolution;
-
-    const ranges::iota_view<int, int> columns;
-    const ranges::iota_view<int, int> rows;
-
-    explicit Grid(const int width, const int height, const double resolution, const T& defaultValue = T())
-        : width(width)
-        , height(height)
-        , size(width * height)
-        , resolution(resolution)
-        , columns(std::views::iota(0, width))
-        , rows(std::views::iota(0, height))
+    explicit Grid(const unsigned int width, const unsigned int height, const float resolution, const T& defaultValue = T())
+        : _width(width)
+        , _height(height)
+        , _resolution(resolution)
     {
-        _data.reserve(size);
+        _data.reserve(width * height);
 
         for (int y = 0; y < height; y++) {
             for (int x = 0; x < width; x++) {
@@ -40,16 +28,34 @@ public:
         }
     }
 
-    Grid& operator=(const Grid& other) noexcept
+    [[nodiscard]] unsigned int width() const
     {
-        if (this == &other) return *this;
+        return _width;
+    }
 
-        if (width != other.width || height != other.height || resolution != other.resolution) {
-            throw logic_error("Cannot assign grids with different dimensions");
-        }
+    [[nodiscard]] unsigned int height() const
+    {
+        return _height;
+    }
 
-        _data = other._data;
-        return *this;
+    [[nodiscard]] float resolution() const
+    {
+        return _resolution;
+    }
+
+    [[nodiscard]] size_t size() const
+    {
+        return _data.size();
+    }
+
+    [[nodiscard]] ranges::iota_view<unsigned int, unsigned int> columns() const
+    {
+        return std::views::iota(static_cast<unsigned int>(0), _width);
+    }
+
+    [[nodiscard]] ranges::iota_view<unsigned int, unsigned int> rows() const
+    {
+        return std::views::iota(static_cast<unsigned int>(0), _height);
     }
 
     T operator[](const int index) const
@@ -92,17 +98,20 @@ public:
         _data[index] = value;
     }
 
-    int coordToIndex(const int x, const int y) const
+    [[nodiscard]] int coordToIndex(const int x, const int y) const
     {
-        return y * width + x;
+        return y * _width + x;
     }
 
-    pair<int, int> indexToCoord(const int index) const
+    [[nodiscard]] pair<int, int> indexToCoord(const int index) const
     {
-        return { index % width, index / width };
+        return { index % _width, index / _width };
     }
 
 private:
+    unsigned int _width;
+    unsigned int _height;
+    float _resolution;
     vector<T> _data;
 };
 
