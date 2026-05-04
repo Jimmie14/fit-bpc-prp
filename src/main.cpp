@@ -8,6 +8,7 @@
 #include "LineEngine.hpp"
 #include "MapThinningUnit.hpp"
 #include "MappingEngine.hpp"
+#include "MazeEngine.hpp"
 #include "MotorDriver.hpp"
 #include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"
@@ -39,11 +40,12 @@ int main(const int argc, char* argv[])
 
     app->AddEngine<Core::NavigatorGraphBuilder>();
     // app->AddEngine<Core::FollowerEngine>();//->Enable();
-    app->AddEngine<Core::ExplorerEngine>();
+    // app->AddEngine<Core::ExplorerEngine>();
 
     app->AddComponent<Core::MapThinningUnit>()->Enable();
 
     // app->GetComponent<Core::ExplorerEngine>()->Enable();
+    app->AddEngine<Core::MazeEngine>()->Enable();
 
     app->Run();
 
