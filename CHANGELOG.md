@@ -10,6 +10,7 @@
 - Enhance MazeEngine with waypoint graph publishing and traversal logic
 - Integrate MazeEngine into the application and improve waypoint handling
 - Add aruco detected event
+- Add buttons driver allowing to reset map
 
 ### 🐛 Bug Fixes
 
