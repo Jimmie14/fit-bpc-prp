@@ -9,6 +9,7 @@
 - Refactor MazeEngine and add pose/map subscriptions with thinned map handling
 - Enhance MazeEngine with waypoint graph publishing and traversal logic
 - Integrate MazeEngine into the application and improve waypoint handling
+- Enhance ExplorerEngine with improved pathfinding and map handling
 - Add aruco detected event
 - Add buttons driver allowing to reset map
 
