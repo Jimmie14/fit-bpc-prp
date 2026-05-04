@@ -60,11 +60,9 @@ NavigatorEngine::NavigatorEngine(const App& app)
     });
 }
 
-void NavigatorEngine::SetPath(const std::vector<GridCell*>& path)
+void NavigatorEngine::SetPath(std::vector<Vector2>& path)
 {
     const auto waypoints = SmoothPath(path);
-    // for (const auto waypoint : path)
-    //     waypoints.push_back(waypoint->GetWorldPosition());
 
     _path.Initialize(waypoints);
 }
@@ -111,12 +109,14 @@ void NavigatorEngine::SetDestination(GridCell* destination)
     std::priority_queue<QueueItem, std::vector<QueueItem>, std::greater<>> openSet;
     std::unordered_set<GridCell*> visited;
 
+    std::vector<Vector2> points;
+
     const auto startCell = _slam->GetCell(_slam->CurrentPose().position);
     if (startCell == nullptr || destination == nullptr)
-        return SetPath({});
+        return SetPath(points);
 
     if (startCell == destination)
-        return SetPath({});
+        return SetPath(points);
 
     distances[startCell] = 0.0;
     openSet.push({ startCell, 0.0 });
@@ -153,7 +153,7 @@ void NavigatorEngine::SetDestination(GridCell* destination)
     }
 
     if (!distances.contains(destination))
-        return SetPath({});
+        return SetPath(points);
 
     std::vector<GridCell*> path;
     auto current = destination;
@@ -163,46 +163,38 @@ void NavigatorEngine::SetDestination(GridCell* destination)
 
         const auto it = previous.find(current);
         if (it == previous.end()) {
-            return SetPath({});
+            return SetPath(points);
         }
 
         current = it->second;
     }
 
     ranges::reverse(path);
-    // path = SmoothPath(path);
-    //
-    // std::queue<GridCell*> result;
-    // for (auto* cell : path) {
-    //     result.push(cell);
-    // }
 
-    SetPath(path);
-}
-
-std::vector<Vector2> NavigatorEngine::SmoothPath(const std::vector<GridCell*>& path) const
-{
-    std::vector<Vector2> points;
     points.reserve(path.size());
     for (const auto* cell : path) {
-        if (cell) {
+        if (cell)
             points.push_back(cell->GetWorldPosition());
-        }
     }
 
-    if (points.size() <= 2) {
-        return points;
+    SetPath(points);
+}
+
+std::vector<Vector2> NavigatorEngine::SmoothPath(std::vector<Vector2>& path) const
+{
+    if (path.size() <= 2) {
+        return path;
     }
 
     size_t currentIndex = 0;
 
-    while (currentIndex < points.size() - 1) {
+    while (currentIndex < path.size() - 1) {
         size_t furthestIndex = currentIndex + 1;
 
         // Look for the furthest point we can see without hitting an obstacle
-        for (size_t i = points.size() - 1; i > currentIndex + 1; i--) {
-            const Vector2& p1 = points[currentIndex];
-            const Vector2& p2 = points[i];
+        for (size_t i = path.size() - 1; i > currentIndex + 1; i--) {
+            const Vector2& p1 = path[currentIndex];
+            const Vector2& p2 = path[i];
 
             Vector2 dir = (p2 - p1).Normalized();
             double dist = Vector2::Distance(p1, p2);
@@ -215,22 +207,22 @@ std::vector<Vector2> NavigatorEngine::SmoothPath(const std::vector<GridCell*>& p
             }
         }
 
-        const Vector2& startPt = points[currentIndex];
-        const Vector2& endPt = points[furthestIndex];
+        const Vector2& startPt = path[currentIndex];
+        const Vector2& endPt = path[furthestIndex];
         Vector2 lineDir = (endPt - startPt).Normalized();
 
-        // Project all intermediate staircase points onto the straight line segment
+        // Project all intermediate staircase path onto the straight line segment
         // to smooth out the transition between the two points
         for (size_t j = currentIndex + 1; j < furthestIndex; j++) {
-            Vector2 v = points[j] - startPt;
+            Vector2 v = path[j] - startPt;
             double d = Vector2::Dot(v, lineDir);
-            points[j] = startPt + lineDir * d;
+            path[j] = startPt + lineDir * d;
         }
 
         currentIndex = furthestIndex;
     }
 
-    return points;
+    return path;
 }
 
 void NavigatorEngine::ClearPath()

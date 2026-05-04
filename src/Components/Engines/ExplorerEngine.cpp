@@ -1,21 +1,24 @@
 #include "ExplorerEngine.hpp"
-#include <algorithm>
 #include <stdexcept>
 
 using namespace std;
 
 namespace Manhattan::Core {
 ExplorerEngine::ExplorerEngine(const App& app)
-    : RosEngine(app, "explorer")
+    : RosEngine(app, "explorer"), _grid(0, 0, 0)
 {
-    _slamController = app.GetComponent<MappingEngine>();
+    _mapping = app.GetComponent<MappingEngine>();
     _navigatorController = app.GetComponent<NavigatorEngine>();
 }
 
 void ExplorerEngine::OnEnable()
 {
-    _startCell = _slamController->GetCell(_slamController->CurrentPose().position);
+    // _startCell = _mapping->GetCell(_mapping->CurrentPose().position);
     _state = ExplorerState::Exploring;
+
+    _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+        this->OnMap(msg);
+    });
 
     _timer = create_wall_timer(100ms, [this] { Update(); });
 }
@@ -23,63 +26,124 @@ void ExplorerEngine::OnEnable()
 void ExplorerEngine::OnDisable()
 {
     _timer.reset();
+    _mapSubscription.reset();
 }
 
-GridCell* ExplorerEngine::Explore(GridCell* startCell) const
+std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
 {
-    std::map<GridCell*, double> distances;
-    std::map<GridCell*, GridCell*> previous;
-    std::vector<GridCell*> queue;
+    std::map<Vector2Int, Vector2Int> previous;
+    std::vector<Vector2Int> queue;
+    std::set<Vector2Int> visited;
 
-    distances[startCell] = 0.0;
     queue.push_back(startCell);
-    GridCell* frontier = nullptr;
+    std::optional<Vector2Int> frontier = std::nullopt;
 
     while (!queue.empty()) {
-        ranges::sort(queue, [&distances](GridCell* a, GridCell* b) { return distances[a] < distances[b]; });
-
-        GridCell* current = queue.front();
+        Vector2Int current = queue.front();
         queue.erase(queue.begin());
 
-        bool isBorder = false;
+        int neighbourCount = 0;
+        for (auto dir : Vector2Int::EightDirections()) {
+            const auto neighbor = current + dir;
 
-        for (GridCell* neighbor : _slamController->GetNeighbors(current)) {
-            double alt = distances[current] + neighbor->GetCost();
-
-            auto distIt = distances.find(neighbor);
-            if (distIt != distances.end() && alt >= distIt->second)
+            if (visited.contains(neighbor))
                 continue;
 
-            distances[neighbor] = alt;
+            if (_grid[neighbor].visited)
+                continue;
+
+            if (!_grid[neighbor].value)
+                continue;
+
             previous[neighbor] = current;
 
-            if (ranges::find(queue, neighbor) != queue.end())
-                continue;
-
-            if (neighbor->IsUnknown()) {
-                isBorder = true;
-                continue;
-            }
-
-            if (neighbor->IsOccupied())
-                continue;
-
             queue.push_back(neighbor);
+            neighbourCount++;
         }
 
-        if (!isBorder)
-            continue;
+        if (neighbourCount > 0) continue;
 
         frontier = current;
         break;
     }
 
-    return frontier;
+    std::vector<Vector2> path;
+
+    if (!frontier.has_value())
+        return path;
+
+    while (frontier.has_value() && frontier != startCell) {
+        path.push_back(_mapping->GridToWorld(frontier.value()));
+
+        const auto it = previous.find(frontier.value());
+        if (it == previous.end()) {
+            return path;
+        }
+
+        frontier = it->second;
+    }
+
+    return path;
+}
+
+void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
+{
+    auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
+
+    if (_grid.width() != grid.width() || _grid.height() != grid.height())
+        _grid = nav::Grid<Cell>(grid.width(), grid.height(), grid.resolution());
+
+    for (auto i = 0; i < grid.size(); i++) {
+        auto value = !grid[i];
+        auto gridCell = Cell{value,_grid[i].visited && value};
+
+        _grid.set(i, gridCell);
+    }
+}
+
+std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
+{
+    const auto intPos = _mapping->WorldToGrid(pos);
+
+    std::queue<Vector2Int> q;
+    std::set<Vector2Int> visited;
+
+    q.push(intPos);
+
+    bool any = false;
+    while (!q.empty()) {
+        auto cell = q.front(); q.pop();
+        if (visited.contains(cell))
+            continue;
+
+        for (auto direction : Vector2Int::EightDirections()) {
+            const auto neighbour = cell + direction;
+
+            if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0)
+                continue;
+
+            if (_grid[neighbour].value)
+                return neighbour;
+
+            if (!any && _grid[neighbour].value)
+                any = true;
+
+            q.push(neighbour);
+        }
+
+        if (any) {
+            int i;
+        }
+
+        visited.insert(cell);
+    }
+
+    return std::nullopt;
 }
 
 void ExplorerEngine::Update()
 {
-    if (!_navigatorController->IsInDestination())
+    if (_grid.size() == 0 || !_navigatorController->IsInDestination())
         return;
 
     switch (_state) {
@@ -87,19 +151,11 @@ void ExplorerEngine::Update()
         break;
 
     case ExplorerState::Exploring: {
-        GridCell* startCell = _slamController->GetCell(_slamController->CurrentPose().position);
-        if (startCell == nullptr)
-            return;
+        auto startCell = ClosestOnThinnedMap(_mapping->CurrentPose().position);
+        if (!startCell.has_value()) return;
 
-        auto target = Explore(startCell);
-        if (target != nullptr) {
-            _navigatorController->SetDestination(target);
-            break;
-        }
-
-        // _state = ExplorerState::Returning;
-        // _navigatorController->SetPath(_navigatorController->CalculatePath(_startCell));
-
+        auto path = Explore(startCell.value());
+        _navigatorController->SetPath(path);
         break;
     }
     case ExplorerState::Returning:

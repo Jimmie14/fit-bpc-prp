@@ -16,7 +16,7 @@ class NavigatorEngine final : public RosEngine {
 public:
     explicit NavigatorEngine(const App& app);
 
-    void SetPath(const std::vector<GridCell*>& path);
+    void SetPath(std::vector<Vector2>& path);
 
     [[nodiscard]] bool IsInDestination() const;
     void ClearPath();
@@ -41,7 +41,7 @@ private:
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
 
-    std::vector<Vector2> SmoothPath(const std::vector<GridCell*>& path) const;
+    std::vector<Vector2> SmoothPath(std::vector<Vector2>& path) const;
 
     std::vector<RayHit> RayCastAround(const Pose& pose) const;
     Vector2 GetDirection(const std::vector<RayHit>& rayHits, const Pose& pose, const Vector2& desiredDirection) const;
