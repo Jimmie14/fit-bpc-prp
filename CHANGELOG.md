@@ -17,6 +17,7 @@
 ### 🚜 Refactor
 
 - Minor Grid refactor
+- Major viz refactor
 
 ### ◀️ Revert
 
