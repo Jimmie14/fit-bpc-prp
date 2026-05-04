@@ -23,9 +23,14 @@ private:
     };
 
     struct WayPoint {
+        struct Connection {
+            shared_ptr<WayPoint> target;
+            std::vector<Vector2> path;
+        };
+
         bool visited;
         Vector2 position;
-        std::vector<std::shared_ptr<WayPoint>> connected;
+        std::vector<Connection> connected;
 
         [[nodiscard]] std::shared_ptr<WayPoint> GetInDirection(const Direction dir, const Vector2& forward) const
         {
@@ -59,6 +64,8 @@ private:
         }
     };
 
+
+
     void Update();
 
     Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _poseSubscription;
@@ -67,9 +74,19 @@ private:
     void OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const;
     void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
 
-    std::shared_ptr<WayPoint> NextJunction(std::shared_ptr<WayPoint> current);
+    void PublishCurrenThGraph() const;
+
+    std::shared_ptr<WayPoint> NextJunction(const std::shared_ptr<WayPoint>& current);
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
+
+    std::vector<Vector2Int> GetValidNeighbors(const Vector2Int& cell);
+
+    bool IsWaypoint(const Vector2Int& cell);
+
+    std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2Int prev, Vector2Int current);
+
+    std::shared_ptr<WayPoint> Init();
 
     std::shared_ptr<Nav::Grid<bool>> _thinned_map = nullptr;
 
@@ -80,6 +97,8 @@ private:
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
+
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _graphPublisher;
 };
 
 } // namespace Manhattan::Core
