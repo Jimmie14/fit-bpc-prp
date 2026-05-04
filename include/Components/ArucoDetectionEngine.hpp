@@ -13,9 +13,9 @@ namespace Manhattan::Core {
 
 using namespace Manhattan::nav;
 
-struct MappingEngineStateChangeEvent {
-    MappingEngineState oldState;
-    MappingEngineState newState;
+struct ArucoCodeEvent {
+    int id;
+    Pose pose;
 };
 
 class ArucoDetectionEngine : public RosEngine {

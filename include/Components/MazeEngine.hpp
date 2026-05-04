@@ -23,9 +23,14 @@ private:
     };
 
     struct WayPoint {
+        struct Connection {
+            shared_ptr<WayPoint> target;
+            std::vector<Vector2> path;
+        };
+
         bool visited;
         Vector2 position;
-        std::vector<std::shared_ptr<WayPoint>> connected;
+        std::vector<Connection> connected;
 
         [[nodiscard]] std::shared_ptr<WayPoint> GetInDirection(const Direction dir, const Vector2& forward) const
         {
@@ -34,29 +39,32 @@ private:
                 const auto dot = Vector2::Dot(dirToWaypoint, forward);
                 const auto perpDot = dirToWaypoint.x * forward.y - dirToWaypoint.y * forward.x;
 
+
                 switch (dir) {
-                case Direction::Left:
-                    if (perpDot > 0.5)
-                        return point;
-                    break;
-                case Direction::Right:
-                    if (perpDot < -0.5)
-                        return point;
-                    break;
-                case Direction::Forward:
-                    if (dot > 0.5)
-                        return point;
-                    break;
-                case Direction::Back:
-                    if (dot < -0.5)
-                        return point;
-                    break;
+                    case Direction::Left:
+                        if (perpDot > 0.5)
+                            return point;
+                        break;
+                    case Direction::Right:
+                        if (perpDot < -0.5)
+                            return point;
+                        break;
+                    case Direction::Forward:
+                        if (dot > 0.5)
+                            return point;
+                        break;
+                    case Direction::Back:
+                        if (dot < -0.5)
+                            return point;
+                        break;
                 }
             }
 
             return nullptr;
         }
     };
+
+
 
     void Update();
 
@@ -66,11 +74,21 @@ private:
     void OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const;
     void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
 
-    std::shared_ptr<WayPoint> NextJunction(std::shared_ptr<WayPoint> current);
+    void PublishCurrenThGraph() const;
+
+    std::shared_ptr<WayPoint> NextJunction(const std::shared_ptr<WayPoint>& current);
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
 
-    nav::Grid<bool> _thinnedMap;
+    std::vector<Vector2Int> GetValidNeighbors(const Vector2Int& cell);
+
+    bool IsWaypoint(const Vector2Int& cell);
+
+    std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2Int prev, Vector2Int current);
+
+    std::shared_ptr<WayPoint> Init();
+
+    std::shared_ptr<nav::Grid<bool>> _thinned_map = nullptr;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
@@ -79,6 +97,8 @@ private:
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
+
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _graphPublisher;
 };
 
 } // namespace Manhattan::Core
