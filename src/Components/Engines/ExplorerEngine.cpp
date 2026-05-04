@@ -36,7 +36,6 @@ GridCell* ExplorerEngine::Explore(GridCell* startCell) const
     GridCell* frontier = nullptr;
 
     while (!queue.empty()) {
-        // Sort queue by distance
         ranges::sort(queue, [&distances](GridCell* a, GridCell* b) { return distances[a] < distances[b]; });
 
         GridCell* current = queue.front();
@@ -75,34 +74,7 @@ GridCell* ExplorerEngine::Explore(GridCell* startCell) const
         break;
     }
 
-    std::vector<GridCell*> pathList;
-    // GridCell* curr = frontier;
-
     return frontier;
-
-    // while (curr != nullptr && curr != startCell) {
-    //     pathList.push_back(curr);
-    //     auto prevIt = previous.find(curr);
-    //     if (prevIt != previous.end()) {
-    //         curr = prevIt->second;
-    //     } else {
-    //         curr = nullptr;
-    //     }
-    // }
-    // ranges::reverse(pathList);
-    //
-    // return pathList;
-    // std::queue<GridCell*> pathQueue;
-    // long i = 0;
-    // for (auto* cell : pathList) {
-    //     pathQueue.push(cell);
-    //     i++;
-    //
-    //     if (i >= pathList.size() - 5)
-    //         break;
-    // }
-    //
-    // return pathQueue;
 }
 
 void ExplorerEngine::Update()

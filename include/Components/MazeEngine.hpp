@@ -34,37 +34,35 @@ private:
 
         [[nodiscard]] std::shared_ptr<WayPoint> GetInDirection(const Direction dir, const Vector2& forward) const
         {
-            for (auto point : connected) {
-                const auto dirToWaypoint = (point->position - position).Normalized();
-                const auto dot = Vector2::Dot(dirToWaypoint, forward);
-                const auto perpDot = dirToWaypoint.x * forward.y - dirToWaypoint.y * forward.x;
-
-
-                switch (dir) {
-                    case Direction::Left:
-                        if (perpDot > 0.5)
-                            return point;
-                        break;
-                    case Direction::Right:
-                        if (perpDot < -0.5)
-                            return point;
-                        break;
-                    case Direction::Forward:
-                        if (dot > 0.5)
-                            return point;
-                        break;
-                    case Direction::Back:
-                        if (dot < -0.5)
-                            return point;
-                        break;
-                }
-            }
+            // for (auto point : connected) {
+            //     const auto dirToWaypoint = (point.target->position - position).Normalized();
+            //     const auto dot = Vector2::Dot(dirToWaypoint, forward);
+            //     const auto perpDot = dirToWaypoint.x * forward.y - dirToWaypoint.y * forward.x;
+            //
+            //
+            //     // switch (dir) {
+            //     //     case Direction::Left:
+            //     //         if (perpDot > 0.5)
+            //     //             return point;
+            //     //         break;
+            //     //     case Direction::Right:
+            //     //         if (perpDot < -0.5)
+            //     //             return point;
+            //     //         break;
+            //     //     case Direction::Forward:
+            //     //         if (dot > 0.5)
+            //     //             return point;
+            //     //         break;
+            //     //     case Direction::Back:
+            //     //         if (dot < -0.5)
+            //     //             return point;
+            //     //         break;
+            //     // }
+            // }
 
             return nullptr;
         }
     };
-
-
 
     void Update();
 
@@ -83,12 +81,11 @@ private:
     std::vector<Vector2Int> GetValidNeighbors(const Vector2Int& cell);
 
     bool IsWaypoint(const Vector2Int& cell);
-
     std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2Int prev, Vector2Int current);
 
     std::shared_ptr<WayPoint> Init();
 
-    std::shared_ptr<nav::Grid<bool>> _thinned_map = nullptr;
+    nav::Grid<bool> _thinned_map;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;

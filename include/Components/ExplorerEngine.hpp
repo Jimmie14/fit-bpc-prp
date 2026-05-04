@@ -24,7 +24,6 @@ public:
     void OnDisable() override;
 
 private:
-    GridCell* Recenter(GridCell* cell) const;
     GridCell* Explore(GridCell* startCell) const;
 
     TimerBase::SharedPtr _timer;

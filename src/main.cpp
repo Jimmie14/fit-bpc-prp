@@ -8,6 +8,7 @@
 #include "LineEngine.hpp"
 #include "MapThinningUnit.hpp"
 #include "MappingEngine.hpp"
+#include "MazeEngine.hpp"
 #include "MotorDriver.hpp"
 #include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"

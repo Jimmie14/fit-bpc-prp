@@ -101,6 +101,8 @@ inline visualization_msgs::msg::Marker text(
     marker.color.b = 1.0f;
     marker.color.a = 1.0f;
     marker.text = text;
+
+    return marker;
 }
 
 } // namespace viz

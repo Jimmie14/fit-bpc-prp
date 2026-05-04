@@ -3,16 +3,14 @@
 #include "Viz/Grid.hpp"
 #include "Viz/Marker.hpp"
 
-#include <stack>
-
 using namespace std;
 
 namespace Manhattan::Core {
 
-using namespace Manhattan::Nav;
+using namespace Manhattan::nav;
 
 MazeEngine::MazeEngine(const App& app)
-    : RosEngine(app, "maze"), _thinned_map()
+    : RosEngine(app, "maze"), _thinned_map(0,0,0)
 {
     _navigator = app.GetComponent<NavigatorEngine>();
     _mapping = app.GetComponent<MappingEngine>();
@@ -50,8 +48,7 @@ void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) c
 
 void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
-    auto grid = Viz::ToOccupancyGrid(*msg, 50);
-    _thinned_map = grid;
+    _thinned_map = viz::nav::ToOccupancyGrid(*msg, 50);
 }
 
 void MazeEngine::PublishCurrenThGraph() const
@@ -145,12 +142,13 @@ void MazeEngine::PublishCurrenThGraph() const
 }
 
 void MazeEngine::Update() {
-    if (!_thinned_map || !_navigator->IsInDestination())
+    if (_thinned_map.resolution() == 0 || !_navigator->IsInDestination())
         return;
 
-    if (!_currentWayPoint)
-        Init();
+    Init();
+    PublishCurrenThGraph();
 
+    std::cout << _currentWayPoint->connected.size() << std::endl;
     return;
 
     const auto target = NextJunction(_currentWayPoint);
@@ -170,7 +168,7 @@ std::vector<Vector2Int> MazeEngine::GetValidNeighbors(const Vector2Int& cell) {
     for (auto dir : Vector2Int::EightDirections()) {
         Vector2Int next = cell + dir;
 
-        if (!(*_thinned_map)[next]) continue;
+        if (!_thinned_map[next]) continue;
         result.push_back(next);
     }
 
@@ -194,7 +192,7 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::WalkUntilWaypoint(Vector2Int p
 
         std::erase(neighbors, prev);
 
-        if (IsWaypoint(current) || visited.contains(current)) {
+        if (IsWaypoint(current)) {
             waypoint->position = _mapping->GridToWorld(current);
             waypoint->connected.push_back({ .target = nullptr, .path = path });
             break;
@@ -251,10 +249,10 @@ std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
         for (auto direction : Vector2Int::EightDirections()) {
             const auto neighbour = cell + direction;
 
-            if (neighbour.x >= _thinned_map->width || neighbour.x < 0 || neighbour.y >= _thinned_map->height || neighbour.y < 0)
+            if (neighbour.x >= _thinned_map.width() || neighbour.x < 0 || neighbour.y >= _thinned_map.height() || neighbour.y < 0)
                 continue;
 
-            if ((*_thinned_map)[neighbour])
+            if (_thinned_map[neighbour])
                 return neighbour;
 
             q.push(neighbour);
