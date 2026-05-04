@@ -137,10 +137,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
             const auto worldPoint = Vector3(cameraPosition.x() + dir.x(), cameraPosition.y() + dir.y(), 0.0f);
             const auto gridCoord = _map.worldToCoord(worldPoint);
 
-            auto& code = GetClosestOrCreateCode(gridCoord, 0.0f);
-
-            code.id = ids[i];
-            code.position = gridCoord;
+            UpdateOrCreateCode(ids[i], gridCoord, robotRotation);
 
             cv::aruco::drawAxis(
                 frame,
@@ -165,35 +162,37 @@ void ArucoDetectionEngine::OnMappingEngineStateChange(MappingEngineStateChangeEv
     _codes.clear();
 }
 
-ArucoDetectionEngine::Code& ArucoDetectionEngine::GetClosestOrCreateCode(const std::pair<int, int>& position, const float theta)
+void ArucoDetectionEngine::UpdateOrCreateCode(const int id, const std::pair<int, int>& position, const float rotation)
 {
     for (auto& code : _codes) {
-        if (code.position.first != position.first) continue;
-        if (code.position.second != position.second) continue;
+        if (code.id != id) continue;
 
-        return code;
+        if (abs(code.position.first - position.first) > 1) continue;
+        if (abs(code.position.second - position.second) > 1) continue;
+
+        code.position = position;
+        return;
     }
 
-    _codes.push_back(Code { 0, position, theta });
-
-    return _codes.back();
+    _codes.push_back(Code { id, position, rotation });
+    _app.Events->Publish(CodeDetectedEvent { id, Pose(Vector2(position.first, position.second), rotation) });
 }
 
 void ArucoDetectionEngine::Publish() const
 {
     if (_map.width() == 0) return;
 
-    visualization_msgs::msg::MarkerArray markers;
-    markers.markers.push_back(viz::marker::clear("map"));
+    auto markers = viz::marker::MarkerArrayBuilder();
+    markers.add(viz::marker::clear("map"));
 
     for (auto code : _codes) {
         const auto worldPoint = _map.coordToWorld(code.position);
 
-        markers.markers.push_back(viz::marker::point(worldPoint, "map"));
-        markers.markers.push_back(viz::marker::text(worldPoint, std::to_string(code.id), "map"));
+        markers.add(viz::marker::point(worldPoint, "map"));
+        markers.add(viz::marker::text(worldPoint, std::to_string(code.id), "map"));
     }
 
-    _markerPublisher->publish(markers);
+    _markerPublisher->publish(markers.array);
 }
 
 }

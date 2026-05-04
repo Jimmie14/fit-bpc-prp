@@ -13,7 +13,7 @@ namespace Manhattan::Core {
 
 using namespace Manhattan::nav;
 
-struct ArucoCodeEvent {
+struct CodeDetectedEvent {
     int id;
     Pose pose;
 };
@@ -59,7 +59,7 @@ private:
 
     void OnMappingEngineStateChange(MappingEngineStateChangeEvent event);
 
-    Code& GetClosestOrCreateCode(const std::pair<int, int>& position, const float theta);
+    void UpdateOrCreateCode(const int id, const std::pair<int, int>& position, const float rotation);
 
     void Publish() const;
 
