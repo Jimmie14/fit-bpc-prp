@@ -19,7 +19,7 @@ void ExplorerEngine::OnEnable()
         this->OnMap(msg);
     });
 
-    _timer = create_wall_timer(100ms, [this] { Update(); });
+    //_timer = create_wall_timer(100ms, [this] { Update(); });
 }
 
 void ExplorerEngine::OnDisable()
@@ -62,19 +62,20 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirectio
                 neighbor.y < 0 || neighbor.y >= _grid.height())
                 continue;
 
-            if (visited.contains(neighbor))
+            if (!Walkable(_grid[neighbor]))
                 continue;
 
-            if (!Walkable(_grid[neighbor]))
+            neighbourCount++;
+
+            if (visited.contains(neighbor))
                 continue;
 
             previous[neighbor] = current;
             queue.push(neighbor);
             visited.insert(neighbor);
-            neighbourCount++;
         }
 
-        if (neighbourCount == 2) continue;
+        if (neighbourCount == 2 || neighbourCount == 0) continue;
 
         frontier = current;
         break;
@@ -106,6 +107,8 @@ void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
     auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
     _grid = grid;
+
+    Update();
 }
 
 std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
