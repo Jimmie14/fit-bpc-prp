@@ -25,7 +25,7 @@ void ExplorerEngine::OnEnable()
 
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
 
-    _timer = create_wall_timer(100ms, [this] { Update(); });
+    // _timer = create_wall_timer(100ms, [this] { Update(); });
 
     _publishTimer = create_wall_timer(100ms, [this] {
        Publish();
@@ -154,6 +154,8 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos
         }
     }
 
+    std::cout << visited.size() << std::endl;
+
     return std::nullopt;
 }
 
@@ -169,14 +171,18 @@ void ExplorerEngine::Update()
     case ExplorerState::Exploring: {
         const auto pose = _mapping->CurrentPose();
 
-        if (!_currentTarget) {
+        if (!_currentTarget.has_value()) {
             _currentTarget = ClosestOnThinnedMap(pose.position);
 
-            if (!_currentTarget)
+            if (!_currentTarget.has_value())
                 return;
+
+            auto target = *_currentTarget;
+            std::cout << "Got new target: " << target.x << " " << target.y << std::endl;
         }
 
         auto result = Explore(pose.forward, _currentTarget.value());
+        std::cout << "Explored path: " << result.path.size() << std::endl;
         _currentTarget = result.target;
         _navigatorController->SetPath(result.path);
         break;
