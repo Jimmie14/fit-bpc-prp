@@ -26,7 +26,17 @@ public:
     void OnDisable() override;
 
 private:
-    std::vector<Vector2> Explore(const Vector2 &inDirection, Vector2Int startCell, std::optional<Vector2Int>& out);
+    struct ExplorerResult {
+        std::optional<Vector2Int> target;
+        std::vector<Vector2> path;
+    };
+
+    static bool Walkable(const bool value)
+    {
+        return !value;
+    }
+
+    ExplorerResult Explore(const Vector2 &inDirection, Vector2Int startCell) const;
 
     void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
 

@@ -281,6 +281,8 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(const std::shared
         int traversable_neighbors = 0;
         std::vector<Vector2Int> neighbors;
     }
+
+    return nullptr;
 }
 
 } // namespace Manhattan::Core
