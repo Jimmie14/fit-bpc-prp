@@ -1,6 +1,7 @@
 #pragma once
 
 #include "MappingEngine.hpp"
+#include "Nav/GridMap.hpp"
 #include "NavigatorEngine.hpp"
 #include "RosEngine.hpp"
 #include "Viz/Grid.hpp"
@@ -36,14 +37,8 @@ private:
         return !value;
     }
 
-    ExplorerResult Explore(const Vector2 &inDirection, Vector2Int startCell) const;
-
-    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
-
-    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position) const;
-
-    TimerBase::SharedPtr _timer;
     nav::Grid<bool> _grid;
+    nav::GridMap _map;
 
     std::shared_ptr<MappingEngine> _mapping;
     std::shared_ptr<NavigatorEngine> _navigatorController;
@@ -52,5 +47,18 @@ private:
     std::optional<Vector2Int> _currentTarget = std::nullopt;
 
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
+
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
+
+    TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _publishTimer;
+
+    ExplorerResult Explore(const Vector2 &inDirection, Vector2Int startCell) const;
+
+    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
+
+    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position) const;
+
+    void Publish() const;
 };
 } // namespace Manhattan::Core

@@ -1,11 +1,15 @@
 #include "ExplorerEngine.hpp"
+#include "Viz/Marker.hpp"
 #include <stdexcept>
 
 using namespace std;
+using namespace Manhattan::nav;
 
 namespace Manhattan::Core {
 ExplorerEngine::ExplorerEngine(const App& app)
-    : RosEngine(app, "explorer"), _grid(0, 0, 0)
+    : RosEngine(app, "explorer")
+    , _grid(0, 0, 0)
+    , _map(0, 0, 0)
 {
     _mapping = app.GetComponent<MappingEngine>();
     _navigatorController = app.GetComponent<NavigatorEngine>();
@@ -19,13 +23,21 @@ void ExplorerEngine::OnEnable()
         this->OnMap(msg);
     });
 
+    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
+
     _timer = create_wall_timer(100ms, [this] { Update(); });
+
+    _publishTimer = create_wall_timer(100ms, [this] {
+       Publish();
+    });
+
 }
 
 void ExplorerEngine::OnDisable()
 {
     _timer.reset();
     _mapSubscription.reset();
+    _markerPublisher.reset();
 }
 
 ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirection, const Vector2Int startCell) const
@@ -106,6 +118,7 @@ void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
     auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
     _grid = grid;
+    _map = GridMap(grid.width(), grid.height(), grid.resolution());
 }
 
 std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
@@ -127,14 +140,11 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos
         for (auto direction : Vector2Int::EightDirections()) {
             const auto neighbour = cell + direction;
 
-            if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0)
-                continue;
+            if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0) continue;
+            if (visited.contains(neighbour)) continue;
 
             if (Walkable(_grid[neighbour]))
                 return neighbour;
-
-            if (visited.contains(neighbour))
-                continue;
 
             q.push(neighbour);
             visited.insert(neighbour);
@@ -176,4 +186,20 @@ void ExplorerEngine::Update()
         throw std::out_of_range("Invalid ExplorerState");
     }
 }
+
+void ExplorerEngine::Publish() const
+{
+    auto markers = viz::marker::MarkerArrayBuilder();
+
+    markers.add(viz::marker::clear("map"));
+
+    if (_currentTarget != std::nullopt) {
+        const auto worldPoint = _mapping->GridToWorld(_currentTarget.value()).ToTf2();
+
+        markers.add(viz::marker::point(worldPoint, "map"));
+    }
+
+    _markerPublisher->publish(markers.array);
+}
+
 } // namespace Manhattan::Core
