@@ -13,7 +13,6 @@ ExplorerEngine::ExplorerEngine(const App& app)
 
 void ExplorerEngine::OnEnable()
 {
-    // _startCell = _mapping->GetCell(_mapping->CurrentPose().position);
     _state = ExplorerState::Exploring;
 
     _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
@@ -29,18 +28,18 @@ void ExplorerEngine::OnDisable()
     _mapSubscription.reset();
 }
 
-std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
+std::vector<Vector2> ExplorerEngine::Explore(const Vector2 &inDirection, const Vector2Int startCell, std::optional<Vector2Int>& out)
 {
     std::map<Vector2Int, Vector2Int> previous;
-    std::vector<Vector2Int> queue;
+    std::queue<Vector2Int> queue;
     std::set<Vector2Int> visited;
 
-    queue.push_back(startCell);
+    queue.push(startCell);
     std::optional<Vector2Int> frontier = std::nullopt;
 
     while (!queue.empty()) {
-        Vector2Int current = queue.front();
-        queue.erase(queue.begin());
+        Vector2Int current = queue.front(); queue.pop();
+        visited.insert(current);
 
         int neighbourCount = 0;
         for (auto dir : Vector2Int::EightDirections()) {
@@ -49,15 +48,15 @@ std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
             if (visited.contains(neighbor))
                 continue;
 
-            if (_grid[neighbor].visited)
+            if (neighbor.x >= _grid.width() || neighbor.x < 0 || neighbor.y >= _grid.height() || neighbor.y < 0)
                 continue;
 
-            if (!_grid[neighbor].value)
+            if (!_grid[neighbor])
                 continue;
 
             previous[neighbor] = current;
 
-            queue.push_back(neighbor);
+            queue.push(neighbor);
             neighbourCount++;
         }
 
@@ -67,12 +66,13 @@ std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
         break;
     }
 
-    std::vector<Vector2> path;
+    out = frontier;
 
-    if (!frontier.has_value())
+    std::vector<Vector2> path;
+    if (!frontier)
         return path;
 
-    while (frontier.has_value() && frontier != startCell) {
+    while (frontier.has_value() && frontier.value() != startCell) {
         path.push_back(_mapping->GridToWorld(frontier.value()));
 
         const auto it = previous.find(frontier.value());
@@ -83,38 +83,30 @@ std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
         frontier = it->second;
     }
 
+    ranges::reverse(path);
     return path;
 }
 
 void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
 {
     auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
-
-    if (_grid.width() != grid.width() || _grid.height() != grid.height())
-        _grid = nav::Grid<Cell>(grid.width(), grid.height(), grid.resolution());
-
-    for (auto i = 0; i < grid.size(); i++) {
-        auto value = !grid[i];
-        auto gridCell = Cell{value,_grid[i].visited && value};
-
-        _grid.set(i, gridCell);
-    }
+    _grid = grid;
 }
 
 std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
 {
     const auto intPos = _mapping->WorldToGrid(pos);
 
+    if (_grid[intPos])
+        return intPos;
+
     std::queue<Vector2Int> q;
     std::set<Vector2Int> visited;
 
     q.push(intPos);
 
-    bool any = false;
     while (!q.empty()) {
         auto cell = q.front(); q.pop();
-        if (visited.contains(cell))
-            continue;
 
         for (auto direction : Vector2Int::EightDirections()) {
             const auto neighbour = cell + direction;
@@ -122,17 +114,11 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos
             if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0)
                 continue;
 
-            if (_grid[neighbour].value)
+            if (_grid[neighbour])
                 return neighbour;
 
-            if (!any && _grid[neighbour].value)
-                any = true;
-
-            q.push(neighbour);
-        }
-
-        if (any) {
-            int i;
+            if (!visited.contains(neighbour))
+                q.push(neighbour);
         }
 
         visited.insert(cell);
@@ -151,10 +137,12 @@ void ExplorerEngine::Update()
         break;
 
     case ExplorerState::Exploring: {
-        auto startCell = ClosestOnThinnedMap(_mapping->CurrentPose().position);
-        if (!startCell.has_value()) return;
+        if (!_currentTarget)
+            _currentTarget = ClosestOnThinnedMap(_mapping->CurrentPose().position);
+        if (!_currentTarget)
+            return;
 
-        auto path = Explore(startCell.value());
+        auto path = Explore(_currentTarget.value(), _currentTarget);
         _navigatorController->SetPath(path);
         break;
     }
