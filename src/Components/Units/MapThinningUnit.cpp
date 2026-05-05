@@ -40,6 +40,12 @@ void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) 
     grid = ApplyMedianFilter(grid);
     grid = ZhangSuenThinning(grid);
 
+    int count = 0;
+    for (auto i = 0; i < grid.width(); i++) {
+        if (!grid[i]) count++;
+    }
+    std::cout << "Grid set data: " << count << std::endl;
+
     _mapPublisher->publish(viz::nav::ToOccupancyGridMessage(grid, "map"));
 }
 

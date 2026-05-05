@@ -121,6 +121,12 @@ void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
     _grid = grid;
     _map = GridMap(grid.width(), grid.height(), grid.resolution());
 
+    int count = 0;
+    for (auto i = 0; i < grid.width(); i++) {
+        if (!grid[i]) count++;
+    }
+    std::cout << "Grid processed data: " << count << std::endl;
+
     Update();
 }
 
@@ -153,8 +159,6 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos
             visited.insert(neighbour);
         }
     }
-
-    std::cout << visited.size() << std::endl;
 
     return std::nullopt;
 }
