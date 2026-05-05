@@ -1,4 +1,6 @@
 #include "ExplorerEngine.hpp"
+
+#include "MapThinningUnit.hpp"
 #include "Viz/Marker.hpp"
 #include <stdexcept>
 
@@ -13,21 +15,29 @@ ExplorerEngine::ExplorerEngine(const App& app)
 {
     _mapping = app.GetComponent<MappingEngine>();
     _navigatorController = app.GetComponent<NavigatorEngine>();
+
+    _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
+        _grid = event.grid;
+        _map = GridMap(_grid.width(), _grid.height(), _grid.resolution());
+    });
 }
 
 void ExplorerEngine::OnEnable()
 {
     _state = ExplorerState::Exploring;
 
-    _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-        this->OnMap(msg);
-    });
+    // _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+    //     this->OnMap(msg);
+    // });
 
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
 
-    // _timer = create_wall_timer(100ms, [this] { Update(); });
+    _startTimer = create_wall_timer(1s, [this] {
+        _timer = create_wall_timer(100ms, [this] { Update(); });
+        _startTimer->reset();
+    });
 
-    _publishTimer = create_wall_timer(100ms, [this] {
+    _publishTimer = create_wall_timer(1s, [this] {
        Publish();
     });
 
@@ -35,14 +45,21 @@ void ExplorerEngine::OnEnable()
 
 void ExplorerEngine::OnDisable()
 {
-    _timer.reset();
     _mapSubscription.reset();
     _markerPublisher.reset();
+
+    _timer.reset();
+    _publishTimer.reset();
 }
 
-ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirection, const Vector2Int startCell) const
+static bool Walkable(const bool value)
 {
-    std::map<Vector2Int, Vector2Int> previous;
+    return value;
+}
+
+ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell) const
+{
+    std::unordered_map<Vector2Int, Vector2Int, Vector2IntHash> previous;
     std::queue<Vector2Int> queue;
     std::set<Vector2Int> visited;
 
@@ -50,16 +67,18 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirectio
     visited.insert(startCell);
     std::optional<Vector2Int> frontier = std::nullopt;
 
-    const auto dirNorm = inDirection.Normalized();
+    bool beforeJunction = true;
+
+    const auto dirNorm = inDirection.normalized();
     auto dirs = Vector2Int::EightDirections();
 
     // Sort directions to prioritize inDirection
     ranges::sort(dirs, [&](const auto& a, const auto& b) {
-        const Vector2 va = Vector2(a).Normalized();
-        const Vector2 vb = Vector2(b).Normalized();
+        const auto va = Vector2(a).ToTf2().normalized();
+        const auto vb = Vector2(b).ToTf2().normalized();
 
-        const float da = Vector2::Dot(va, dirNorm);
-        const float db = Vector2::Dot(vb, dirNorm);
+        const auto da = va.dot(dirNorm);
+        const auto db = vb.dot(dirNorm);
 
         return da > db;
     });
@@ -74,20 +93,48 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirectio
                 neighbor.y < 0 || neighbor.y >= _grid.height())
                 continue;
 
-            if (!Walkable(_grid[neighbor]))
-                continue;
+            if (!Walkable(_grid[neighbor])) continue;
 
             neighbourCount++;
 
-            if (visited.contains(neighbor))
-                continue;
+            if (visited.contains(neighbor)) continue;
 
             previous[neighbor] = current;
             queue.push(neighbor);
             visited.insert(neighbor);
         }
 
-        if (neighbourCount == 2 || neighbourCount == 0) continue;
+        if (neighbourCount == 2) continue;
+
+        const auto [ways, newVisited] = GetCrossroadWays(current, dirs);
+        if (ways.size() == 2 || ways.empty()) continue;
+
+        if (beforeJunction) {
+            beforeJunction = false;
+
+            auto max = -1.0;
+            auto newWay = ways.front();
+
+            for (auto point : ways) {
+                const auto dir = (_map.coordToWorld(point) - _map.coordToWorld(current)).normalized();
+
+
+                const auto dot = dir.dot(dirNorm);
+                if (dot > max) {
+                    max = dot;
+                    newWay = point;
+                }
+            }
+
+            queue = std::queue<Vector2Int>();
+            queue.push(newWay);
+
+            previous[newWay] = current;
+            visited = newVisited;
+
+            continue;
+        }
+
 
         frontier = current;
         break;
@@ -95,14 +142,14 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirectio
 
     const auto target = frontier;
 
-    std::vector<Vector2> path;
-    if (!frontier)
+    std::vector<Vector3> path;
+    if (!frontier.has_value())
         return ExplorerResult{ target, path };
 
     Vector2Int current = *frontier;
 
     while (current != startCell) {
-        path.push_back(_mapping->GridToWorld(current));
+        path.push_back(_map.coordToWorld(current));
 
         const auto it = previous.find(current);
         if (it == previous.end())
@@ -115,24 +162,43 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector2 &inDirectio
     return ExplorerResult{ target, path };
 }
 
-void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
+std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(const Vector2Int& start, vector<Vector2Int>& directions) const
 {
-    auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
-    _grid = grid;
-    _map = GridMap(grid.width(), grid.height(), grid.resolution());
+    std::vector<Vector2Int> ways;
+    std::vector<Vector2Int> newWays;
+    std::set<Vector2Int> visited;
 
-    int count = 0;
-    for (auto i = 0; i < grid.width(); i++) {
-        if (!grid[i]) count++;
+    ways.push_back(start);
+
+    int iteration = 0;
+    while (!ways.empty()) {
+        if (iteration > 4) break;
+        iteration++;
+
+        for (auto current : ways) {
+            for (auto direction : directions) {
+                const auto next = current + direction;
+
+                if (visited.contains(next)) continue;
+                if (!Walkable(_grid[next])) continue;
+
+                newWays.push_back(next);
+                visited.insert(next);
+            }
+        }
+
+        std::swap(ways, newWays);
+        newWays.clear();
+
+
     }
-    std::cout << "Grid processed data: " << count << std::endl;
 
-    Update();
+    return { ways, visited };
 }
 
-std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
+std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) const
 {
-    const auto intPos = _mapping->WorldToGrid(pos);
+    const auto intPos = Vector2Int(_map.worldToCoord(pos));
 
     if (Walkable(_grid[intPos]))
         return intPos;
@@ -175,20 +241,33 @@ void ExplorerEngine::Update()
     case ExplorerState::Exploring: {
         const auto pose = _mapping->CurrentPose();
 
-        if (!_currentTarget.has_value()) {
-            _currentTarget = ClosestOnThinnedMap(pose.position);
+        // if (!_currentTarget.has_value()) {
+        //     _currentTarget = ClosestOnThinnedMap(pose.position);
+        //
+        //     if (!_currentTarget.has_value())
+        //         return;
+        //
+        //     auto target = *_currentTarget;
+        //     std::cout << "Got new target: " << target.x << " " << target.y << std::endl;
+        // }
 
-            if (!_currentTarget.has_value())
-                return;
+        _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
+        if (!_currentTarget.has_value()) return;
 
-            auto target = *_currentTarget;
-            std::cout << "Got new target: " << target.x << " " << target.y << std::endl;
+
+        const auto result = Explore(pose.forward.ToTf2(), _currentTarget.value());
+
+
+        _currentTarget = result.target;
+        _path = result.path;
+
+        auto navPath = vector<Vector2>();
+
+        for (auto point : _path) {
+            navPath.emplace_back(Vector2(point.x(), point.y()));
         }
 
-        auto result = Explore(pose.forward, _currentTarget.value());
-        std::cout << "Explored path: " << result.path.size() << std::endl;
-        _currentTarget = result.target;
-        _navigatorController->SetPath(result.path);
+        _navigatorController->SetPath(navPath);
         break;
     }
     case ExplorerState::Returning:
@@ -207,9 +286,13 @@ void ExplorerEngine::Publish() const
     markers.add(viz::marker::clear("map"));
 
     if (_currentTarget != std::nullopt) {
-        const auto worldPoint = _mapping->GridToWorld(_currentTarget.value()).ToTf2();
+        const auto worldPoint = _map.coordToWorld(_currentTarget.value());
 
         markers.add(viz::marker::point(worldPoint, "map"));
+    }
+
+    for (auto path : _path) {
+        markers.add(viz::marker::point(path, "map"));
     }
 
     _markerPublisher->publish(markers.array);

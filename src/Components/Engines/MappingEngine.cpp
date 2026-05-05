@@ -188,7 +188,8 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 
     _app.Events->Publish(MappingEngineStateChangeEvent {
         .oldState = oldState,
-        .newState = newState });
+        .newState = newState
+    });
 }
 
 void MappingEngine::CreateHypothesis()
@@ -308,7 +309,7 @@ void MappingEngine::Publish()
 
     PublishPose();
     PublishGrid();
-    PublishGridMap();
+    // PublishGridMap();
 }
 
 void MappingEngine::PublishPose()
@@ -364,7 +365,6 @@ void MappingEngine::PublishGrid()
     for (auto x = 0; x < gridMsg.info.width; x++) {
         for (auto y = 0; y < gridMsg.info.height; y++) {
             auto cell = _grid.GetCell({ x, y });
-            auto cost = cell->GetCost();
 
             gridMsg.data[_grid.GetIndex(x, y)] = cell->IsUnknown() ? -1 : static_cast<int8_t>(cell->GetProbability() * 100.0);
         }

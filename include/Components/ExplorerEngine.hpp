@@ -29,13 +29,8 @@ public:
 private:
     struct ExplorerResult {
         std::optional<Vector2Int> target;
-        std::vector<Vector2> path;
+        std::vector<tf2::Vector3> path;
     };
-
-    static bool Walkable(const bool value)
-    {
-        return !value;
-    }
 
     nav::Grid<bool> _grid;
     nav::GridMap _map;
@@ -45,19 +40,21 @@ private:
 
     ExplorerState _state = ExplorerState::Idle;
     std::optional<Vector2Int> _currentTarget = std::nullopt;
+    vector<tf2::Vector3> _path;
 
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
 
+
+    TimerBase::SharedPtr _startTimer;
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
 
-    ExplorerResult Explore(const Vector2 &inDirection, Vector2Int startCell) const;
+    ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell) const;
+    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(const Vector2Int& start, vector<Vector2Int>& directions) const;
 
-    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
-
-    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position) const;
+    std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
 
     void Publish() const;
 };

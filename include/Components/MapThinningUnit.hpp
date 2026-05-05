@@ -9,6 +9,11 @@
 using namespace Manhattan::nav;
 
 namespace Manhattan::Core {
+
+struct ThinnedMapEvent {
+    Grid<bool> grid;
+};
+
 class MapThinningUnit : public RosUnit {
 public:
     explicit MapThinningUnit(const App& app);

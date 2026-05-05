@@ -10,6 +10,22 @@ namespace Manhattan::Math {
 struct Vector2Int {
     int x, y;
 
+    Vector2Int() = default;
+
+    Vector2Int(const int x, const int y)
+        : x(x)
+        , y(y)
+    {
+
+    }
+
+    Vector2Int(const std::pair<int, int>& point)
+        : x(point.first)
+        , y(point.second)
+    {
+
+    }
+
     Vector2Int operator+(const Vector2Int& other) const
     {
         return Vector2Int(x + other.x, y + other.y);

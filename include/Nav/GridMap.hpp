@@ -53,6 +53,11 @@ public:
         return coordToWorld(coord.first, coord.second);
     }
 
+    [[nodiscard]] Vector3 coordToWorld(const Math::Vector2Int& coord) const
+    {
+        return coordToWorld(coord.x, coord.y);
+    }
+
     [[nodiscard]] Vector3 coordToWorld(const int x, const int y) const
     {
         return {
