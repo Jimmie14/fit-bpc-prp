@@ -306,7 +306,7 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
 
 double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
 {
-    const auto d = Vector2::Dot(pose.forward, _path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position);
+    const auto d = Vector2::Dot(pose.forward, (_path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position).Normalized());
     const auto difference = d * d * d;
 
     const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * difference;
