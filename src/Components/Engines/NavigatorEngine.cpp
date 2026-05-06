@@ -189,13 +189,12 @@ void NavigatorEngine::ClearPath()
 
 bool NavigatorEngine::IsInDestination() const
 {
+    if (!_path.HasPath()) return true;
+
     const auto pose = _slam->CurrentPose();
-    const auto result = _path.FindClosestPoint(pose.position);
+    const auto end = _path.GetPointAtDistance(_path.GetTotalLength());
 
-    Vector2::Distance(pose.position, _path.)
-
-    return _path.GetTotalLength() - result.DistanceAlongPath <= destinationDistance || !_path.HasPath();
-    // return _t > 0.9 || !_path.HasPath();
+    return Vector2::Distance(pose.position, end) <= destinationDistance;
 }
 
 vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
