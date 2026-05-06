@@ -244,6 +244,43 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos
 
     return std::nullopt;
 }
+Vector3 ExplorerEngine::GetPreferredDirection()
+{
+    auto angle = -M_PI * 0.5;
+    if (_treasureCode.has_value()) {
+        switch (_treasureCode->id) {
+            case 10:
+                angle = 0;
+                break;
+            case 11:
+                angle = M_PI_2 * 0.5f;
+                break;
+            case 12:
+                angle = -M_PI_2 * 0.5f;
+                break;
+            default:
+                break;
+        }
+    } else if (_exitCode.has_value()) {
+        switch (_exitCode->id) {
+            case 0:
+                angle = 0;
+                break;
+            case 1:
+                angle = M_PI_2 * 0.5f;
+                break;
+            case 2:
+                angle = -M_PI_2 * 0.5f;
+                break;
+            default:
+                break;
+        }
+    }
+
+    _exitCode = std::nullopt;
+    _treasureCode = std::nullopt;
+    return quatRotate(Quaternion(vec3::Up, angle), _junctionEnterDirection);
+}
 
 void ExplorerEngine::Update()
 {
@@ -330,7 +367,9 @@ void ExplorerEngine::Publish() const
 
 void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
-    _aruCode = aruCode;
+    if (aruCode.id >= 10) _treasureCode = aruCode;
+    else _exitCode = aruCode;
+
      std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward.x << " " << aruCode.pose.forward.y << std::endl;
 }
 

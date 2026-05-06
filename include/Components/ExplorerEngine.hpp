@@ -30,11 +30,11 @@ public:
 private:
     struct ExplorerResult {
         std::optional<Vector2Int> target;
-        std::vector<tf2::Vector3> path;
+        std::vector<Vector3> path;
     };
 
-    nav::Grid<bool> _grid;
-    nav::GridMap _map;
+    Grid<bool> _grid;
+    GridMap _map;
 
     std::shared_ptr<MappingEngine> _mapping;
     std::shared_ptr<NavigatorEngine> _navigatorController;
@@ -44,28 +44,29 @@ private:
 
     Vector3 _junctionEnterDirection;
 
-    vector<tf2::Vector3> _path;
-    vector<tf2::Vector3> _options;
+    vector<Vector3> _path;
+    vector<Vector3> _options;
 
-    std::optional<CodeDetectedEvent> _aruCode = std::nullopt;
-
+    std::optional<CodeDetectedEvent> _exitCode = std::nullopt;
+    std::optional<CodeDetectedEvent> _treasureCode = std::nullopt;
 
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
 
-
     TimerBase::SharedPtr _startTimer;
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
 
-    ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell);
+    ExplorerResult Explore(const Vector3 &inDirection, Vector2Int startCell);
 
-    std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const tf2::Vector3& forward, const tf2::Vector3& preferred) const;
+    std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const Vector3& forward, const Vector3& preferred) const;
 
     std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const;
 
-    std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
+    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector3& position) const;
+
+    Vector3 GetPreferredDirection();
 
     void Publish() const;
 
