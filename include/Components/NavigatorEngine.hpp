@@ -21,7 +21,7 @@ public:
     [[nodiscard]] bool IsInDestination() const;
     void ClearPath();
 
-    void SetDestination(GridCell* destination); // todo: move this to somewhere else
+    void SetDestination(GridCell* destination);
 
 private:
     double _currentAngularVelocity = 0.0;
@@ -33,7 +33,7 @@ private:
     Pid _angularPid;
 
     TimerBase::SharedPtr _timer;
-    std::shared_ptr<MotorDriver> _motor; // todo: change naming of MotorController
+    std::shared_ptr<MotorDriver> _motor;
     std::shared_ptr<MappingEngine> _slam;
 
     LinearPath _path;
@@ -45,7 +45,8 @@ private:
 
     void PublishPath() const;
     void PublishRayCast(const std::vector<RayHit>& hits, const Pose& pose, const Vector2& desiredDirection) const;
-    double GetLinearVelocity(const Pose& pose, double t, double delta) const;
+    double GetLinearVelocity(const Pose& pose, double t, double minDistance, double delta) const;
+    static double ClosestDistance(const std::vector<RayHit>& rayHits, const Pose& pose);
 
     void Update();
 

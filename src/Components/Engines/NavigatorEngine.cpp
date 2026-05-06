@@ -14,6 +14,7 @@ constexpr double destinationDistance = 0.05;
 
 constexpr double maxLinearSpeed = 0.15;
 constexpr double maxAngularSpeed = 0.15;
+constexpr double maxReverseSpeed = 0.08;
 
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
@@ -73,7 +74,7 @@ void NavigatorEngine::PublishPath() const
     const double totalLength = _path.GetTotalLength();
 
     for (int i = 0; i <= samples; i++) {
-        double distance = (static_cast<double>(i) / samples) * totalLength;
+        const double distance = (static_cast<double>(i) / samples) * totalLength;
         const auto position = _path.GetPointAtDistance(distance);
 
         poseMsg.pose.position.x = position.x;
@@ -174,7 +175,6 @@ void NavigatorEngine::SetDestination(GridCell* destination)
     SetPath(points);
 }
 
-
 void NavigatorEngine::ClearPath()
 {
     _path.Initialize({});
@@ -195,7 +195,7 @@ vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
     vector<RayHit> hits;
 
     auto angle = pose.rotation + M_PI * 0.5f;
-    const auto angleStep = M_PI * 2 / rayCount;
+    constexpr auto angleStep = M_PI * 2 / rayCount;
 
     for (auto i = 0; i < rayCount; i++) {
         RayHit rayHit;
@@ -211,8 +211,7 @@ vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
     return hits;
 }
 
-void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pose,
-    const Vector2& desiredDirection) const
+void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pose, const Vector2& desiredDirection) const
 {
     visualization_msgs::msg::MarkerArray markerArray;
 
@@ -282,8 +281,7 @@ void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pos
     _rayCastPublisher->publish(markerArray);
 }
 
-Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose& pose,
-    const Vector2& desiredDirection)
+Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose& pose, const Vector2& desiredDirection)
 {
     Vector2 avoidance(0, 0);
     for (const auto& rayHit : rayHits) {
@@ -298,15 +296,33 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
     return (desiredDirection + avoidance).Normalized();
 }
 
-double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
+double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double minDistance, const double delta) const
 {
     const auto d = Vector2::Dot(pose.forward, (_path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position).Normalized());
-    const auto difference = d * d * d;
+    const auto difference = d * std::abs(d);
 
-    const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * difference;
+    auto targetSpeed = maxLinearSpeed * difference;
+    if (d < -0.3 ||  minDistance < 0.05)
+        targetSpeed = -maxReverseSpeed;
+
     const auto acc = targetSpeed > _currentLinearVelocity ? acceleration : deceleration;
+    return MoveTowards(_currentLinearVelocity, targetSpeed, acc * delta);
+}
 
-    return MoveTowards(_currentLinearVelocity, targetSpeed, acc * maxLinearSpeed * delta);
+double NavigatorEngine::ClosestDistance(const std::vector<RayHit>& rayHits, const Pose& pose)
+{
+    double closest = std::numeric_limits<double>::max();
+
+    for (const auto& rayHit : rayHits) {
+        const auto dot = Vector2::Dot(pose.forward, (rayHit.hit - pose.position).Normalized());
+        if (dot <= 0) continue;
+
+        const auto dist = Vector2::Distance(pose.position, rayHit.hit);
+        if (dist < closest)
+            closest = dist;
+    }
+
+    return closest;
 }
 
 void NavigatorEngine::Update()
@@ -337,14 +353,15 @@ void NavigatorEngine::Update()
     const auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
     const auto rayHits = RayCastAround(pose);
     const auto desiredDirection = GetDirection(rayHits, pose, (aimPoint - pose.position).Normalized());
+    const auto minDistanceToObstacle = ClosestDistance(rayHits, pose);
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
-    const auto maxTurnAtSpeed = maxAngularSpeed;
-    const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+    _currentLinearVelocity = GetLinearVelocity(pose, t, minDistanceToObstacle, deltaTime);
 
-    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxTurnAtSpeed, maxTurnAtSpeed);
-    _currentLinearVelocity = GetLinearVelocity(pose, t, deltaTime);
+    const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+    const auto maxAngular = _currentLinearVelocity < 0 ? maxAngularSpeed * 0.5 : maxAngularSpeed;
+    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngular, maxAngular);
 
     const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
