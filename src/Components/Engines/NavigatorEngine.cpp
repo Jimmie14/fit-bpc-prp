@@ -11,17 +11,10 @@ constexpr double avoidanceStrength = 2.0;
 
 constexpr double aimDistance = 0.3;
 constexpr double destinationDistance = 0.05;
-constexpr double distanceToSlow = 0.5;
-
-constexpr int lookAheadWaypoints = 3;
-constexpr double cornerSlowMinFactor = 0.25;
-constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
-constexpr double cornerSlowAngleMax = M_PI / 2.0;
 
 constexpr double maxLinearSpeed = 0.15;
 constexpr double maxAngularSpeed = 0.15;
 
-constexpr double turnDeceleration = 1.5;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
 
