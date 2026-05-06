@@ -76,7 +76,7 @@ void NavigatorEngine::PublishPath() const
     if (!_path.HasPath())
         return;
 
-    const int samples = 500;
+    constexpr int samples = 500;
     const double totalLength = _path.GetTotalLength();
 
     for (int i = 0; i <= samples; i++) {
@@ -306,7 +306,7 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
 
 double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
 {
-    const auto d = Vector2::Dot(pose.forward, _path.GetPointAtDistance(t * _path.GetTotalLength()));
+    const auto d = Vector2::Dot(pose.forward, _path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position);
     const auto difference = d * d * d;
 
     const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * difference;
@@ -346,9 +346,13 @@ void NavigatorEngine::Update()
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
+    const auto speedRatio = abs(_currentLinearVelocity) / maxLinearSpeed;
+    const float turnFactor = pow(1.0 - speedRatio, 2);
+
+    const auto maxTurnAtSpeed = maxAngularSpeed * turnFactor;
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
 
-    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
+    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxTurnAtSpeed, maxTurnAtSpeed);
     _currentLinearVelocity = GetLinearVelocity(pose, t, deltaTime);
 
     const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
