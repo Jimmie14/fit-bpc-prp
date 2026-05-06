@@ -98,6 +98,18 @@ public:
         _data[index] = value;
     }
 
+    void setChecked(const int x, const int y, const T value)
+    {
+        if (!inBounds(x, y)) return;
+
+        _data[coordToIndex(x, y)] = value;
+    }
+
+    [[nodiscard]] bool inBounds(const int x, const int y) const
+    {
+        return x >= 0 && x < _width && y >= 0 && y < _height;
+    }
+
     [[nodiscard]] int coordToIndex(const int x, const int y) const
     {
         return y * _width + x;

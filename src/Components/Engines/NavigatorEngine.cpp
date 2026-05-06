@@ -62,9 +62,9 @@ NavigatorEngine::NavigatorEngine(const App& app)
 
 void NavigatorEngine::SetPath(std::vector<Vector2>& path)
 {
-    const auto waypoints = SmoothPath(path);
+    //const auto waypoints = SmoothPath(path);
 
-    _path.Initialize(waypoints);
+    _path.Initialize(path);
 }
 
 void NavigatorEngine::PublishPath() const
@@ -459,6 +459,10 @@ void NavigatorEngine::Update()
 void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)
 {
     if (event.newState == MappingEngineState::Lost) {
+        ClearPath();
+    }
+
+    if (event.oldState == MappingEngineState::Lost && event.newState == MappingEngineState::Stable) {
         ClearPath();
     }
 }

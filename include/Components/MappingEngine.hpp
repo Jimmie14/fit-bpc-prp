@@ -21,6 +21,29 @@ enum class MappingEngineState {
     Lost,
 };
 
+inline std::ostream& operator<<(std::ostream& os, MappingEngineState state)
+{
+    switch (state) {
+    case MappingEngineState::Initializing:
+        os << "Initializing";
+        break;
+    case MappingEngineState::Stable:
+        os << "Stable";
+        break;
+    case MappingEngineState::Degraded:
+        os << "Degraded";
+        break;
+    case MappingEngineState::Lost:
+        os << "Lost";
+        break;
+    default:
+        os << "Unknown";
+        break;
+    }
+
+    return os;
+}
+
 struct MappingEngineStateChangeEvent {
     MappingEngineState oldState;
     MappingEngineState newState;
