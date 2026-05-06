@@ -1,5 +1,33 @@
 ## [unreleased]
 
+### ⚙️ Miscellaneous Tasks
+
+- Removed unused constants
+## [1.5.1] - 2026-05-06
+
+### 🐛 Bug Fixes
+
+- Compilation bug in NavigatorEngine
+
+### ⚙️ Miscellaneous Tasks
+
+- Removed unused constants
+- Bump version to 1.5.1
+## [1.5.0] - 2026-05-06
+
+### 🐛 Bug Fixes
+
+- Bugs in NavigatorEngine
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.5.0
+
+### ◀️ Revert
+
+- ExplorerEngine GetCrossroadWays to previous version
+## [1.4.1] - 2026-05-06
+
 ### 🚀 Features
 
 - Add Grid.hpp abstraction
@@ -9,17 +37,36 @@
 - Refactor MazeEngine and add pose/map subscriptions with thinned map handling
 - Enhance MazeEngine with waypoint graph publishing and traversal logic
 - Integrate MazeEngine into the application and improve waypoint handling
+- Enhance ExplorerEngine with improved pathfinding and map handling
 - Add aruco detected event
 - Add buttons driver allowing to reset map
+- Refactor Explore method to return structured results and improve pathfinding logic
+- Add explorer debug topic
+- Add wall thicking before zhuang suent thinning
+- Enhance picking algorithm for direction in crossroad
+- Changed spline to linear
+- Improved exploring logic to go from junction to junction
+- Subscription to aru codes
+- Navigator better turning
 
 ### 🐛 Bug Fixes
 
 - GraphBuilder bugs
+- Minor bugs
+- Adjust pathfinding logic to handle neighbor count and update timer functionality
+- Major Explorer engine fixes
+- Navigator better handling
+- Fix explorer bug on straight lines considering it crossroad
+- Minor explorer fixes
 
 ### 🚜 Refactor
 
 - Minor Grid refactor
 - Major viz refactor
+
+### ⚙️ Miscellaneous Tasks
+
+- Bump version to 1.4.1
 
 ### ◀️ Revert
 
