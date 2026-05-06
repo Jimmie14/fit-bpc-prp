@@ -340,10 +340,7 @@ void NavigatorEngine::Update()
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
-    const auto speedRatio = abs(_currentLinearVelocity) / maxLinearSpeed;
-    const float turnFactor = 1;// pow(1.0 - speedRatio, 2);
-
-    const auto maxTurnAtSpeed = maxAngularSpeed * turnFactor;
+    const auto maxTurnAtSpeed = maxAngularSpeed;
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
 
     _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxTurnAtSpeed, maxTurnAtSpeed);
