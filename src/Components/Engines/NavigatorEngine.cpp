@@ -10,7 +10,7 @@ constexpr double avoidanceDistance = 0.2;
 constexpr double avoidanceStrength = 2.0;
 
 constexpr double aimDistance = 0.3;
-constexpr double destinationDistance = 0.1;
+constexpr double destinationDistance = 0.05;
 constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
@@ -192,6 +192,8 @@ bool NavigatorEngine::IsInDestination() const
     const auto pose = _slam->CurrentPose();
     const auto result = _path.FindClosestPoint(pose.position);
 
+    Vector2::Distance(pose.position, _path.)
+
     return _path.GetTotalLength() - result.DistanceAlongPath <= destinationDistance || !_path.HasPath();
     // return _t > 0.9 || !_path.HasPath();
 }
@@ -347,7 +349,7 @@ void NavigatorEngine::Update()
     PublishRayCast(rayHits, pose, desiredDirection);
 
     const auto speedRatio = abs(_currentLinearVelocity) / maxLinearSpeed;
-    const float turnFactor = pow(1.0 - speedRatio, 2);
+    const float turnFactor = 1;// pow(1.0 - speedRatio, 2);
 
     const auto maxTurnAtSpeed = maxAngularSpeed * turnFactor;
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);

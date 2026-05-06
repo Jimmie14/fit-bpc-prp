@@ -74,34 +74,24 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     auto dirNorm = inDirection.normalized();
     auto dirs = Vector2Int::EightDirections();
 
+    ranges::sort(dirs, [&](const auto& a, const auto& b) {
+       const auto va = Vector2(a).ToTf2().normalized();
+       const auto vb = Vector2(b).ToTf2().normalized();
+
+       const auto da = va.dot(dirNorm);
+       const auto db = vb.dot(dirNorm);
+
+       return da > db;
+   });
+
 
     visited.insert(startCell);
     auto next = std::optional(startCell);
-
-    const auto junction= GetCrossroadWays(visited, startCell, dirs);
-    if (junction.first.size() > 2) {
-        const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), dirNorm);
-        const auto result = PickFollowingDirection(startCell, junction.first, dirNorm, preferred);
-
-        visited = junction.second;
-        next = result;
-
-        _options.clear();
-        for (auto point : junction.first) {
-            _options.push_back(_map.coordToWorld(point));
-        }
-
-        const auto dir = Vector2((_map.coordToWorld(next.value()) - _map.coordToWorld(startCell)).normalized());
-
-        std::cout << "Before junction with count: " << junction.first.size() << std::endl;
-        std::cout << "Picking direction " << Vector2::SignedAngle(Vector2(dirNorm), dir) * (180 / M_PI)  << std::endl;
-    }
 
     while (next.has_value()) {
         auto current = next.value();
 
         path.push_back(_map.coordToWorld(current));
-        std::cout << "current: " << current.toString() << std::endl;
 
         std::vector<Vector2Int> options;
 
@@ -126,7 +116,7 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
             continue;
         }
 
-        const auto [ways, newVisited] = GetCrossroadWays(visited, current, dirs);
+        const auto [ways, newVisited] = GetCrossroadWays({}, current);
         if (ways.size() <= 2) {
             next = PickFollowingDirection(current, options, dirNorm, dirNorm);
             if (next.has_value())
@@ -167,7 +157,7 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
     return best;
 }
 
-std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start, const vector<Vector2Int>& directions) const
+std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const
 {
     std::vector<Vector2Int> ways;
     std::vector<Vector2Int> newWays;
@@ -181,7 +171,7 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
         iteration++;
 
         for (auto current : ways) {
-            for (auto direction : directions) {
+            for (auto direction : Vector2Int::EightDirections()) {
                 const auto next = current + direction;
 
                 if (!Walkable(_grid[next])) continue;
@@ -201,7 +191,7 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
     for (const auto& point : ways) {
         bool hasNeighbor = false;
 
-        for (const auto& direction : directions) {
+        for (const auto& direction : Vector2Int::EightDirections()) {
             if (!filtered.contains(point + direction)) continue;
 
             hasNeighbor = true;
@@ -269,16 +259,31 @@ void ExplorerEngine::Update()
         _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
         if (!_currentTarget.has_value()) break;
 
-        auto direction = pose.forward.ToTf2();
-        if (_aruCode.has_value())
-            direction = _aruCode->pose.forward.ToTf2();
 
-        const auto result = Explore(direction, _currentTarget.value());
+        const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
+        if (ways.size() <= 2) {
+            _junctionEnterDirection = pose.forward.ToTf2();
+        } else {
+            _options.clear();
+
+            for (auto way : ways) {
+                _options.push_back(_map.coordToWorld(way));
+            }
+
+            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), _junctionEnterDirection);
+
+            _currentTarget = PickFollowingDirection(_currentTarget.value(), ways, _junctionEnterDirection, preferred);
+        }
+
+
+        const auto result = Explore(_junctionEnterDirection, _currentTarget.value());
 
         _currentTarget = result.target;
         _path = result.path;
 
         auto navPath = vector<Vector2>();
+
+        navPath.push_back(pose.position);
 
         for (auto point : _path) {
             navPath.emplace_back(Vector2(point.x(), point.y()));
