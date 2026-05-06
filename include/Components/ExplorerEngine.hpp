@@ -1,5 +1,6 @@
 #pragma once
 
+#include "ArucoDetectionEngine.hpp"
 #include "MappingEngine.hpp"
 #include "Nav/GridMap.hpp"
 #include "NavigatorEngine.hpp"
@@ -42,6 +43,8 @@ private:
     std::optional<Vector2Int> _currentTarget = std::nullopt;
     vector<tf2::Vector3> _path;
 
+    std::optional<CodeDetectedEvent> _aruCode = std::nullopt;
+
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
@@ -60,5 +63,7 @@ private:
     std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
 
     void Publish() const;
+
+    void OnAruCode(CodeDetectedEvent aruCode);
 };
 } // namespace Manhattan::Core
