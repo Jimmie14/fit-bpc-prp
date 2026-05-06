@@ -1,7 +1,6 @@
 #include "NavigatorEngine.hpp"
 
 #include "OdometryEngine.hpp"
-#include "SplinePath.hpp"
 
 using namespace std;
 
@@ -11,18 +10,11 @@ constexpr double avoidanceDistance = 0.2;
 constexpr double avoidanceStrength = 2.0;
 
 constexpr double aimDistance = 0.3;
-constexpr double destinationDistance = 0.2;
-constexpr double distanceToSlow = 0.5;
-
-constexpr int lookAheadWaypoints = 3;
-constexpr double cornerSlowMinFactor = 0.25;
-constexpr double cornerSlowAngleThreshold = M_PI / 6.0;
-constexpr double cornerSlowAngleMax = M_PI / 2.0;
+constexpr double destinationDistance = 0.05;
 
 constexpr double maxLinearSpeed = 0.15;
 constexpr double maxAngularSpeed = 0.15;
 
-constexpr double turnDeceleration = 1.5;
 constexpr double acceleration = 0.05;
 constexpr double deceleration = 0.4;
 
@@ -52,7 +44,7 @@ NavigatorEngine::NavigatorEngine(const App& app)
     _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 1);
     _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 1);
 
-    _timer = create_wall_timer(10ms, // todo: timer frequency config duplication
+    _timer = create_wall_timer(10ms,
         [this] { Update(); });
 
     _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
@@ -60,11 +52,9 @@ NavigatorEngine::NavigatorEngine(const App& app)
     });
 }
 
-void NavigatorEngine::SetPath(std::vector<Vector2>& path)
+void NavigatorEngine::SetPath(const std::vector<Vector2>& path)
 {
-    const auto waypoints = SmoothPath(path);
-
-    _path.Initialize(waypoints);
+    _path.Initialize(path);
 }
 
 void NavigatorEngine::PublishPath() const
@@ -73,20 +63,24 @@ void NavigatorEngine::PublishPath() const
     msg.header.frame_id = "map";
     msg.header.stamp = now();
 
-    auto poseMsg = geometry_msgs::msg::PoseStamped();
-    poseMsg.header.stamp = msg.header.stamp;
-    poseMsg.header.frame_id = "map";
+    geometry_msgs::msg::PoseStamped poseMsg;
+    poseMsg.header = msg.header;
 
-    for (const auto& seg : _path.GetSegments()) {
-        for (int i = 1; i <= 60; i++) {
-            const auto position = seg.Evaluate(i / 60.0);
+    if (!_path.HasPath())
+        return;
 
-            poseMsg.pose.position.x = position.x;
-            poseMsg.pose.position.y = position.y;
-            poseMsg.pose.position.z = 0.0;
+    constexpr int samples = 500;
+    const double totalLength = _path.GetTotalLength();
 
-            msg.poses.push_back(poseMsg);
-        }
+    for (int i = 0; i <= samples; i++) {
+        double distance = (static_cast<double>(i) / samples) * totalLength;
+        const auto position = _path.GetPointAtDistance(distance);
+
+        poseMsg.pose.position.x = position.x;
+        poseMsg.pose.position.y = position.y;
+        poseMsg.pose.position.z = 0.0;
+
+        msg.poses.push_back(poseMsg);
     }
 
     _pathPublisher->publish(msg);
@@ -180,64 +174,20 @@ void NavigatorEngine::SetDestination(GridCell* destination)
     SetPath(points);
 }
 
-std::vector<Vector2> NavigatorEngine::SmoothPath(std::vector<Vector2>& path) const
-{
-    if (path.size() <= 2) {
-        return path;
-    }
-
-    size_t currentIndex = 0;
-
-    while (currentIndex < path.size() - 1) {
-        size_t furthestIndex = currentIndex + 1;
-
-        // Look for the furthest point we can see without hitting an obstacle
-        for (size_t i = path.size() - 1; i > currentIndex + 1; i--) {
-            const Vector2& p1 = path[currentIndex];
-            const Vector2& p2 = path[i];
-
-            Vector2 dir = (p2 - p1).Normalized();
-            double dist = Vector2::Distance(p1, p2);
-
-            RayHit hitInfo;
-
-            if (!_slam->RayCast(p1, dir, hitInfo, dist)) {
-                furthestIndex = i;
-                break;
-            }
-        }
-
-        const Vector2& startPt = path[currentIndex];
-        const Vector2& endPt = path[furthestIndex];
-        Vector2 lineDir = (endPt - startPt).Normalized();
-
-        // Project all intermediate staircase path onto the straight line segment
-        // to smooth out the transition between the two points
-        for (size_t j = currentIndex + 1; j < furthestIndex; j++) {
-            Vector2 v = path[j] - startPt;
-            double d = Vector2::Dot(v, lineDir);
-            path[j] = startPt + lineDir * d;
-        }
-
-        currentIndex = furthestIndex;
-    }
-
-    return path;
-}
 
 void NavigatorEngine::ClearPath()
 {
     _path.Initialize({});
-    _t = 0.0;
 }
 
 bool NavigatorEngine::IsInDestination() const
 {
-    const auto pose = _slam->CurrentPose();
-    const auto result = _path.FindClosestPoint(pose.position);
+    if (!_path.HasPath()) return true;
 
-    return _path.GetTotalLength() - result.DistanceAlongPath <= destinationDistance || !_path.HasPath();
-    // return _t > 0.9 || !_path.HasPath();
+    const auto pose = _slam->CurrentPose();
+    const auto end = _path.GetPointAtDistance(_path.GetTotalLength());
+
+    return Vector2::Distance(pose.position, end) <= destinationDistance;
 }
 
 vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
@@ -333,7 +283,7 @@ void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pos
 }
 
 Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose& pose,
-    const Vector2& desiredDirection) const
+    const Vector2& desiredDirection)
 {
     Vector2 avoidance(0, 0);
     for (const auto& rayHit : rayHits) {
@@ -348,45 +298,22 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
     return (desiredDirection + avoidance).Normalized();
 }
 
-double NavigatorEngine::GetCornerSlowFactor(const Pose& pose, const double currentT) const
+double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
 {
-    if (!_path.HasPath())
-        return 1.0;
+    const auto d = Vector2::Dot(pose.forward, (_path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position).Normalized());
+    const auto difference = d * d * d;
 
-    std::vector<Vector2> points;
-    points.reserve(lookAheadWaypoints + 1);
-    points.push_back(pose.position);
+    const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * difference;
+    const auto acc = targetSpeed > _currentLinearVelocity ? acceleration : deceleration;
 
-    auto t = currentT;
-    for (int i = 0; i < lookAheadWaypoints && t < 1.0; ++i) {
-        points.push_back(_path.GetPointAtDistance(t * _path.GetTotalLength()));
-        t = std::clamp(t + aimDistance, 0.0, 1.0);
-    }
-
-    if (points.size() < 3)
-        return 1.0;
-
-    double worstAngle = 0.0;
-
-    for (size_t i = 0; i + 2 < points.size(); ++i) {
-        const auto a = (points[i + 1] - points[i]).Normalized();
-        const auto b = (points[i + 2] - points[i + 1]).Normalized();
-        const auto angle = std::abs(Vector2::SignedAngle(a, b));
-        worstAngle = std::max(worstAngle, angle);
-    }
-
-    if (worstAngle <= cornerSlowAngleThreshold)
-        return 1.0;
-
-    t = clamp((worstAngle - cornerSlowAngleThreshold) / (cornerSlowAngleMax - cornerSlowAngleThreshold), 0.0, 1.0);
-    return 1.0 - t * (1.0 - cornerSlowMinFactor);
+    return MoveTowards(_currentLinearVelocity, targetSpeed, acc * maxLinearSpeed * delta);
 }
 
 void NavigatorEngine::Update()
 {
     const auto now = std::chrono::steady_clock::now();
     const duration<double> delta = now - _lastTime;
-    auto deltaTime = delta.count();
+    const auto deltaTime = delta.count();
 
     _lastTime = now;
 
@@ -405,60 +332,31 @@ void NavigatorEngine::Update()
     if (_path.GetTotalLength() <= 0)
         return;
 
-    _t = std::clamp((result.DistanceAlongPath + aimDistance) / _path.GetTotalLength(), 0.0, 1.0);
+    const auto t = std::clamp((result.DistanceAlongPath + aimDistance) / _path.GetTotalLength(), 0.0, 1.0);
 
-    auto aimPoint = _path.GetPointAtDistance(_t * _path.GetTotalLength());
-    auto directionToWaypoint = (aimPoint - pose.position).Normalized();
-
-    // auto currentWaypoint = _path.front();
-    // auto directionToWaypoint = (currentWaypoint->GetWorldPosition() - pose.position).Normalized();
-    //
-    // if (Vector2::Distance(pose.position, currentWaypoint->GetWorldPosition()) < waypointTolerance) {
-    //     _path.pop();
-    //     return;
-    // }
-
+    const auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
     const auto rayHits = RayCastAround(pose);
-    const auto desiredDirection = GetDirection(rayHits, pose, directionToWaypoint);
-
-    double forwardMinDist = rayDistance;
-    constexpr double robotHalfWidth = 0.06;
-
-    for (const auto& rayHit : rayHits) {
-        Vector2 relativePos = rayHit.hit - pose.position;
-        double forwardDist = Vector2::Dot(relativePos, pose.forward);
-        double sideDist = std::abs(Vector2::Dot(relativePos, Vector2(-pose.forward.y, pose.forward.x))); // Right axis
-
-        if (forwardDist > 0 && forwardDist < distanceToSlow && sideDist < robotHalfWidth)
-            forwardMinDist = std::min(forwardMinDist, forwardDist);
-    }
-    auto distanceFactor = clamp(forwardMinDist / distanceToSlow, 0.0, 1.0);
+    const auto desiredDirection = GetDirection(rayHits, pose, (aimPoint - pose.position).Normalized());
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
+    const auto maxTurnAtSpeed = maxAngularSpeed;
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-    // const auto angleToTarget = Vector2::SignedAngle(pose.forward, directionToWaypoint);
 
-    const auto angularSpeedTarget = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
-    // const auto angularSpeedTarget = clamp(angleToTarget * 2.0, -maxAngularSpeed, maxAngularSpeed);
-    _currentAngularVelocity = angularSpeedTarget;
+    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxTurnAtSpeed, maxTurnAtSpeed);
+    _currentLinearVelocity = GetLinearVelocity(pose, t, deltaTime);
 
-    const auto turnFactor = clamp(exp(-turnDeceleration * abs(angleToTarget)), 0.0, 1.0);
-    const auto cornerFactor = GetCornerSlowFactor(pose, _t);
-
-    const auto targetSpeed = maxLinearSpeed * clamp(distanceFactor * cornerFactor * turnFactor, 0.0, 1.0);
-
-    _currentLinearVelocity = MoveTowards(_currentLinearVelocity, targetSpeed,
-        (targetSpeed > _currentLinearVelocity ? acceleration : deceleration) * maxLinearSpeed * deltaTime);
-
-    const auto reverse = abs(angleToTarget) > M_PI * .9;
-    const auto speed = _kinematics.inverse(RobotSpeed { reverse ? -_currentLinearVelocity : _currentLinearVelocity, _currentAngularVelocity });
+    const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
     _motor->SetForce(speed.left, speed.right);
 }
 
 void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)
 {
     if (event.newState == MappingEngineState::Lost) {
+        ClearPath();
+    }
+
+    if (event.oldState == MappingEngineState::Lost && event.newState == MappingEngineState::Stable) {
         ClearPath();
     }
 }

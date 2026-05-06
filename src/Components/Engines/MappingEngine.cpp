@@ -188,7 +188,8 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 
     _app.Events->Publish(MappingEngineStateChangeEvent {
         .oldState = oldState,
-        .newState = newState });
+        .newState = newState
+    });
 }
 
 void MappingEngine::CreateHypothesis()
@@ -308,7 +309,7 @@ void MappingEngine::Publish()
 
     PublishPose();
     PublishGrid();
-    PublishGridMap();
+    // PublishGridMap();
 }
 
 void MappingEngine::PublishPose()
@@ -364,7 +365,6 @@ void MappingEngine::PublishGrid()
     for (auto x = 0; x < gridMsg.info.width; x++) {
         for (auto y = 0; y < gridMsg.info.height; y++) {
             auto cell = _grid.GetCell({ x, y });
-            auto cost = cell->GetCost();
 
             gridMsg.data[_grid.GetIndex(x, y)] = cell->IsUnknown() ? -1 : static_cast<int8_t>(cell->GetProbability() * 100.0);
         }
@@ -443,7 +443,7 @@ std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 {
     auto neighbours = std::vector<GridCell*>();
 
-    for (auto direction : Vector2Int::Directions()) {
+    for (auto direction : Vector2Int::directions()) {
         auto neighbourCell = _grid.GetCell(cell->GetGridPosition() + direction);
         if (neighbourCell == nullptr)
             continue;
@@ -469,9 +469,9 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
 
         rayHit.hit = _grid.GridToWorld(pos);
 
-        auto normalInt = Vector2Int::Zero();
+        auto normalInt = Vector2Int::zero();
 
-        for (auto dir : Vector2Int::Directions()) {
+        for (auto dir : Vector2Int::directions()) {
             const auto nCell = _grid.GetCell(pos + dir);
 
             if (nCell != nullptr && nCell->IsOccupied())
@@ -480,7 +480,7 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
             normalInt = normalInt + dir;
         }
 
-        if (normalInt != Vector2Int::Zero()) {
+        if (normalInt != Vector2Int::zero()) {
             rayHit.normal = Vector2(normalInt).Normalized();
 
             if (Vector2::Dot(rayHit.normal, direction) > 0.0)

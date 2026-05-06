@@ -105,6 +105,18 @@ inline visualization_msgs::msg::Marker text(
     return marker;
 }
 
+inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a = 1.0f)
+{
+    std_msgs::msg::ColorRGBA color;
+
+    color.r = r;
+    color.g = g;
+    color.b = b;
+    color.a = a;
+
+    return color;
+}
+
 
 class MarkerArrayBuilder {
 public:

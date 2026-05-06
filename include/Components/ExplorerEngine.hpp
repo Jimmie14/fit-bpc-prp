@@ -1,6 +1,8 @@
 #pragma once
 
+#include "ArucoDetectionEngine.hpp"
 #include "MappingEngine.hpp"
+#include "Nav/GridMap.hpp"
 #include "NavigatorEngine.hpp"
 #include "RosEngine.hpp"
 #include "Viz/Grid.hpp"
@@ -26,26 +28,47 @@ public:
     void OnDisable() override;
 
 private:
-    struct Cell {
-        bool value;
-        bool visited;
+    struct ExplorerResult {
+        std::optional<Vector2Int> target;
+        std::vector<tf2::Vector3> path;
     };
 
-    std::vector<Vector2> Explore(Vector2Int startCell) const;
-
-    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
-
-    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position) const;
-
-    TimerBase::SharedPtr _timer;
-    nav::Grid<Cell> _grid;
+    nav::Grid<bool> _grid;
+    nav::GridMap _map;
 
     std::shared_ptr<MappingEngine> _mapping;
     std::shared_ptr<NavigatorEngine> _navigatorController;
 
     ExplorerState _state = ExplorerState::Idle;
-    // std::optional<Vector2Int> _startCell = std::nullopt;
+    std::optional<Vector2Int> _currentTarget = std::nullopt;
+
+    Vector3 _junctionEnterDirection;
+
+    vector<tf2::Vector3> _path;
+    vector<tf2::Vector3> _options;
+
+    std::optional<CodeDetectedEvent> _aruCode = std::nullopt;
+
 
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
+
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
+
+
+    TimerBase::SharedPtr _startTimer;
+    TimerBase::SharedPtr _timer;
+    TimerBase::SharedPtr _publishTimer;
+
+    ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell);
+
+    std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const tf2::Vector3& forward, const tf2::Vector3& preferred) const;
+
+    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const;
+
+    std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
+
+    void Publish() const;
+
+    void OnAruCode(CodeDetectedEvent aruCode);
 };
 } // namespace Manhattan::Core

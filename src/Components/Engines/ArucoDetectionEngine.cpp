@@ -137,7 +137,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
             const auto worldPoint = Vector3(cameraPosition.x() + dir.x(), cameraPosition.y() + dir.y(), 0.0f);
             const auto gridCoord = _map.worldToCoord(worldPoint);
 
-            UpdateOrCreateCode(ids[i], gridCoord, robotRotation);
+            UpdateOrCreateCode(ids[i], gridCoord, static_cast<float>(robotRotation));
 
             cv::aruco::drawAxis(
                 frame,

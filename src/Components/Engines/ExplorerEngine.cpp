@@ -1,141 +1,245 @@
 #include "ExplorerEngine.hpp"
+
+#include "ArucoDetectionEngine.hpp"
+#include "MapThinningUnit.hpp"
+#include "Math/Vec3.hpp"
+#include "Viz/Marker.hpp"
 #include <stdexcept>
+#include <tf2/LinearMath/Quaternion.hpp>
 
 using namespace std;
+using namespace Manhattan::nav;
 
 namespace Manhattan::Core {
 ExplorerEngine::ExplorerEngine(const App& app)
-    : RosEngine(app, "explorer"), _grid(0, 0, 0)
+    : RosEngine(app, "explorer")
+    , _grid(0, 0, 0)
+    , _map(0, 0, 0)
 {
     _mapping = app.GetComponent<MappingEngine>();
     _navigatorController = app.GetComponent<NavigatorEngine>();
+
+    _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
+        _grid = event.grid;
+        _map = GridMap(_grid.width(), _grid.height(), _grid.resolution());
+    });
+
+    _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
+        OnAruCode(event);
+    });
 }
 
 void ExplorerEngine::OnEnable()
 {
-    // _startCell = _mapping->GetCell(_mapping->CurrentPose().position);
     _state = ExplorerState::Exploring;
 
-    _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-        this->OnMap(msg);
+    // _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
+    //     this->OnMap(msg);
+    // });
+
+    _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
+
+    _startTimer = create_wall_timer(1s, [this] {
+        _timer = create_wall_timer(100ms, [this] { Update(); });
+        _startTimer->reset();
     });
 
-    _timer = create_wall_timer(100ms, [this] { Update(); });
+    _publishTimer = create_wall_timer(1s, [this] {
+       Publish();
+    });
+
 }
 
 void ExplorerEngine::OnDisable()
 {
-    _timer.reset();
     _mapSubscription.reset();
+    _markerPublisher.reset();
+
+    _timer.reset();
+    _publishTimer.reset();
 }
 
-std::vector<Vector2> ExplorerEngine::Explore(const Vector2Int startCell) const
+static bool Walkable(const bool value)
 {
-    std::map<Vector2Int, Vector2Int> previous;
-    std::vector<Vector2Int> queue;
-    std::set<Vector2Int> visited;
+    return value;
+}
 
-    queue.push_back(startCell);
+ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell)
+{
+    vector<Vector3> path;
+
+    std::set<Vector2Int> visited;
     std::optional<Vector2Int> frontier = std::nullopt;
 
-    while (!queue.empty()) {
-        Vector2Int current = queue.front();
-        queue.erase(queue.begin());
+    auto dirNorm = inDirection.normalized();
+    auto dirs = Vector2Int::EightDirections();
 
-        int neighbourCount = 0;
-        for (auto dir : Vector2Int::EightDirections()) {
-            const auto neighbor = current + dir;
+    ranges::sort(dirs, [&](const auto& a, const auto& b) {
+       const auto va = Vector2(a).ToTf2().normalized();
+       const auto vb = Vector2(b).ToTf2().normalized();
 
-            if (visited.contains(neighbor))
-                continue;
+       const auto da = va.dot(dirNorm);
+       const auto db = vb.dot(dirNorm);
 
-            if (_grid[neighbor].visited)
-                continue;
+       return da > db;
+   });
 
-            if (!_grid[neighbor].value)
-                continue;
 
-            previous[neighbor] = current;
+    visited.insert(startCell);
+    auto next = std::optional(startCell);
 
-            queue.push_back(neighbor);
+    while (next.has_value()) {
+        auto current = next.value();
+
+        path.push_back(_map.coordToWorld(current));
+
+        std::vector<Vector2Int> options;
+
+        int neighbourCount = 1;
+        for (auto dir : dirs) {
+            Vector2Int neighbour = current + dir;
+            if (!_grid.inBounds(neighbour.x, neighbour.y)) continue;
+
+            if (!Walkable(_grid[neighbour])) continue;
+            if (visited.contains(neighbour)) continue;
+
             neighbourCount++;
+
+            options.push_back(neighbour);
+            visited.insert(neighbour);
         }
 
-        if (neighbourCount > 0) continue;
+        if (neighbourCount == 2) {
+            next = PickFollowingDirection(current, options, dirNorm, dirNorm);
+            if (next.has_value())
+                dirNorm = (_map.coordToWorld(next.value()) - _map.coordToWorld(current)).normalized();
+            continue;
+        }
+
+        const auto [ways, newVisited] = GetCrossroadWays({}, current);
+        if (ways.size() <= 2) {
+            next = PickFollowingDirection(current, options, dirNorm, dirNorm);
+            if (next.has_value())
+                dirNorm = (_map.coordToWorld(next.value()) - _map.coordToWorld(current)).normalized();
+            continue;
+        }
 
         frontier = current;
         break;
     }
 
-    std::vector<Vector2> path;
+    const auto target = frontier;
 
-    if (!frontier.has_value())
-        return path;
+    return ExplorerResult{ target, path };
+}
 
-    while (frontier.has_value() && frontier != startCell) {
-        path.push_back(_mapping->GridToWorld(frontier.value()));
+std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const Vector3& forward, const Vector3& preferred) const
+{
+    if (ways.empty()) return std::nullopt;
 
-        const auto it = previous.find(frontier.value());
-        if (it == previous.end()) {
-            return path;
+    auto bestScore = std::numeric_limits<float>::max();
+    auto best = ways.front();
+
+    for (auto point : ways) {
+        const auto dir = (_map.coordToWorld(point) - _map.coordToWorld(current)).normalized();
+        if (forward.dot(dir) < -0.4f) continue;
+
+        const auto forwardAngle = forward.angle(dir);
+        const auto preferredAngle = preferred.angle(dir);
+
+        const auto score = preferredAngle + 0.25f * forwardAngle;
+        if (score >= bestScore) continue;
+
+        bestScore = score;
+        best = point;
+    }
+
+    return best;
+}
+
+std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const
+{
+    std::vector<Vector2Int> ways;
+    std::vector<Vector2Int> newWays;
+
+
+    ways.push_back(start);
+
+    int iteration = 0;
+    while (!ways.empty()) {
+        if (iteration > 4) break;
+        iteration++;
+
+        for (auto current : ways) {
+            for (auto direction : Vector2Int::EightDirections()) {
+                const auto next = current + direction;
+
+                if (!Walkable(_grid[next])) continue;
+                if (visited.contains(next)) continue;
+
+                newWays.push_back(next);
+                visited.insert(next);
+            }
         }
 
-        frontier = it->second;
+        std::swap(ways, newWays);
+        newWays.clear();
     }
 
-    return path;
-}
+    std::unordered_set<Vector2Int, Vector2IntHash> filtered;
 
-void ExplorerEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
-{
-    auto grid = viz::nav::ToOccupancyGrid(*msg, 50);
+    for (const auto& point : ways) {
+        bool hasNeighbor = false;
 
-    if (_grid.width() != grid.width() || _grid.height() != grid.height())
-        _grid = nav::Grid<Cell>(grid.width(), grid.height(), grid.resolution());
+        for (const auto& direction : Vector2Int::EightDirections()) {
+            if (!filtered.contains(point + direction)) continue;
 
-    for (auto i = 0; i < grid.size(); i++) {
-        auto value = !grid[i];
-        auto gridCell = Cell{value,_grid[i].visited && value};
+            hasNeighbor = true;
+            break;
+        }
 
-        _grid.set(i, gridCell);
+        if (hasNeighbor) continue;
+
+        filtered.insert(point);
     }
+
+    vector<Vector2Int> result;
+
+    for (auto way : filtered) {
+        result.push_back(way);
+    }
+
+    return { result, visited };
 }
 
-std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos) const
+std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) const
 {
-    const auto intPos = _mapping->WorldToGrid(pos);
+    const auto intPos = Vector2Int(_map.worldToCoord(pos));
+
+    if (Walkable(_grid[intPos]))
+        return intPos;
 
     std::queue<Vector2Int> q;
     std::set<Vector2Int> visited;
 
     q.push(intPos);
+    visited.insert(intPos);
 
-    bool any = false;
     while (!q.empty()) {
         auto cell = q.front(); q.pop();
-        if (visited.contains(cell))
-            continue;
 
         for (auto direction : Vector2Int::EightDirections()) {
             const auto neighbour = cell + direction;
 
-            if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0)
-                continue;
+            if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0) continue;
+            if (visited.contains(neighbour)) continue;
 
-            if (_grid[neighbour].value)
+            if (Walkable(_grid[neighbour]))
                 return neighbour;
 
-            if (!any && _grid[neighbour].value)
-                any = true;
-
             q.push(neighbour);
+            visited.insert(neighbour);
         }
-
-        if (any) {
-            int i;
-        }
-
-        visited.insert(cell);
     }
 
     return std::nullopt;
@@ -143,19 +247,49 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector2& pos
 
 void ExplorerEngine::Update()
 {
-    if (_grid.size() == 0 || !_navigatorController->IsInDestination())
-        return;
+    if (_grid.size() == 0) return;
 
     switch (_state) {
     case ExplorerState::Idle:
         break;
 
     case ExplorerState::Exploring: {
-        auto startCell = ClosestOnThinnedMap(_mapping->CurrentPose().position);
-        if (!startCell.has_value()) return;
+        const auto pose = _mapping->CurrentPose();
 
-        auto path = Explore(startCell.value());
-        _navigatorController->SetPath(path);
+        _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
+        if (!_currentTarget.has_value()) break;
+
+
+        const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
+        if (ways.size() <= 2) {
+            _junctionEnterDirection = pose.forward.ToTf2();
+        } else {
+            _options.clear();
+
+            for (auto way : ways) {
+                _options.push_back(_map.coordToWorld(way));
+            }
+
+            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), _junctionEnterDirection);
+
+            _currentTarget = PickFollowingDirection(_currentTarget.value(), ways, _junctionEnterDirection, preferred);
+        }
+
+
+        const auto result = Explore(_junctionEnterDirection, _currentTarget.value());
+
+        _currentTarget = result.target;
+        _path = result.path;
+
+        auto navPath = vector<Vector2>();
+
+        navPath.push_back(pose.position);
+
+        for (auto point : _path) {
+            navPath.emplace_back(Vector2(point.x(), point.y()));
+        }
+
+        _navigatorController->SetPath(navPath);
         break;
     }
     case ExplorerState::Returning:
@@ -166,4 +300,38 @@ void ExplorerEngine::Update()
         throw std::out_of_range("Invalid ExplorerState");
     }
 }
+
+void ExplorerEngine::Publish() const
+{
+    auto markers = viz::marker::MarkerArrayBuilder();
+
+    markers.add(viz::marker::clear("map"));
+
+    if (_currentTarget != std::nullopt) {
+        const auto worldPoint = _map.coordToWorld(_currentTarget.value());
+
+        markers.add(viz::marker::point(worldPoint, "map"));
+    }
+
+    for (auto path : _path) {
+        markers.add(viz::marker::point(path, "map"));
+    }
+
+    for (auto option : _options) {
+        auto marker = viz::marker::point(option, "map");
+
+        marker.color = viz::marker::color(1, 0.5, 0);
+
+        markers.add(marker);
+    }
+
+    _markerPublisher->publish(markers.array);
+}
+
+void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
+{
+    _aruCode = aruCode;
+     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward.x << " " << aruCode.pose.forward.y << std::endl;
+}
+
 } // namespace Manhattan::Core

@@ -1,11 +1,14 @@
 #include "MapThinningUnit.hpp"
 
+#include "App.hpp"
 #include "Nav/Grid.hpp"
 #include "Viz/Grid.hpp"
 
 namespace Manhattan::Core {
 
 Grid<bool> ApplyMedianFilter(const Grid<bool>& grid);
+
+Grid<bool> ThickenWalls(const Grid<bool>& grid);
 
 Grid<bool> ZhangSuenThinning(const Grid<bool>& grid);
 
@@ -37,9 +40,11 @@ void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) 
 {
     auto grid = viz::nav::ToOccupancyGrid(*msg, 20);
 
+    grid = ThickenWalls(grid);
     grid = ApplyMedianFilter(grid);
     grid = ZhangSuenThinning(grid);
 
+    _app.Events->Publish(ThinnedMapEvent { grid });
     _mapPublisher->publish(viz::nav::ToOccupancyGridMessage(grid, "map"));
 }
 
@@ -61,6 +66,24 @@ Grid<bool> ApplyMedianFilter(const Grid<bool>& grid)
 
             result.set(x, y, trueCount >= 5);
         }
+    }
+
+    return result;
+}
+
+Grid<bool> ThickenWalls(const Grid<bool>& grid)
+{
+    auto result = grid;
+
+    for (auto i = 0; i < grid.size(); i++) {
+        if (grid[i]) continue;
+
+        const auto [x, y] = grid.indexToCoord(i);
+
+        result.setChecked(x + 1, y, false);
+        result.setChecked(x - 1, y, false);
+        result.setChecked(x, y + 1, false);
+        result.setChecked(x, y - 1, false);
     }
 
     return result;

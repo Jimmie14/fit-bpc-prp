@@ -124,7 +124,7 @@ struct Pose {
 
     [[nodiscard]] std::string ToString() const
     {
-        return "(pos=" + position.ToString() + ", theta=" + std::to_string(rotation) + ")";
+        return "(pos=" + position.toString() + ", theta=" + std::to_string(rotation) + ")";
     }
 };
 
