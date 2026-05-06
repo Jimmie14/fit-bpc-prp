@@ -169,49 +169,56 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
 
 std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start, const vector<Vector2Int>& directions) const
 {
-    std::vector<Vector2Int> frontier;
-    std::set<Vector2Int> endpoints;
+    std::vector<Vector2Int> ways;
+    std::vector<Vector2Int> newWays;
 
-    frontier.push_back(start);
-    visited.insert(start);
+
+    ways.push_back(start);
 
     int iteration = 0;
-    const int maxDepth = 4;
-
-    while (!frontier.empty() && iteration < maxDepth)
-    {
+    while (!ways.empty()) {
+        if (iteration > 4) break;
         iteration++;
 
-        std::vector<Vector2Int> nextFrontier;
+        for (auto current : ways) {
+            for (auto direction : directions) {
+                const auto next = current + direction;
 
-        for (const auto& current : frontier)
-        {
-            bool hasNeighbour = false;
-
-            for (const auto& dir : directions)
-            {
-                const Vector2Int next = current + dir;
-
-                if (visited.contains(next)) continue;
                 if (!Walkable(_grid[next])) continue;
+                if (visited.contains(next)) continue;
 
-                hasNeighbour = true;
+                newWays.push_back(next);
                 visited.insert(next);
-                nextFrontier.push_back(next);
             }
-
-            if (hasNeighbour) continue;
-
-            endpoints.insert(current);
         }
 
-        frontier = std::move(nextFrontier);
+        std::swap(ways, newWays);
+        newWays.clear();
     }
 
-    for (const auto& node : frontier)
-        endpoints.insert(node);
+    std::unordered_set<Vector2Int, Vector2IntHash> filtered;
 
-    std::vector<Vector2Int> result(endpoints.begin(), endpoints.end());
+    for (const auto& point : ways) {
+        bool hasNeighbor = false;
+
+        for (const auto& direction : directions) {
+            if (!filtered.contains(point + direction)) continue;
+
+            hasNeighbor = true;
+            break;
+        }
+
+        if (hasNeighbor) continue;
+
+        filtered.insert(point);
+    }
+
+    vector<Vector2Int> result;
+
+    for (auto way : filtered) {
+        result.push_back(way);
+    }
+
     return { result, visited };
 }
 
