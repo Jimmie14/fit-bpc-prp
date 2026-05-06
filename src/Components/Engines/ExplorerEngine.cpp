@@ -1,5 +1,6 @@
 #include "ExplorerEngine.hpp"
 
+#include "ArucoDetectionEngine.hpp"
 #include "MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
 #include "Viz/Marker.hpp"
@@ -21,6 +22,10 @@ ExplorerEngine::ExplorerEngine(const App& app)
     _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
         _grid = event.grid;
         _map = GridMap(_grid.width(), _grid.height(), _grid.resolution());
+    });
+
+    _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
+        OnAruCode(event);
     });
 }
 
@@ -263,10 +268,11 @@ void ExplorerEngine::Update()
         _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
         if (!_currentTarget.has_value()) break;
 
-        // const auto [ways, _] = GetCrossroadWays(_currentTarget.value(), Vector2Int::EightDirections());
-        // if (ways.size() > 2 && !_navigatorController->IsInDestination()) break;
+        auto direction = pose.forward.ToTf2();
+        if (_aruCode.has_value())
+            direction = _aruCode->pose.forward.ToTf2();
 
-        const auto result = Explore(pose.forward.ToTf2(), _currentTarget.value());
+        const auto result = Explore(direction, _currentTarget.value());
 
         _currentTarget = result.target;
         _path = result.path;
@@ -314,6 +320,12 @@ void ExplorerEngine::Publish() const
     }
 
     _markerPublisher->publish(markers.array);
+}
+
+void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
+{
+    _aruCode = aruCode;
+     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward.x << " " << aruCode.pose.forward.y << std::endl;
 }
 
 } // namespace Manhattan::Core
