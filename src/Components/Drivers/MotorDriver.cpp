@@ -1,5 +1,9 @@
 #include "MotorDriver.hpp"
 
+#include "App.hpp"
+#include "OdometryEngine.hpp"
+#include "RobotMode.hpp"
+
 using namespace std;
 using namespace rclcpp;
 using namespace std_msgs;
@@ -21,6 +25,18 @@ MotorDriver::MotorDriver(const App& app)
     _msg.data.push_back(127);
     _msg.data.push_back(127);
 
+    auto kinematics = app.GetComponent<OdometryEngine>()->GetKinematics();
+
+    _app.Events->Subscribe<MotorCommand>([this, kinematics](const MotorCommand& command) {
+        const auto [left, right] = kinematics.inverse(RobotSpeed { command.linear, command.angular });
+
+        SetForce(left, right);
+    });
+
+    _app.Events->Subscribe<RobotModeChangeEvent>([this](const RobotModeChangeEvent& event) {
+        _reverse = event.newMode.reverse;
+    });
+
     Enable();
 }
 
@@ -36,10 +52,17 @@ void MotorDriver::OnDisable()
     _timer.reset();
 }
 
-void MotorDriver::SetForce(double leftAngular, double rightAngular)
+void MotorDriver::SetForce(const double leftAngular, const double rightAngular)
 {
     auto left = leftAngular * ANGULAR_TO_SPEED;
     auto right = rightAngular * ANGULAR_TO_SPEED;
+
+    if (_reverse) {
+        std::swap(left, right);
+
+        left = -left;
+        right = -right;
+    }
 
     left = clamp(left, -1.0, 1.0);
     right = clamp(right, -1.0, 1.0);

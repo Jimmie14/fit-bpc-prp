@@ -7,19 +7,28 @@
 #include "RosDeviceDriver.hpp"
 
 namespace Manhattan::Core {
+
+struct MotorCommand {
+    double linear;
+    double angular;
+};
+
+
 class MotorDriver final : public RosDeviceDriver {
+public:
+    explicit MotorDriver(const App& app);
+
+    void SetForce(double leftAngular, double rightAngular);
+
+protected:
+    void OnEnable() override;
+
+    void OnDisable() override;
+private:
     Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
 
     TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
-
-public:
-    explicit MotorDriver(const App& app);
-
-    void OnEnable() override;
-
-    void OnDisable() override;
-
-    void SetForce(double leftAngular, double rightAngular);
+    bool _reverse = false;
 };
 } // namespace Manhattan::Core

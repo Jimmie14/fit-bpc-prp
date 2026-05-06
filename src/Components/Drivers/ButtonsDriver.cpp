@@ -28,11 +28,18 @@ void ButtonsDriver::OnDisable()
     _subscriber.reset();
 }
 
-void ButtonsDriver::OnButtons(const std_msgs::msg::UInt8& msg) const
+void ButtonsDriver::OnButtons(const std_msgs::msg::UInt8& msg)
 {
     const auto index = static_cast<int>(msg.data);
     if (index == 0) {
-        _app.GetComponent<MappingEngine>()->Reset();
+        _app.Events->Publish(RobotResetEvent { });
+    }
+
+    if (index == 1) {
+        const auto oldMode = _mode;
+        _mode.reverse = !_mode.reverse;
+
+        _app.Events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode});
     }
 }
 

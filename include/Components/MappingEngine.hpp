@@ -61,7 +61,9 @@ public:
 
     [[nodiscard]] Pose CurrentPose() const
     {
-        return _stablePose + _odomPoseDelta;
+        const auto pose = _stablePose + _odomPoseDelta;
+
+        return _reverse ? Pose(pose.position, pose.rotation + M_PI) : pose;
     }
 
     [[nodiscard]] double GetCellSize() const
@@ -71,8 +73,6 @@ public:
 
     [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
     [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
-
-    void Reset();
 
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
@@ -95,6 +95,7 @@ private:
 
     Pose _lastStoredPose = Pose::Identity();
     Pose _stablePose = Pose::Identity();
+    bool _reverse = false;
 
     PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;
@@ -108,6 +109,8 @@ private:
 
     std::mutex _mapLock;
     std::mutex _odomLock;
+
+    void Reset();
 
     void OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg);
 

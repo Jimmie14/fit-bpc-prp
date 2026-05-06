@@ -25,12 +25,13 @@ int main(const int argc, char* argv[])
 
     const auto app = make_shared<Core::App>();
 
+    app->AddEngine<Core::OdometryEngine>();
+
     app->AddDriver<Core::ImuDriver>()->Enable();
     app->AddDriver<Core::LidarDriver>()->Enable();
     app->AddDriver<Core::MotorDriver>()->Enable();
     app->AddDriver<Core::ButtonsDriver>()->Enable();
 
-    app->AddEngine<Core::OdometryEngine>();
     app->AddEngine<Core::LineEngine>();
 
     app->AddDriver<Core::UserInputDriver>();

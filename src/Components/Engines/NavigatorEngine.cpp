@@ -35,9 +35,9 @@ static double MoveTowards(const double current, const double target, const doubl
 namespace Manhattan::Core {
 NavigatorEngine::NavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
+    , _lastTime(std::chrono::steady_clock::now())
     , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
     , _angularPid(angularKp, angularKi, angularKd)
-    , _lastTime(std::chrono::steady_clock::now())
 {
     _motor = app.GetComponent<MotorDriver>();
     _slam = app.GetComponent<MappingEngine>();
@@ -334,9 +334,7 @@ void NavigatorEngine::Update()
     _lastTime = now;
 
     if (!_path.HasPath()) {
-        const auto speed = _kinematics.inverse(RobotSpeed { 0, 0 });
-
-        _motor->SetForce(speed.left, speed.right);
+        _app.Events->Publish(MotorCommand { 0, 0 });
         return;
     }
 
@@ -363,8 +361,7 @@ void NavigatorEngine::Update()
     const auto maxAngular = _currentLinearVelocity < 0 ? maxAngularSpeed * 0.5 : maxAngularSpeed;
     _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngular, maxAngular);
 
-    const auto speed = _kinematics.inverse(RobotSpeed { _currentLinearVelocity, _currentAngularVelocity });
-    _motor->SetForce(speed.left, speed.right);
+    _app.Events->Publish(MotorCommand { _currentLinearVelocity, _currentAngularVelocity });
 }
 
 void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)

@@ -1,5 +1,6 @@
 #include "MappingEngine.hpp"
 #include "LidarDriver.hpp"
+#include "RobotMode.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
@@ -26,6 +27,14 @@ MappingEngine::MappingEngine(const App& app)
 
     app.Events->Subscribe<LidarScan>([this](const LidarScan& scan) {
         this->OnLidar(scan.points);
+    });
+
+    app.Events->Subscribe<RobotResetEvent>([this](const RobotResetEvent& _) {
+        this->Reset();
+    });
+
+    app.Events->Subscribe<RobotModeChangeEvent>([this](const RobotModeChangeEvent& event) {
+        _reverse = event.newMode.reverse;
     });
 
     _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("slam/pose", 1);
@@ -136,7 +145,7 @@ void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
 
 void MappingEngine::UpdateState()
 {
-    constexpr auto lostTimeout = 10000ms;
+    constexpr auto lostTimeout = 10s;
 
     const auto timeNow = now();
 
