@@ -41,9 +41,12 @@ private:
 
     ExplorerState _state = ExplorerState::Idle;
     std::optional<Vector2Int> _currentTarget = std::nullopt;
+
     vector<tf2::Vector3> _path;
+    vector<tf2::Vector3> _options;
 
     std::optional<CodeDetectedEvent> _aruCode = std::nullopt;
+
 
     Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
 
@@ -54,11 +57,11 @@ private:
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
 
-    ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell) const;
+    ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell);
 
     std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const tf2::Vector3& forward, const tf2::Vector3& preferred) const;
 
-    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(const Vector2Int& start, const vector<Vector2Int>& directions) const;
+    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(std::set<Vector2Int> visited,  const Vector2Int& start, const vector<Vector2Int>& directions) const;
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
 

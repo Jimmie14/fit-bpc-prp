@@ -120,6 +120,12 @@ struct Vector2 {
     {
     }
 
+    explicit Vector2(const tf2::Vector3& v)
+        : x(v.x())
+        , y(v.y())
+    {
+    }
+
     Vector2 operator+(const Vector2& other) const
     {
         return Vector2(x + other.x, y + other.y);
