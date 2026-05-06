@@ -169,56 +169,50 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
 
 std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start, const vector<Vector2Int>& directions) const
 {
-    std::vector<Vector2Int> ways;
-    std::vector<Vector2Int> newWays;
+    std::vector<Vector2Int> frontier;
+    std::set<Vector2Int> endpoints;
 
-    ways.push_back(start);
+    frontier.push_back(start);
+    visited.insert(start);
 
     int iteration = 0;
-    while (!ways.empty()) {
-        if (iteration > 4) break;
+    const int maxDepth = 4;
+
+    while (!frontier.empty() && iteration < maxDepth)
+    {
         iteration++;
 
-        for (auto current : ways) {
-            for (auto direction : directions) {
-                const auto next = current + direction;
+        std::vector<Vector2Int> nextFrontier;
+
+        for (const auto& current : frontier)
+        {
+            bool hasNeighbour = false;
+
+            for (const auto& dir : directions)
+            {
+                const Vector2Int next = current + dir;
 
                 if (visited.contains(next)) continue;
                 if (!Walkable(_grid[next])) continue;
 
-                newWays.push_back(next);
+                hasNeighbour = true;
                 visited.insert(next);
+                nextFrontier.push_back(next);
             }
+
+            if (hasNeighbour) continue;
+
+            endpoints.insert(current);
         }
 
-        std::swap(ways, newWays);
-        newWays.clear();
+        frontier = std::move(nextFrontier);
     }
 
-    std::unordered_set<Vector2Int, Vector2IntHash> filtered;
+    for (const auto& node : frontier)
+        endpoints.insert(node);
 
-    for (const auto& point : ways) {
-        bool hasNeighbor = false;
-
-        for (const auto& direction : directions) {
-            if (!filtered.contains(point + direction)) continue;
-
-            hasNeighbor = true;
-            break;
-        }
-
-        if (hasNeighbor) continue;
-
-        filtered.insert(point);
-    }
-
-    ways.clear();
-
-    for (auto way : filtered) {
-        ways.push_back(way);
-    }
-
-    return { ways, visited };
+    std::vector<Vector2Int> result(endpoints.begin(), endpoints.end());
+    return { result, visited };
 }
 
 std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) const
