@@ -59,7 +59,7 @@ static bool Walkable(const bool value)
     return value;
 }
 
-ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell) const
+ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell)
 {
     vector<Vector3> path;
 
@@ -73,42 +73,45 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     visited.insert(startCell);
     auto next = std::optional(startCell);
 
-    const auto junction= GetCrossroadWays(startCell, dirs);
-    if (junction.first.size() > 1) {
+    const auto junction= GetCrossroadWays(visited, startCell, dirs);
+    if (junction.first.size() > 2) {
         const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), dirNorm);
         const auto result = PickFollowingDirection(startCell, junction.first, dirNorm, preferred);
 
         visited = junction.second;
         next = result;
 
-        std::cout << "Before juction with count: " << junction.first.size() << std::endl;
-        std::cout << "Picking direction " << next.value().toString() << std::endl;
+        _options.clear();
+        for (auto point : junction.first) {
+            _options.push_back(_map.coordToWorld(point));
+        }
+
+        const auto dir = Vector2((_map.coordToWorld(next.value()) - _map.coordToWorld(startCell)).normalized());
+
+        std::cout << "Before junction with count: " << junction.first.size() << std::endl;
+        std::cout << "Picking direction " << Vector2::SignedAngle(Vector2(dirNorm), dir) * (180 / M_PI)  << std::endl;
     }
 
     while (next.has_value()) {
         auto current = next.value();
+
         path.push_back(_map.coordToWorld(current));
+        std::cout << "current: " << current.toString() << std::endl;
 
         std::vector<Vector2Int> options;
 
-        int neighbourCount = 0;
+        int neighbourCount = 1;
         for (auto dir : dirs) {
             Vector2Int neighbour = current + dir;
             if (!_grid.inBounds(neighbour.x, neighbour.y)) continue;
 
             if (!Walkable(_grid[neighbour])) continue;
+            if (visited.contains(neighbour)) continue;
 
             neighbourCount++;
 
-            if (visited.contains(neighbour)) continue;
-
             options.push_back(neighbour);
             visited.insert(neighbour);
-        }
-
-        if (neighbourCount == 0) {
-            next = std::nullopt;
-            continue;
         }
 
         if (neighbourCount == 2) {
@@ -118,7 +121,7 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
             continue;
         }
 
-        const auto [ways, newVisited] = GetCrossroadWays(current, dirs);
+        const auto [ways, newVisited] = GetCrossroadWays(visited, current, dirs);
         if (ways.size() <= 2) {
             next = PickFollowingDirection(current, options, dirNorm, dirNorm);
             if (next.has_value())
@@ -159,11 +162,10 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
     return best;
 }
 
-std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(const Vector2Int& start, const vector<Vector2Int>& directions) const
+std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start, const vector<Vector2Int>& directions) const
 {
     std::vector<Vector2Int> ways;
     std::vector<Vector2Int> newWays;
-    std::set<Vector2Int> visited;
 
     ways.push_back(start);
 
@@ -186,8 +188,29 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
 
         std::swap(ways, newWays);
         newWays.clear();
+    }
 
+    std::unordered_set<Vector2Int, Vector2IntHash> filtered;
 
+    for (const auto& point : ways) {
+        bool hasNeighbor = false;
+
+        for (const auto& direction : directions) {
+            if (!filtered.contains(point + direction)) continue;
+
+            hasNeighbor = true;
+            break;
+        }
+
+        if (hasNeighbor) continue;
+
+        filtered.insert(point);
+    }
+
+    ways.clear();
+
+    for (auto way : filtered) {
+        ways.push_back(way);
     }
 
     return { ways, visited };
@@ -280,6 +303,14 @@ void ExplorerEngine::Publish() const
 
     for (auto path : _path) {
         markers.add(viz::marker::point(path, "map"));
+    }
+
+    for (auto option : _options) {
+        auto marker = viz::marker::point(option, "map");
+
+        marker.color = viz::marker::color(1, 0.5, 0);
+
+        markers.add(marker);
     }
 
     _markerPublisher->publish(markers.array);

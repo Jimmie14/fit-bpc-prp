@@ -10,7 +10,8 @@ constexpr double avoidanceDistance = 0.2;
 constexpr double avoidanceStrength = 2.0;
 
 constexpr double aimDistance = 0.3;
-constexpr double destinationDistance = 0.2;
+constexpr double destinationDistance = 0.04;
+constexpr double destinationFinalDistance = 0.2;
 constexpr double distanceToSlow = 0.5;
 
 constexpr int lookAheadWaypoints = 3;
@@ -236,11 +237,12 @@ void NavigatorEngine::ClearPath()
 
 bool NavigatorEngine::IsInDestination() const
 {
+    if (!_path.HasPath()) return true;
+
     const auto pose = _slam->CurrentPose();
     const auto result = _path.FindClosestPoint(pose.position);
 
-    return _path.GetTotalLength() - result.DistanceAlongPath <= destinationDistance || !_path.HasPath();
-    // return _t > 0.9 || !_path.HasPath();
+    return _path.GetTotalLength() - result.DistanceAlongPath <= destinationFinalDistance;
 }
 
 vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
