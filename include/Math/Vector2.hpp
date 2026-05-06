@@ -51,39 +51,44 @@ struct Vector2Int {
         return !(*this == other);
     }
 
-    static Vector2Int Zero()
+    [[nodiscard]] std::string toString() const
+    {
+        return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
+    }
+
+    static Vector2Int zero()
     {
         return Vector2Int(0, 0);
     }
 
-    static Vector2Int Up()
+    static Vector2Int up()
     {
         return Vector2Int(0, 1);
     }
 
-    static Vector2Int Down()
+    static Vector2Int down()
     {
         return Vector2Int(0, -1);
     }
 
-    static Vector2Int Left()
+    static Vector2Int left()
     {
         return Vector2Int(-1, 0);
     }
 
-    static Vector2Int Right()
+    static Vector2Int right()
     {
         return Vector2Int(1, 0);
     }
 
-    static std::vector<Vector2Int> Directions()
+    static std::vector<Vector2Int> directions()
     {
-        return { Up(), Right(), Down(), Left() };
+        return { up(), right(), down(), left() };
     }
 
     static std::vector<Vector2Int> EightDirections()
     {
-        return { Up(), Right(), Down(), Left(), Up() + Left(), Up() + Right(), Down() + Right(), Down() + Left() };
+        return { up(), right(), down(), left(), up() + left(), up() + right(), down() + right(), down() + left() };
     }
 };
 
@@ -203,7 +208,7 @@ struct Vector2 {
         return Vector2(0, 0);
     }
 
-    [[nodiscard]] std::string ToString() const
+    [[nodiscard]] std::string toString() const
     {
         return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
     }

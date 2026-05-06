@@ -61,30 +61,29 @@ static bool Walkable(const bool value)
 
 ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell) const
 {
-    std::unordered_map<Vector2Int, Vector2Int, Vector2IntHash> previous;
-
-    auto next = std::optional(startCell);
     vector<Vector3> path;
 
     std::set<Vector2Int> visited;
-
-    visited.insert(startCell);
     std::optional<Vector2Int> frontier = std::nullopt;
-
-    bool beforeJunction = true;
 
     auto dirNorm = inDirection.normalized();
     auto dirs = Vector2Int::EightDirections();
 
-    // ranges::sort(dirs, [&](const auto& a, const auto& b) {
-    //     const auto va = Vector2(a).ToTf2().normalized();
-    //     const auto vb = Vector2(b).ToTf2().normalized();
-    //
-    //     const auto da = va.dot(dirNorm);
-    //     const auto db = vb.dot(dirNorm);
-    //
-    //     return da > db;
-    // });
+
+    visited.insert(startCell);
+    auto next = std::optional(startCell);
+
+    const auto junction= GetCrossroadWays(startCell, dirs);
+    if (junction.first.size() > 1) {
+        const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), dirNorm);
+        const auto result = PickFollowingDirection(startCell, junction.first, dirNorm, preferred);
+
+        visited = junction.second;
+        next = result;
+
+        std::cout << "Before juction with count: " << junction.first.size() << std::endl;
+        std::cout << "Picking direction " << next.value().toString() << std::endl;
+    }
 
     while (next.has_value()) {
         auto current = next.value();
@@ -94,20 +93,17 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
 
         int neighbourCount = 0;
         for (auto dir : dirs) {
-            Vector2Int neighbor = current + dir;
-            if (neighbor.x < 0 || neighbor.x >= _grid.width() ||
-                neighbor.y < 0 || neighbor.y >= _grid.height())
-                continue;
+            Vector2Int neighbour = current + dir;
+            if (!_grid.inBounds(neighbour.x, neighbour.y)) continue;
 
-            if (!Walkable(_grid[neighbor])) continue;
+            if (!Walkable(_grid[neighbour])) continue;
 
             neighbourCount++;
 
-            if (visited.contains(neighbor)) continue;
+            if (visited.contains(neighbour)) continue;
 
-            previous[neighbor] = current;
-            options.push_back(neighbor);
-            visited.insert(neighbor);
+            options.push_back(neighbour);
+            visited.insert(neighbour);
         }
 
         if (neighbourCount == 0) {
@@ -123,24 +119,10 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
         }
 
         const auto [ways, newVisited] = GetCrossroadWays(current, dirs);
-        if (ways.empty()) {
+        if (ways.size() <= 2) {
             next = PickFollowingDirection(current, options, dirNorm, dirNorm);
             if (next.has_value())
                 dirNorm = (_map.coordToWorld(next.value()) - _map.coordToWorld(current)).normalized();
-            continue;
-        }
-
-        if (beforeJunction) {
-            if (ways.size() != 2) {
-                beforeJunction = false;
-            }
-
-            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), dirNorm);
-            next = PickFollowingDirection(current, ways, dirNorm, preferred);
-            previous[next.value()] = current;
-
-            visited = newVisited;
-
             continue;
         }
 
@@ -258,8 +240,8 @@ void ExplorerEngine::Update()
         _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
         if (!_currentTarget.has_value()) break;
 
-        const auto [ways, _] = GetCrossroadWays(_currentTarget.value(), Vector2Int::EightDirections());
-        if (ways.size() > 2 && !_navigatorController->IsInDestination()) break;
+        // const auto [ways, _] = GetCrossroadWays(_currentTarget.value(), Vector2Int::EightDirections());
+        // if (ways.size() > 2 && !_navigatorController->IsInDestination()) break;
 
         const auto result = Explore(pose.forward.ToTf2(), _currentTarget.value());
 

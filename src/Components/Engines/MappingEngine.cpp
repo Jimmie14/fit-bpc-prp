@@ -443,7 +443,7 @@ std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 {
     auto neighbours = std::vector<GridCell*>();
 
-    for (auto direction : Vector2Int::Directions()) {
+    for (auto direction : Vector2Int::directions()) {
         auto neighbourCell = _grid.GetCell(cell->GetGridPosition() + direction);
         if (neighbourCell == nullptr)
             continue;
@@ -469,9 +469,9 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
 
         rayHit.hit = _grid.GridToWorld(pos);
 
-        auto normalInt = Vector2Int::Zero();
+        auto normalInt = Vector2Int::zero();
 
-        for (auto dir : Vector2Int::Directions()) {
+        for (auto dir : Vector2Int::directions()) {
             const auto nCell = _grid.GetCell(pos + dir);
 
             if (nCell != nullptr && nCell->IsOccupied())
@@ -480,7 +480,7 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
             normalInt = normalInt + dir;
         }
 
-        if (normalInt != Vector2Int::Zero()) {
+        if (normalInt != Vector2Int::zero()) {
             rayHit.normal = Vector2(normalInt).Normalized();
 
             if (Vector2::Dot(rayHit.normal, direction) > 0.0)
