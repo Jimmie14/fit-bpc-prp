@@ -52,7 +52,10 @@ private:
     TimerBase::SharedPtr _publishTimer;
 
     ExplorerResult Explore(const tf2::Vector3 &inDirection, Vector2Int startCell) const;
-    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(const Vector2Int& start, vector<Vector2Int>& directions) const;
+
+    std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const tf2::Vector3& forward, const tf2::Vector3& preferred) const;
+
+    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(const Vector2Int& start, const vector<Vector2Int>& directions) const;
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const tf2::Vector3& position) const;
 

@@ -1,8 +1,10 @@
 #include "ExplorerEngine.hpp"
 
 #include "MapThinningUnit.hpp"
+#include "Math/Vec3.hpp"
 #include "Viz/Marker.hpp"
 #include <stdexcept>
+#include <tf2/LinearMath/Quaternion.hpp>
 
 using namespace std;
 using namespace Manhattan::nav;
@@ -60,31 +62,35 @@ static bool Walkable(const bool value)
 ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell) const
 {
     std::unordered_map<Vector2Int, Vector2Int, Vector2IntHash> previous;
-    std::queue<Vector2Int> queue;
+
+    auto next = std::optional(startCell);
+    vector<Vector3> path;
+
     std::set<Vector2Int> visited;
 
-    queue.push(startCell);
     visited.insert(startCell);
     std::optional<Vector2Int> frontier = std::nullopt;
 
     bool beforeJunction = true;
 
-    const auto dirNorm = inDirection.normalized();
+    auto dirNorm = inDirection.normalized();
     auto dirs = Vector2Int::EightDirections();
 
-    // Sort directions to prioritize inDirection
-    ranges::sort(dirs, [&](const auto& a, const auto& b) {
-        const auto va = Vector2(a).ToTf2().normalized();
-        const auto vb = Vector2(b).ToTf2().normalized();
+    // ranges::sort(dirs, [&](const auto& a, const auto& b) {
+    //     const auto va = Vector2(a).ToTf2().normalized();
+    //     const auto vb = Vector2(b).ToTf2().normalized();
+    //
+    //     const auto da = va.dot(dirNorm);
+    //     const auto db = vb.dot(dirNorm);
+    //
+    //     return da > db;
+    // });
 
-        const auto da = va.dot(dirNorm);
-        const auto db = vb.dot(dirNorm);
+    while (next.has_value()) {
+        auto current = next.value();
+        path.push_back(_map.coordToWorld(current));
 
-        return da > db;
-    });
-
-    while (!queue.empty()) {
-        Vector2Int current = queue.front(); queue.pop();
+        std::vector<Vector2Int> options;
 
         int neighbourCount = 0;
         for (auto dir : dirs) {
@@ -100,41 +106,43 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
             if (visited.contains(neighbor)) continue;
 
             previous[neighbor] = current;
-            queue.push(neighbor);
+            options.push_back(neighbor);
             visited.insert(neighbor);
         }
 
-        if (neighbourCount == 2) continue;
+        if (neighbourCount == 0) {
+            next = std::nullopt;
+            continue;
+        }
+
+        if (neighbourCount == 2) {
+            next = PickFollowingDirection(current, options, dirNorm, dirNorm);
+            if (next.has_value())
+                dirNorm = (_map.coordToWorld(next.value()) - _map.coordToWorld(current)).normalized();
+            continue;
+        }
 
         const auto [ways, newVisited] = GetCrossroadWays(current, dirs);
-        if (ways.size() == 2 || ways.empty()) continue;
+        if (ways.empty()) {
+            next = PickFollowingDirection(current, options, dirNorm, dirNorm);
+            if (next.has_value())
+                dirNorm = (_map.coordToWorld(next.value()) - _map.coordToWorld(current)).normalized();
+            continue;
+        }
 
         if (beforeJunction) {
-            beforeJunction = false;
-
-            auto max = -1.0;
-            auto newWay = ways.front();
-
-            for (auto point : ways) {
-                const auto dir = (_map.coordToWorld(point) - _map.coordToWorld(current)).normalized();
-
-
-                const auto dot = dir.dot(dirNorm);
-                if (dot > max) {
-                    max = dot;
-                    newWay = point;
-                }
+            if (ways.size() != 2) {
+                beforeJunction = false;
             }
 
-            queue = std::queue<Vector2Int>();
-            queue.push(newWay);
+            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), dirNorm);
+            next = PickFollowingDirection(current, ways, dirNorm, preferred);
+            previous[next.value()] = current;
 
-            previous[newWay] = current;
             visited = newVisited;
 
             continue;
         }
-
 
         frontier = current;
         break;
@@ -142,27 +150,34 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
 
     const auto target = frontier;
 
-    std::vector<Vector3> path;
-    if (!frontier.has_value())
-        return ExplorerResult{ target, path };
-
-    Vector2Int current = *frontier;
-
-    while (current != startCell) {
-        path.push_back(_map.coordToWorld(current));
-
-        const auto it = previous.find(current);
-        if (it == previous.end())
-            return ExplorerResult{ target, {} };
-
-        current = it->second;
-    }
-
-    ranges::reverse(path);
     return ExplorerResult{ target, path };
 }
 
-std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(const Vector2Int& start, vector<Vector2Int>& directions) const
+std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const Vector3& forward, const Vector3& preferred) const
+{
+    if (ways.empty()) return std::nullopt;
+
+    auto bestScore = std::numeric_limits<float>::max();
+    auto best = ways.front();
+
+    for (auto point : ways) {
+        const auto dir = (_map.coordToWorld(point) - _map.coordToWorld(current)).normalized();
+        if (forward.dot(dir) < -0.4f) continue;
+
+        const auto forwardAngle = forward.angle(dir);
+        const auto preferredAngle = preferred.angle(dir);
+
+        const auto score = preferredAngle + 0.25f * forwardAngle;
+        if (score >= bestScore) continue;
+
+        bestScore = score;
+        best = point;
+    }
+
+    return best;
+}
+
+std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(const Vector2Int& start, const vector<Vector2Int>& directions) const
 {
     std::vector<Vector2Int> ways;
     std::vector<Vector2Int> newWays;
@@ -231,8 +246,7 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos
 
 void ExplorerEngine::Update()
 {
-    if (_grid.size() == 0 || !_navigatorController->IsInDestination())
-        return;
+    if (_grid.size() == 0) return;
 
     switch (_state) {
     case ExplorerState::Idle:
@@ -241,22 +255,13 @@ void ExplorerEngine::Update()
     case ExplorerState::Exploring: {
         const auto pose = _mapping->CurrentPose();
 
-        // if (!_currentTarget.has_value()) {
-        //     _currentTarget = ClosestOnThinnedMap(pose.position);
-        //
-        //     if (!_currentTarget.has_value())
-        //         return;
-        //
-        //     auto target = *_currentTarget;
-        //     std::cout << "Got new target: " << target.x << " " << target.y << std::endl;
-        // }
-
         _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
-        if (!_currentTarget.has_value()) return;
+        if (!_currentTarget.has_value()) break;
 
+        const auto [ways, _] = GetCrossroadWays(_currentTarget.value(), Vector2Int::EightDirections());
+        if (ways.size() > 2 && !_navigatorController->IsInDestination()) break;
 
         const auto result = Explore(pose.forward.ToTf2(), _currentTarget.value());
-
 
         _currentTarget = result.target;
         _path = result.path;
