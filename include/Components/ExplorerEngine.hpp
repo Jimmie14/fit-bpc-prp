@@ -36,6 +36,8 @@ private:
     Grid<bool> _grid;
     GridMap _map;
 
+    bool _inJunction = false;
+
     std::shared_ptr<MappingEngine> _mapping;
     std::shared_ptr<NavigatorEngine> _navigatorController;
 
@@ -54,6 +56,8 @@ private:
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _markerPublisher;
 
+    std::mutex _mutex;
+
     TimerBase::SharedPtr _startTimer;
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
@@ -66,7 +70,7 @@ private:
 
     std::optional<Vector2Int> ClosestOnThinnedMap(const Vector3& position) const;
 
-    Vector3 GetPreferredDirection();
+    Vector3 GetPreferredDirection() const;
 
     void Publish() const;
 

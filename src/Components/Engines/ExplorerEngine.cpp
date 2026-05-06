@@ -244,41 +244,44 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos
 
     return std::nullopt;
 }
-Vector3 ExplorerEngine::GetPreferredDirection()
+
+Vector3 ExplorerEngine::GetPreferredDirection() const
 {
+    auto getAngleFromId = [](const int id) {
+        switch (id) {
+        case 0:
+        case 10:
+            return 0.0;
+        case 1:
+        case 11:
+            return M_PI_2 * 0.5f;
+        case 2:
+        case 12:
+            return -M_PI_2 * 0.5f;
+        default:
+            return -M_PI * 0.5;
+        }
+    };
+
     auto angle = -M_PI * 0.5;
+
     if (_treasureCode.has_value()) {
-        switch (_treasureCode->id) {
-            case 10:
-                angle = 0;
-                break;
-            case 11:
-                angle = M_PI_2 * 0.5f;
-                break;
-            case 12:
-                angle = -M_PI_2 * 0.5f;
-                break;
-            default:
-                break;
-        }
-    } else if (_exitCode.has_value()) {
-        switch (_exitCode->id) {
-            case 0:
-                angle = 0;
-                break;
-            case 1:
-                angle = M_PI_2 * 0.5f;
-                break;
-            case 2:
-                angle = -M_PI_2 * 0.5f;
-                break;
-            default:
-                break;
-        }
+        // const auto treasureAngle = getAngleFromId(_treasureCode->id);
+        //
+        // if (_exitCode.has_value()) {
+        //     const auto exitAngle = getAngleFromId(_exitCode->id);
+        //
+        //     angle = exitAngle - treasureAngle;
+        // } else {
+        //     angle = treasureAngle;
+        // }
+
+        angle = getAngleFromId(_treasureCode->id);
+    }
+    else if (_exitCode.has_value()) {
+        angle = getAngleFromId(_exitCode->id);
     }
 
-    _exitCode = std::nullopt;
-    _treasureCode = std::nullopt;
     return quatRotate(Quaternion(vec3::Up, angle), _junctionEnterDirection);
 }
 
@@ -300,6 +303,13 @@ void ExplorerEngine::Update()
         const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
         if (ways.size() <= 2) {
             _junctionEnterDirection = pose.forward.ToTf2();
+
+            if (_inJunction) {
+                _exitCode = std::nullopt;
+                _treasureCode = std::nullopt;
+            }
+
+            _inJunction = false;
         } else {
             _options.clear();
 
@@ -307,9 +317,10 @@ void ExplorerEngine::Update()
                 _options.push_back(_map.coordToWorld(way));
             }
 
-            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), _junctionEnterDirection);
+            const auto preferred = GetPreferredDirection();
 
             _currentTarget = PickFollowingDirection(_currentTarget.value(), ways, _junctionEnterDirection, preferred);
+            _inJunction = true;
         }
 
 
@@ -323,7 +334,7 @@ void ExplorerEngine::Update()
         navPath.push_back(pose.position);
 
         for (auto point : _path) {
-            navPath.emplace_back(Vector2(point.x(), point.y()));
+            navPath.emplace_back(point.x(), point.y());
         }
 
         _navigatorController->SetPath(navPath);
@@ -367,6 +378,8 @@ void ExplorerEngine::Publish() const
 
 void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
+    std::lock_guard lock(_mutex);
+
     if (aruCode.id >= 10) _treasureCode = aruCode;
     else _exitCode = aruCode;
 
