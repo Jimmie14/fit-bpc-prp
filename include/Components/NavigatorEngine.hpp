@@ -9,7 +9,7 @@
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
 #include "RosEngine.hpp"
-#include "SplinePath.hpp"
+#include "LinearPath.hpp"
 
 namespace Manhattan::Core {
 class NavigatorEngine final : public RosEngine {
@@ -37,7 +37,7 @@ private:
     std::shared_ptr<MotorDriver> _motor; // todo: change naming of MotorController
     std::shared_ptr<MappingEngine> _slam;
 
-    SplinePath _path;
+    LinearPath _path;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _rayCastPublisher;
 

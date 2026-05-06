@@ -1,7 +1,6 @@
 #include "NavigatorEngine.hpp"
 
 #include "OdometryEngine.hpp"
-#include "SplinePath.hpp"
 
 using namespace std;
 
@@ -73,20 +72,24 @@ void NavigatorEngine::PublishPath() const
     msg.header.frame_id = "map";
     msg.header.stamp = now();
 
-    auto poseMsg = geometry_msgs::msg::PoseStamped();
-    poseMsg.header.stamp = msg.header.stamp;
-    poseMsg.header.frame_id = "map";
+    geometry_msgs::msg::PoseStamped poseMsg;
+    poseMsg.header = msg.header;
 
-    for (const auto& seg : _path.GetSegments()) {
-        for (int i = 1; i <= 60; i++) {
-            const auto position = seg.Evaluate(i / 60.0);
+    if (!_path.HasPath())
+        return;
 
-            poseMsg.pose.position.x = position.x;
-            poseMsg.pose.position.y = position.y;
-            poseMsg.pose.position.z = 0.0;
+    const int samples = 500;
+    const double totalLength = _path.GetTotalLength();
 
-            msg.poses.push_back(poseMsg);
-        }
+    for (int i = 0; i <= samples; i++) {
+        double distance = (static_cast<double>(i) / samples) * totalLength;
+        const auto position = _path.GetPointAtDistance(distance);
+
+        poseMsg.pose.position.x = position.x;
+        poseMsg.pose.position.y = position.y;
+        poseMsg.pose.position.z = 0.0;
+
+        msg.poses.push_back(poseMsg);
     }
 
     _pathPublisher->publish(msg);
