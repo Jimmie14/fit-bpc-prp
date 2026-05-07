@@ -34,7 +34,7 @@ MotorDriver::MotorDriver(const App& app)
     });
 
     _app.Events->Subscribe<RobotModeChangeEvent>([this](const RobotModeChangeEvent& event) {
-        _reverse = event.newMode.reverse;
+        _mode = event.newMode;
     });
 
     Enable();
@@ -43,6 +43,8 @@ MotorDriver::MotorDriver(const App& app)
 void MotorDriver::OnEnable()
 {
     _timer = create_wall_timer(100ms, [this] {
+        if (_mode.motorOff) return;
+
         _publisher->publish(_msg);
     });
 }
@@ -57,7 +59,7 @@ void MotorDriver::SetForce(const double leftAngular, const double rightAngular)
     auto left = leftAngular * ANGULAR_TO_SPEED;
     auto right = rightAngular * ANGULAR_TO_SPEED;
 
-    if (_reverse) {
+    if (_mode.reverse) {
         std::swap(left, right);
 
         left = -left;

@@ -45,7 +45,7 @@ private:
 
     void PublishPath() const;
     void PublishRayCast(const std::vector<RayHit>& hits, const Pose& pose, const Vector2& desiredDirection) const;
-    double GetLinearVelocity(const Pose& pose, double t, double minDistance, double delta) const;
+    double GetLinearVelocity(const Pose& pose, double t, double delta) const;
     static double ClosestDistance(const std::vector<RayHit>& rayHits, const Pose& pose);
 
     void Update();

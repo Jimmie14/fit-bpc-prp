@@ -12,11 +12,11 @@ constexpr double avoidanceStrength = 2.0;
 constexpr double aimDistance = 0.3;
 constexpr double destinationDistance = 0.05;
 
-constexpr double maxLinearSpeed = 0.15;
+constexpr double maxLinearSpeed = 0.1;
 constexpr double maxAngularSpeed = 0.15;
 constexpr double maxReverseSpeed = 0.08;
 
-constexpr double acceleration = 0.05;
+constexpr double acceleration = 0.02;
 constexpr double deceleration = 0.4;
 
 constexpr double angularKp = 0.4;
@@ -296,14 +296,12 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
     return (desiredDirection + avoidance).Normalized();
 }
 
-double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double minDistance, const double delta) const
+double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
 {
     const auto d = Vector2::Dot(pose.forward, (_path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position).Normalized());
-    const auto difference = d * std::abs(d);
+    const auto difference = d * d * d;
 
-    auto targetSpeed = maxLinearSpeed * difference;
-    if (d < -0.3 ||  minDistance < 0.05)
-        targetSpeed = -maxReverseSpeed;
+    const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * abs(difference);
 
     const auto acc = targetSpeed > _currentLinearVelocity ? acceleration : deceleration;
     return MoveTowards(_currentLinearVelocity, targetSpeed, acc * delta);
@@ -351,15 +349,14 @@ void NavigatorEngine::Update()
     const auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
     const auto rayHits = RayCastAround(pose);
     const auto desiredDirection = GetDirection(rayHits, pose, (aimPoint - pose.position).Normalized());
-    const auto minDistanceToObstacle = ClosestDistance(rayHits, pose);
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
-    _currentLinearVelocity = GetLinearVelocity(pose, t, minDistanceToObstacle, deltaTime);
+    _currentLinearVelocity = GetLinearVelocity(pose, t, deltaTime);
+    std::cout << "NavigatorEngine: Linear velocity: " << _currentLinearVelocity << std::endl;
 
     const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
-    const auto maxAngular = _currentLinearVelocity < 0 ? maxAngularSpeed * 0.5 : maxAngularSpeed;
-    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngular, maxAngular);
+    _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
 
     _app.Events->Publish(MotorCommand { _currentLinearVelocity, _currentAngularVelocity });
 }

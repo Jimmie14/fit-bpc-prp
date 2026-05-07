@@ -37,6 +37,8 @@ private:
     GridMap _map;
 
     bool _inJunction = false;
+    bool _reverse = false;
+    bool atDeadEnd = true;
 
     std::shared_ptr<MappingEngine> _mapping;
     std::shared_ptr<NavigatorEngine> _navigatorController;

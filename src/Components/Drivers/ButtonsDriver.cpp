@@ -41,6 +41,13 @@ void ButtonsDriver::OnButtons(const std_msgs::msg::UInt8& msg)
 
         _app.Events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode});
     }
+
+    if (index == 2) {
+        const auto oldMode = _mode;
+        _mode.motorOff = !_mode.motorOff;
+
+        _app.Events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode});
+    }
 }
 
 }

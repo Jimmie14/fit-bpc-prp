@@ -39,7 +39,7 @@ void ExplorerEngine::OnEnable()
 
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
 
-    _startTimer = create_wall_timer(1s, [this] {
+    _startTimer = create_wall_timer(3s, [this] {
         _timer = create_wall_timer(100ms, [this] { Update(); });
         _startTimer->reset();
     });
@@ -263,7 +263,7 @@ Vector3 ExplorerEngine::GetPreferredDirection() const
         }
     };
 
-    auto angle = -M_PI * 0.5;
+    auto angle = M_PI * 0.5;
 
     if (_treasureCode.has_value()) {
         // const auto treasureAngle = getAngleFromId(_treasureCode->id);
@@ -285,6 +285,32 @@ Vector3 ExplorerEngine::GetPreferredDirection() const
     return quatRotate(Quaternion(vec3::Up, angle), _junctionEnterDirection);
 }
 
+static optional<CodeDetectedEvent> GetCodeFromTressure(const optional<CodeDetectedEvent>& exit, const optional<CodeDetectedEvent>& treasure)
+{
+    if (!treasure.has_value()) return treasure;
+    if (!exit.has_value()) return treasure;
+
+    switch (treasure->id) {
+    case 10: // straight
+        if (exit->id == 0) return std::nullopt;;
+        if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 1 });
+        break;
+    case 11: // left
+        if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 1) return std::nullopt;;
+        if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 0 });
+        break;
+    case 12: // right
+        if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 0 });
+        if (exit->id == 2) return std::nullopt;;
+        break;
+    }
+
+    return std::nullopt;
+}
+
 void ExplorerEngine::Update()
 {
     if (_grid.size() == 0) return;
@@ -301,12 +327,30 @@ void ExplorerEngine::Update()
 
 
         const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
+        if (ways.size() == 1) {
+            if (atDeadEnd == false) {
+                atDeadEnd = true;
+
+                // _reverse = !_reverse;
+                // _app.Events->Publish(RobotModeChangeEvent { .newMode = RobotMode { .reverse = _reverse } });
+            }
+        } else {
+            atDeadEnd = false;
+        }
+
+
         if (ways.size() <= 2) {
             _junctionEnterDirection = pose.forward.ToTf2();
 
             if (_inJunction) {
-                _exitCode = std::nullopt;
+                // if (_treasureCode.has_value()) {
+                //     _exitCode = GetCodeFromTressure(_exitCode, _treasureCode);
+                //     _treasureCode = std::nullopt;
+                // } else {
+                //     _exitCode = std::nullopt;
+                // }
                 _treasureCode = std::nullopt;
+                _exitCode = std::nullopt;
             }
 
             _inJunction = false;

@@ -1,5 +1,7 @@
 #pragma once
 
+#include "RobotMode.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
@@ -29,6 +31,6 @@ private:
 
     TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
-    bool _reverse = false;
+    RobotMode _mode = { .reverse = false };
 };
 } // namespace Manhattan::Core
