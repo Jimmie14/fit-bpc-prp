@@ -18,8 +18,7 @@ enum class NavState {
 enum class TurnDirection {
     FORWARD,
     LEFT,
-    RIGHT,
-    BACK
+    RIGHT
 };
 
 class MazeEngine final : public RosEngine {
@@ -64,13 +63,15 @@ private:
 
     void Recenter();
 
-    float GetLeftWallDistance();
+    float GetLeftWallDistance(float dst);
 
-    float GetRightWallDistance();
+    float GetRightWallDistance(float dst);
 
-    float GetFrontWallDistance();
+    float GetFrontWallDistance(float dst);
 
     float GetBehindWallDistance();
+
+    float RayArc(float startOffset, float endOffset, float dst, int steps);
 
     TurnDirection ChooseDirection(bool left, bool forward, bool right);
 

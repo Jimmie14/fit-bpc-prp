@@ -8,20 +8,20 @@ namespace Manhattan::Core {
 
 using namespace Manhattan::nav;
 
-constexpr float OPEN_THRESHOLD = 0.30f;
+constexpr float OPEN_THRESHOLD = 0.4f;
 constexpr float WALL_TARGET = 0.18f;
 constexpr float RAY_DISTANCE = 1.0f;
 
-constexpr float NORMAL_SPEED = 0.05f;
+constexpr float NORMAL_SPEED = 0.06f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 1.5f;
+constexpr float TURN_ANGULAR = 0.5f;
 
 // PID tuning constants
-constexpr float FOLLOW_P = 0.6f;
-constexpr float FOLLOW_D = 0.015f;
+constexpr float FOLLOW_P = 1.0f;
+constexpr float FOLLOW_D = 0.001f;
 
-constexpr float TURN_P = 0.5f;
-constexpr float TURN_D = 0.015f;
+constexpr float TURN_P = 0.4f;
+constexpr float TURN_D = 0.01f;
 constexpr float RECENTER_P = 2.0f;
 
 static float NormalizeAngle(float angle)
@@ -75,15 +75,15 @@ void MazeEngine::Update() {
 
 void MazeEngine::FollowCorridor()
 {
-    float leftDist = GetLeftWallDistance();
-    float rightDist = GetRightWallDistance();
-    float frontDist = GetFrontWallDistance();
-    float behindDist = GetBehindWallDistance();
+    float leftDist = GetLeftWallDistance(RAY_DISTANCE);
+    float rightDist = GetRightWallDistance(RAY_DISTANCE);
+    float frontDist = GetFrontWallDistance(RAY_DISTANCE);
+
+    std::cout << frontDist << std::endl;
 
     bool openLeft = leftDist > OPEN_THRESHOLD;
     bool openRight = rightDist > OPEN_THRESHOLD;
     bool openFront = frontDist > OPEN_THRESHOLD;
-    bool openBehind = behindDist > OPEN_THRESHOLD;
 
     const bool tJunction = openLeft && openRight && !openFront;
     const bool cornerLeft = openLeft && !openRight && !openFront;
@@ -94,8 +94,13 @@ void MazeEngine::FollowCorridor()
     if (tJunction || cornerLeft || cornerRight || xJunction || deadEnd)
     {
         StartDecision(openLeft, openFront, openRight);
-        return;
+
+        if (_state != NavState::FOLLOW_CORRIDOR)
+            return;
     }
+
+    leftDist = GetLeftWallDistance(.2);
+    rightDist = GetRightWallDistance(.2);
 
     float error = leftDist - rightDist;
     float derivative = error - _prevError;
@@ -124,19 +129,19 @@ void MazeEngine::StartDecision(bool left, bool forward, bool right)
     {
         case TurnDirection::LEFT:
             _targetRotation = pose.rotation + M_PI_2;
+            std::cout << "Turning left" << std::endl;
             break;
 
         case TurnDirection::RIGHT:
-            _targetRotation = pose.rotation;
+            _targetRotation = pose.rotation - M_PI_2;
+                std::cout << "Turning right" << std::endl;
             break;
 
         case TurnDirection::FORWARD:
-            _targetRotation = pose.rotation + M_PI * 0.5f;
-            break;
-
-        case TurnDirection::BACK:
-            _targetRotation = pose.rotation - M_PI * 0.5f;
-            break;
+            _targetRotation = pose.rotation;
+            std::cout << "Going forward" << std::endl;
+            _state = NavState::FOLLOW_CORRIDOR;
+            return;
     }
 
     _state = NavState::TURNING;
@@ -151,6 +156,7 @@ void MazeEngine::ExecuteTurn()
     if (std::abs(error) < 0.08f)
     {
         _state = NavState::RECENTER;
+        _prevTurnError = 0;
         return;
     }
 
@@ -168,8 +174,10 @@ void MazeEngine::ExecuteTurn()
 
 void MazeEngine::Recenter()
 {
-    float leftDist = GetLeftWallDistance();
-    float rightDist = GetRightWallDistance();
+    _state = NavState::FOLLOW_CORRIDOR;
+    return;
+    float leftDist = GetLeftWallDistance(0.2);
+    float rightDist = GetRightWallDistance(0.2);
 
     float error = leftDist - rightDist;
 
@@ -187,71 +195,78 @@ void MazeEngine::Recenter()
     });
 }
 
-float MazeEngine::GetLeftWallDistance()
+float MazeEngine::GetLeftWallDistance(float dst)
 {
-    auto pose = _mapping->CurrentPose();
-
-    RayHit rayHit;
-    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + M_PI), rayHit, RAY_DISTANCE);
-
-    if (!hit) return RAY_DISTANCE;
-
-    return Vector2::Distance(pose.position, rayHit.hit);
+    return RayArc(M_PI - 0.09f, M_PI + 0.09f, dst, 6);
 }
 
-float MazeEngine::GetRightWallDistance()
+float MazeEngine::GetRightWallDistance(float dst)
 {
-    auto pose = _mapping->CurrentPose();
-
-    RayHit rayHit;
-    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation), rayHit, RAY_DISTANCE);
-
-    if (!hit) return RAY_DISTANCE;
-
-    return Vector2::Distance(pose.position, rayHit.hit);
+    return RayArc(-0.09f, 0.09f, dst, 6);
 }
 
-float MazeEngine::GetFrontWallDistance()
+float MazeEngine::GetFrontWallDistance(float dst)
 {
-    auto pose = _mapping->CurrentPose();
-
-    RayHit rayHit;
-    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + M_PI / 2.0), rayHit, RAY_DISTANCE);
-
-    if (!hit) return RAY_DISTANCE;
-
-    return Vector2::Distance(pose.position, rayHit.hit);
+    return RayArc(M_PI_2 - 0.09f, M_PI_2 + 0.09f, dst, 6);
 }
 float MazeEngine::GetBehindWallDistance()
 {
+    return RayArc( -M_PI_2 - 0.09f, -M_PI_2 + 0.09f, RAY_DISTANCE, 6);
+}
+
+float MazeEngine::RayArc(float startOffset, float endOffset, float dst, int steps)
+{
     auto pose = _mapping->CurrentPose();
+    const auto centerAngle = pose.rotation;
 
-    RayHit rayHit;
-    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation - M_PI / 2.0), rayHit, RAY_DISTANCE);
+    float minDist = dst;
+    bool anyHit = false;
 
-    if (!hit) return RAY_DISTANCE;
+    for (int i = 0; i <= steps; ++i)
+    {
+        float t = static_cast<float>(i) / static_cast<float>(steps);
+        float offset = startOffset + (endOffset - startOffset) * t;
 
-    return Vector2::Distance(pose.position, rayHit.hit);
+        RayHit rayHit;
+        const auto hit = _mapping->RayCast(
+            pose.position,
+            Vector2::FromAngle(centerAngle + offset),
+            rayHit,
+            dst
+        );
+
+        if (hit)
+        {
+            anyHit = true;
+            float d = Vector2::Distance(pose.position, rayHit.hit);
+            minDist = std::min(minDist, d);
+        }
+    }
+
+    return anyHit ? minDist : dst;
 }
 
 TurnDirection MazeEngine::ChooseDirection(bool left, bool forward, bool right)
 {
-    switch (_currentDecision)
-    {
-        case TurnDirection::LEFT:
-            if (left) return TurnDirection::LEFT;
-            break;
+    // switch (_currentDecision)
+    // {
+    //     case TurnDirection::LEFT:
+    //         if (left) return TurnDirection::LEFT;
+    //         break;
+    //
+    //     case TurnDirection::FORWARD:
+    //         if (forward) return TurnDirection::FORWARD;
+    //         break;
+    //
+    //     case TurnDirection::RIGHT:
+    //         if (right) return TurnDirection::RIGHT;
+    //         break;
+    //     case TurnDirection::BACK:
+    //         if (!left && !forward && !right) return TurnDirection::BACK;
+    //         break;
+    // }
 
-        case TurnDirection::FORWARD:
-            if (forward) return TurnDirection::FORWARD;
-            break;
 
-        case TurnDirection::RIGHT:
-            if (right) return TurnDirection::RIGHT;
-            break;
-    }
-
-    // fallback priority
     if (left) return TurnDirection::LEFT;
     if (forward) return TurnDirection::FORWARD;
     if (right) return TurnDirection::RIGHT;
