@@ -1,7 +1,6 @@
 #include "MazeEngine.hpp"
 
 #include "Viz/Grid.hpp"
-#include "Viz/Marker.hpp"
 
 using namespace std;
 
@@ -9,280 +8,284 @@ namespace Manhattan::Core {
 
 using namespace Manhattan::nav;
 
-MazeEngine::MazeEngine(const App& app)
-    : RosEngine(app, "maze"), _thinned_map(0,0,0)
-{
-    _navigator = app.GetComponent<NavigatorEngine>();
-    _mapping = app.GetComponent<MappingEngine>();
+constexpr float OPEN_THRESHOLD = 0.30f;
+constexpr float WALL_TARGET = 0.18f;
+constexpr float RAY_DISTANCE = 1.0f;
 
-    _graphPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze/graph", 10);
+constexpr float NORMAL_SPEED = 0.05f;
+constexpr float TURN_SPEED = 0.0f;
+constexpr float TURN_ANGULAR = 1.5f;
+
+// PID tuning constants
+constexpr float FOLLOW_P = 0.6f;
+constexpr float FOLLOW_D = 0.015f;
+
+constexpr float TURN_P = 0.5f;
+constexpr float TURN_D = 0.015f;
+constexpr float RECENTER_P = 2.0f;
+
+static float NormalizeAngle(float angle)
+{
+    while (angle > M_PI) angle -= 2.f * M_PI;
+    while (angle < -M_PI) angle += 2.f * M_PI;
+
+    return angle;
+}
+
+MazeEngine::MazeEngine(const App& app)
+    : RosEngine(app, "maze")
+{
+    _mapping = app.GetComponent<MappingEngine>();
+    _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
+        OnAruCode(event);
+    });
 }
 
 void MazeEngine::OnEnable() {
-    _poseSubscription = create_subscription<geometry_msgs::msg::PoseStamped>("slam/pose", 1, [this](const geometry_msgs::msg::PoseStamped::SharedPtr msg) {
-        this->OnPose(msg);
-    });
-
-    _mapSubscription = create_subscription<nav_msgs::msg::OccupancyGrid>("slam/grid_thinned", 1, [this](const nav_msgs::msg::OccupancyGrid::SharedPtr msg) {
-        this->OnMap(msg);
-    });
-
-    _initialTimer = create_wall_timer(1s, [this]() {
-        _initialTimer->cancel();
-        _timer = create_wall_timer(100ms, [this] { Update(); });
+    _initialTimer = create_wall_timer(1s, [this] {
+        _timer = create_wall_timer(10ms, [this] { Update(); });
+        _initialTimer.reset();
     });
 }
 
 void MazeEngine::OnDisable() {
-    _poseSubscription.reset();
-    _mapSubscription.reset();
-
     _timer.reset();
     _initialTimer.reset();
 }
 
-void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const
-{
-    const auto pose = Pose::FromRosPoseMessage(msg->pose);
-}
-
-void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
-{
-    _thinned_map = viz::nav::ToOccupancyGrid(*msg, 50);
-}
-
-void MazeEngine::PublishCurrenThGraph() const
-{
-    if (!_currentWayPoint)
-        return;
-
-    visualization_msgs::msg::MarkerArray markerArray;
-
-    // Track visited waypoints to avoid cycles
-    std::set<std::shared_ptr<WayPoint>> visitedWaypoints;
-    std::queue<std::shared_ptr<WayPoint>> queue;
-
-    queue.push(_currentWayPoint);
-
-    int id = 0;
-    while (!queue.empty()) {
-        auto wp = queue.front();
-        queue.pop();
-
-        if (visitedWaypoints.contains(wp)) continue;
-        visitedWaypoints.insert(wp);
-
-        // 1. Create Sphere for WayPoint
-        visualization_msgs::msg::Marker waypointMarker;
-        waypointMarker.header.frame_id = "map"; // Adjust to your world frame
-        waypointMarker.header.stamp = now();
-        waypointMarker.ns = "waypoints";
-        waypointMarker.id = id++;
-        waypointMarker.type = visualization_msgs::msg::Marker::SPHERE;
-        waypointMarker.action = visualization_msgs::msg::Marker::ADD;
-        waypointMarker.pose.position.x = wp->position.x;
-        waypointMarker.pose.position.y = wp->position.y;
-        waypointMarker.pose.position.z = 0.1;
-        waypointMarker.scale.x = 0.2;
-        waypointMarker.scale.y = 0.2;
-        waypointMarker.scale.z = 0.2;
-        waypointMarker.color.a = 1.0;
-        waypointMarker.color.r = 1.0; // Red for waypoints
-        waypointMarker.color.g = 0.0;
-        waypointMarker.color.b = 0.0;
-        markerArray.markers.push_back(waypointMarker);
-
-        // 2. Create Line Strips for Connections
-        for (const auto& connection : wp->connected) {
-            if (!connection.target) continue;
-
-            visualization_msgs::msg::Marker pathMarker;
-            pathMarker.header.frame_id = "map";
-            pathMarker.header.stamp = now();
-            pathMarker.ns = "connections";
-            pathMarker.id = id++;
-            pathMarker.type = visualization_msgs::msg::Marker::LINE_STRIP;
-            pathMarker.action = visualization_msgs::msg::Marker::ADD;
-            pathMarker.scale.x = 0.05; // Line width
-            pathMarker.color.a = 0.8;
-            pathMarker.color.r = 0.0;
-            pathMarker.color.g = 1.0; // Green for connections
-            pathMarker.color.b = 0.0;
-
-            // Add start point
-            geometry_msgs::msg::Point pStart;
-            pStart.x = wp->position.x;
-            pStart.y = wp->position.y;
-            pathMarker.points.push_back(pStart);
-
-            // Add path points
-            for (const auto& step : connection.path) {
-                geometry_msgs::msg::Point p;
-                p.x = step.x;
-                p.y = step.y;
-                pathMarker.points.push_back(p);
-            }
-
-            // Add end point (target position)
-            geometry_msgs::msg::Point pEnd;
-            pEnd.x = connection.target->position.x;
-            pEnd.y = connection.target->position.y;
-            pathMarker.points.push_back(pEnd);
-
-            markerArray.markers.push_back(pathMarker);
-
-            // Add neighbor to queue to continue traversal
-            if (!visitedWaypoints.contains(connection.target)) {
-                queue.push(connection.target);
-            }
-        }
-    }
-
-    _graphPublisher->publish(markerArray);
-}
-
 void MazeEngine::Update() {
-    if (_thinned_map.resolution() == 0 || !_navigator->IsInDestination())
-        return;
+    switch (_state)
+    {
+        case NavState::FOLLOW_CORRIDOR:
+                FollowCorridor();
+                break;
 
-    Init();
-    PublishCurrenThGraph();
+            case NavState::TURNING:
+                ExecuteTurn();
+                break;
 
-    std::cout << _currentWayPoint->connected.size() << std::endl;
-    return;
+            case NavState::RECENTER:
+                Recenter();
+                break;
 
-    const auto target = NextJunction(_currentWayPoint);
-    if (target == nullptr)
-        return;
-
-    _currentWayPoint->visited = true;
-    _currentWayPoint = target;
-
-    const auto cell = _mapping->GetCell(target->position);
-    _navigator->SetDestination(cell);
-}
-
-std::vector<Vector2Int> MazeEngine::GetValidNeighbors(const Vector2Int& cell) {
-    std::vector<Vector2Int> result;
-
-    for (auto dir : Vector2Int::EightDirections()) {
-        Vector2Int next = cell + dir;
-
-        if (!_thinned_map[next]) continue;
-        result.push_back(next);
+            default:
+                break;
     }
-
-    return result;
 }
 
-bool MazeEngine::IsWaypoint(const Vector2Int& cell) {
-    auto neighbors = GetValidNeighbors(cell);
-    return neighbors.size() != 2;
-}
-
-std::shared_ptr<MazeEngine::WayPoint> MazeEngine::WalkUntilWaypoint(Vector2Int prev, Vector2Int current) {
-    auto waypoint = std::make_shared<WayPoint>();
-    waypoint->connected = {};
-
-    std::vector<Vector2> path;
-    std::set<Vector2Int> visited;
-
-    while (true) {
-        auto neighbors = GetValidNeighbors(current);
-
-        std::erase(neighbors, prev);
-
-        if (IsWaypoint(current)) {
-            waypoint->position = _mapping->GridToWorld(current);
-            waypoint->connected.push_back({ .target = nullptr, .path = path });
-            break;
-        }
-
-        visited.insert(current);
-        path.emplace_back(_mapping->GridToWorld(current));
-
-        prev = current;
-        current = neighbors[0];
-    }
-
-    if (path.size() < 5) return nullptr;
-    return waypoint;
-}
-
-std::shared_ptr<MazeEngine::WayPoint> MazeEngine::Init()
+void MazeEngine::FollowCorridor()
 {
-    const auto initPos = ClosestOnThinnedMap(_mapping->CurrentPose().position);
-    if (!initPos) return nullptr;
+    float leftDist = GetLeftWallDistance();
+    float rightDist = GetRightWallDistance();
+    float frontDist = GetFrontWallDistance();
+    float behindDist = GetBehindWallDistance();
 
-    _currentWayPoint = std::make_shared<WayPoint>();
+    bool openLeft = leftDist > OPEN_THRESHOLD;
+    bool openRight = rightDist > OPEN_THRESHOLD;
+    bool openFront = frontDist > OPEN_THRESHOLD;
+    bool openBehind = behindDist > OPEN_THRESHOLD;
 
-    for (auto dir : Vector2Int::EightDirections()) {
-        auto wp = WalkUntilWaypoint(initPos.value(), initPos.value() + dir);
-        if (!wp) continue;
+    const bool tJunction = openLeft && openRight && !openFront;
+    const bool cornerLeft = openLeft && !openRight && !openFront;
+    const bool cornerRight = openRight && !openLeft && !openLeft;
+    const bool xJunction = openLeft && openRight && openFront;
+    const bool deadEnd = !openLeft && !openRight && !openFront;
 
-        auto connection = WayPoint::Connection();
-        connection.path = wp->connected[0].path;
-        ranges::reverse(connection.path);
-
-        connection.target = wp;
-        wp->connected[0].target = _currentWayPoint;
-
-        _currentWayPoint->connected.push_back(connection);
+    if (tJunction || cornerLeft || cornerRight || xJunction || deadEnd)
+    {
+        StartDecision(openLeft, openFront, openRight);
+        return;
     }
 
-    return _currentWayPoint;
+    float error = leftDist - rightDist;
+    float derivative = error - _prevError;
+    _prevError = error;
+
+    float speed = frontDist < OPEN_THRESHOLD * 0.7f ? 0 : 1;
+    float angular = error * FOLLOW_P + derivative * FOLLOW_D;
+
+    _app.Events->Publish(MotorCommand {
+        NORMAL_SPEED * speed,
+        angular
+    });
 }
 
-std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
-    const auto intPos = _mapping->WorldToGrid(pos);
+void MazeEngine::StartDecision(bool left, bool forward, bool right)
+{
+    auto now = std::chrono::steady_clock::now();
+    if (now - _lastDecision < 2s)
+        return;
+    _lastDecision = now;
 
-    std::queue<Vector2Int> q;
-    std::set<Vector2Int> visited;
+    auto pose = _mapping->CurrentPose();
+    auto dir = ChooseDirection(left, forward, right);
 
-    q.push(intPos);
+    switch (dir)
+    {
+        case TurnDirection::LEFT:
+            _targetRotation = pose.rotation + M_PI_2;
+            break;
 
-    while (!q.empty()) {
-        auto cell = q.front(); q.pop();
-        if (visited.contains(cell))
-            continue;
+        case TurnDirection::RIGHT:
+            _targetRotation = pose.rotation;
+            break;
 
-        for (auto direction : Vector2Int::EightDirections()) {
-            const auto neighbour = cell + direction;
+        case TurnDirection::FORWARD:
+            _targetRotation = pose.rotation + M_PI * 0.5f;
+            break;
 
-            if (neighbour.x >= _thinned_map.width() || neighbour.x < 0 || neighbour.y >= _thinned_map.height() || neighbour.y < 0)
-                continue;
-
-            if (_thinned_map[neighbour])
-                return neighbour;
-
-            q.push(neighbour);
-        }
-
-        visited.insert(cell);
+        case TurnDirection::BACK:
+            _targetRotation = pose.rotation - M_PI * 0.5f;
+            break;
     }
 
-    return std::nullopt;
+    _state = NavState::TURNING;
+    _targetRotation = NormalizeAngle(_targetRotation);
 }
 
-std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(const std::shared_ptr<WayPoint>& current) {
-    if (!current) return Init();
+void MazeEngine::ExecuteTurn()
+{
+    auto pose = _mapping->CurrentPose();
+    float error = NormalizeAngle(_targetRotation - pose.rotation);
 
-    const auto initPos = ClosestOnThinnedMap(current->position);
-    if (!initPos) return nullptr;
-
-    std::queue<Vector2Int> q;
-    std::set<Vector2Int> visited;
-
-    q.push(initPos.value());
-    visited.insert(q.front());
-
-    while (!q.empty()) {
-        auto cell = q.front(); q.pop();
-        int traversable_neighbors = 0;
-        std::vector<Vector2Int> neighbors;
+    if (std::abs(error) < 0.08f)
+    {
+        _state = NavState::RECENTER;
+        return;
     }
 
-    return nullptr;
+    float derivative = error - _prevTurnError;
+    _prevTurnError = error;
+
+    float angular = error * TURN_P + derivative * TURN_D;
+    angular = std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR);
+
+    _app.Events->Publish(MotorCommand {
+        TURN_SPEED,
+        angular
+    });
+}
+
+void MazeEngine::Recenter()
+{
+    float leftDist = GetLeftWallDistance();
+    float rightDist = GetRightWallDistance();
+
+    float error = leftDist - rightDist;
+
+    if (std::abs(error) < 0.03f)
+    {
+        _state = NavState::FOLLOW_CORRIDOR;
+        return;
+    }
+
+    float angular = error * RECENTER_P;
+
+    _app.Events->Publish(MotorCommand {
+        TURN_SPEED,
+        angular
+    });
+}
+
+float MazeEngine::GetLeftWallDistance()
+{
+    auto pose = _mapping->CurrentPose();
+
+    RayHit rayHit;
+    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + M_PI), rayHit, RAY_DISTANCE);
+
+    if (!hit) return RAY_DISTANCE;
+
+    return Vector2::Distance(pose.position, rayHit.hit);
+}
+
+float MazeEngine::GetRightWallDistance()
+{
+    auto pose = _mapping->CurrentPose();
+
+    RayHit rayHit;
+    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation), rayHit, RAY_DISTANCE);
+
+    if (!hit) return RAY_DISTANCE;
+
+    return Vector2::Distance(pose.position, rayHit.hit);
+}
+
+float MazeEngine::GetFrontWallDistance()
+{
+    auto pose = _mapping->CurrentPose();
+
+    RayHit rayHit;
+    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + M_PI / 2.0), rayHit, RAY_DISTANCE);
+
+    if (!hit) return RAY_DISTANCE;
+
+    return Vector2::Distance(pose.position, rayHit.hit);
+}
+float MazeEngine::GetBehindWallDistance()
+{
+    auto pose = _mapping->CurrentPose();
+
+    RayHit rayHit;
+    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation - M_PI / 2.0), rayHit, RAY_DISTANCE);
+
+    if (!hit) return RAY_DISTANCE;
+
+    return Vector2::Distance(pose.position, rayHit.hit);
+}
+
+TurnDirection MazeEngine::ChooseDirection(bool left, bool forward, bool right)
+{
+    switch (_currentDecision)
+    {
+        case TurnDirection::LEFT:
+            if (left) return TurnDirection::LEFT;
+            break;
+
+        case TurnDirection::FORWARD:
+            if (forward) return TurnDirection::FORWARD;
+            break;
+
+        case TurnDirection::RIGHT:
+            if (right) return TurnDirection::RIGHT;
+            break;
+    }
+
+    // fallback priority
+    if (left) return TurnDirection::LEFT;
+    if (forward) return TurnDirection::FORWARD;
+    if (right) return TurnDirection::RIGHT;
+
+    return TurnDirection::LEFT;
+}
+
+void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
+{
+    std::lock_guard lock(_mutex);
+
+    if (aruCode.id >= 10)
+        _treasureCode = aruCode;
+    else
+        _exitCode = aruCode;
+
+    switch (aruCode.id % 10)
+    {
+        case 0:
+            _currentDecision = TurnDirection::FORWARD;
+            break;
+
+        case 1:
+            _currentDecision = TurnDirection::LEFT;
+            break;
+
+        case 2:
+            _currentDecision = TurnDirection::RIGHT;
+            break;
+        default:
+            break;
+    }
+
+    std::cout << "Code detected: " << aruCode.id << std::endl;
 }
 
 } // namespace Manhattan::Core
