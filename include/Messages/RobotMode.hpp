@@ -1,4 +1,7 @@
 #pragma once
+#include "Math/Pose.hpp"
+
+namespace Manhattan::Messages {
 
 struct RobotMode {
     bool reverse = false;
@@ -10,6 +13,13 @@ struct RobotModeChangeEvent {
     RobotMode newMode;
 };
 
+
 struct RobotResetEvent {
 
 };
+
+struct RobotEnvironmentChangeEvent {
+
+};
+
+}

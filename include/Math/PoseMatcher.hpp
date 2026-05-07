@@ -27,7 +27,7 @@ public:
     [[nodiscard]] PoseMatchResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
     {
         auto pos = estimatedPose.position;
-        auto rot = estimatedPose.rotation;
+        auto rot = estimatedPose.theta;
 
         auto totalError = 0.0;
         auto knownCount = 0;

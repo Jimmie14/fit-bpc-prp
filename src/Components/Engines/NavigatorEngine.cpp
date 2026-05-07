@@ -194,7 +194,7 @@ vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
 {
     vector<RayHit> hits;
 
-    auto angle = pose.rotation + M_PI * 0.5f;
+    auto angle = pose.theta;
     constexpr auto angleStep = M_PI * 2 / rayCount;
 
     for (auto i = 0; i < rayCount; i++) {

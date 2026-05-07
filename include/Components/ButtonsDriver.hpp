@@ -1,11 +1,14 @@
 #pragma once
 
-#include "RobotMode.hpp"
+#include "Messages/RobotMode.hpp"
 #include "RosDeviceDriver.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int8.hpp>
 
 namespace Manhattan::Core {
+
+using namespace Manhattan::Messages;
+
 class ButtonsDriver final : public RosDeviceDriver {
 public:
     explicit ButtonsDriver(const App& app);

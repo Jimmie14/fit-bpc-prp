@@ -1,8 +1,8 @@
 #include "MotorDriver.hpp"
 
+#include "../../../include/Messages/RobotMode.hpp"
 #include "App.hpp"
 #include "OdometryEngine.hpp"
-#include "RobotMode.hpp"
 
 using namespace std;
 using namespace rclcpp;

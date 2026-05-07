@@ -107,7 +107,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
     const auto stamp = this->now();
 
     const auto cameraPosition = _lastPose.position.ToTf2() + vec3::Up * cameraHeight;
-    const auto robotRotation = _lastPose.rotation;
+    const auto robotRotation = _lastPose.theta - M_PI * 0.5;
 
     if (!ids.empty()) {
         std::vector<cv::Vec3d> rVectors, tVectors;

@@ -61,9 +61,7 @@ public:
 
     [[nodiscard]] Pose CurrentPose() const
     {
-        const auto pose = _stablePose + _odomPoseDelta;
-
-        return _reverse ? Pose(pose.position, pose.rotation + M_PI) : pose;
+        return _currentStablePose;
     }
 
     [[nodiscard]] double GetCellSize() const
@@ -77,6 +75,7 @@ public:
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
 
+    TimerBase::SharedPtr _poseUpdateTimer;
     TimerBase::SharedPtr _publishTimer;
     TimerBase::SharedPtr _costUpdateTimer;
 
@@ -93,9 +92,16 @@ private:
     Pose _lastOdomPose;
     Pose _odomPoseDelta = Pose::Zero();
 
-    Pose _lastStoredPose = Pose::Identity();
-    Pose _stablePose = Pose::Identity();
+    Pose _mapStablePose = Pose::Zero();
+
+
+    Pose _lastStablePose = Pose::Zero();
+    Pose _currentStablePose = Pose::Zero();
+
+    Pose _lastVelocity = Pose::Zero();
+
     bool _reverse = false;
+
 
     PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;
@@ -124,6 +130,8 @@ private:
     void CreateHypothesis();
 
     void MapScan(const std::vector<Vector2>& points);
+
+    void IntegrateStablePose();
 
     void Publish();
 

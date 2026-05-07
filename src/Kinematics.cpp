@@ -40,9 +40,12 @@ Pose Kinematics::integrate(Pose pose, const double leftLinear, const double righ
     const double dPos = (leftLinear + rightLinear) / 2.0;
     const double dTheta = (rightLinear - leftLinear) / _wheelBase;
 
-    pose.position.x += dPos * std::cos(pose.rotation + dTheta / 2.0);
-    pose.position.y += dPos * std::sin(pose.rotation + dTheta / 2.0);
-    pose.rotation += dTheta;
+    const double heading = pose.theta;
+
+    pose.position.x += dPos * std::cos(heading + dTheta / 2.0);
+    pose.position.y += dPos * std::sin(heading + dTheta / 2.0);
+
+    pose.theta += dTheta;
 
     return pose;
 }

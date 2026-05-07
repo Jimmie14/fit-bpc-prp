@@ -1,6 +1,6 @@
 #pragma once
 
-#include "RobotMode.hpp"
+#include "Messages/RobotMode.hpp"
 
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
@@ -9,6 +9,8 @@
 #include "RosDeviceDriver.hpp"
 
 namespace Manhattan::Core {
+
+using namespace Manhattan::Messages;
 
 struct MotorCommand {
     double linear;

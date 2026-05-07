@@ -1,6 +1,7 @@
 #include "MappingEngine.hpp"
+#include "../../../include/Messages/RobotMode.hpp"
 #include "LidarDriver.hpp"
-#include "RobotMode.hpp"
+#include "Messages/Nav.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
@@ -14,13 +15,19 @@ constexpr auto rotationResolution = M_PI * 0.25;
 constexpr auto minConfidence = 0.6;
 constexpr auto poseThreshold = 0.05;
 
+constexpr auto poseIntegrationAlpha = 0.3;
+constexpr auto poseIntegrationDeltaTime = 10ms;
+
 namespace Manhattan::Core {
+
+using namespace Manhattan::Messages;
+
 MappingEngine::MappingEngine(const App& app)
     : RosEngine(app, "mapping")
     , _grid(Vector2Int(200, 200), gridResolution, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
-    , _lastOdomPose(Pose::Identity())
-    , _activeHypothesis(PoseMatchResult(Pose::Identity(), minConfidence))
+    , _lastOdomPose(Pose::Zero())
+    , _activeHypothesis(PoseMatchResult(Pose::Zero(), minConfidence))
     , _hypotheses({})
 {
     _lostTime = now();
@@ -52,9 +59,14 @@ MappingEngine::MappingEngine(const App& app)
             this->OnOdometry(msg);
         });
 
+    _poseUpdateTimer = create_wall_timer(poseIntegrationDeltaTime, [this] {
+        IntegrateStablePose();
+    });
+
     _publishTimer = create_wall_timer(200ms, [this] {
         Publish();
     });
+
     _costUpdateTimer = create_wall_timer(1000ms, [this] {
         std::lock_guard guard(_mapLock);
 
@@ -73,6 +85,7 @@ void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
         const auto delta = current - _lastOdomPose;
 
         _odomPoseDelta = _odomPoseDelta + delta;
+        _currentStablePose = _mapStablePose + _odomPoseDelta;
 
         _lastOdomPose = current;
     }
@@ -163,7 +176,8 @@ void MappingEngine::UpdateState()
     }
 
     if (_activeHypothesis.confidence > minConfidence) {
-        _stablePose = _activeHypothesis.pose;
+        _mapStablePose = _activeHypothesis.pose;
+        _currentStablePose = _mapStablePose;
     }
 
     if (_activeHypothesis.confidence >= 0.8) {
@@ -199,6 +213,14 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
         .oldState = oldState,
         .newState = newState
     });
+
+    if (newState == MappingEngineState::Lost) {
+        _app.Events->Publish(RobotEnvironmentChangeEvent { });
+    }
+
+    if (oldState == MappingEngineState::Lost && newState == MappingEngineState::Stable) {
+        _app.Events->Publish(RobotEnvironmentChangeEvent { });
+    }
 }
 
 void MappingEngine::CreateHypothesis()
@@ -226,7 +248,7 @@ void MappingEngine::CreateHypothesis()
     for (auto i = 0; i < attempts; i++) {
         const auto candidatePose = Pose(
             Vector2(best.pose.position.x + offsetXY(prng), best.pose.position.y + offsetXY(prng)),
-            best.pose.rotation + offsetTheta(prng));
+            best.pose.theta + offsetTheta(prng));
 
         const auto hypothesis = _poseMatcher.Match(_lastScan, candidatePose);
         if (hypothesis.confidence < minConfidence)
@@ -256,17 +278,19 @@ void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
 
         const auto key = std::tuple<int, int, int>(static_cast<int>(std::round(p.position.x / gridResolution)),
             static_cast<int>(std::round(p.position.y / gridResolution)),
-            static_cast<int>(std::round(p.rotation / rotationResolution)));
+            static_cast<int>(std::round(p.theta / rotationResolution)));
     }
 }
 
 void MappingEngine::Reset()
 {
-    _hypotheses = { PoseMatchResult(Pose::Identity(), minConfidence) };
+    _hypotheses = { PoseMatchResult(Pose::Zero(), minConfidence) };
     _grid.Reset();
 
-    _lastStoredPose = Pose::Identity();
-    _stablePose = Pose::Identity();
+    _mapStablePose = Pose::Zero();
+
+    _lastStablePose = Pose::Zero();
+    _currentStablePose = Pose::Zero();
 
     ChangeState(MappingEngineState::Initializing);
 }
@@ -281,17 +305,17 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
     }
 
     // Convert robot position to grid coordinates
-    const auto startGridPos = _grid.WorldToGrid(_stablePose.position);
+    const auto startGridPos = _grid.WorldToGrid(_mapStablePose.position);
 
-    const auto cosRot = std::cos(_stablePose.rotation);
-    const auto sinRot = std::sin(_stablePose.rotation);
+    const auto cosRot = std::cos(_mapStablePose.theta);
+    const auto sinRot = std::sin(_mapStablePose.theta);
 
     // For each point in the scan
     for (const auto& p : points) {
 
         const auto point = Vector2(
-            _stablePose.position.x + p.x * cosRot - p.y * sinRot,
-            _stablePose.position.y + p.x * sinRot + p.y * cosRot);
+            _mapStablePose.position.x + p.x * cosRot - p.y * sinRot,
+            _mapStablePose.position.y + p.x * sinRot + p.y * cosRot);
 
         // Convert to grid coordinates
         const auto endGridPos = _grid.WorldToGrid(point);
@@ -300,7 +324,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         const auto bresenhamCells = OccupancyGrid::Bresenham(startGridPos, endGridPos);
         for (const auto& cell : bresenhamCells) {
             // Mark as free with distance-based cost
-            const auto distance = std::sqrt((point.x - _stablePose.position.x) * (point.x - _stablePose.position.x) + (point.y - _stablePose.position.y) * (point.y - _stablePose.position.y));
+            const auto distance = std::sqrt((point.x - _mapStablePose.position.x) * (point.x - _mapStablePose.position.x) + (point.y - _mapStablePose.position.y) * (point.y - _mapStablePose.position.y));
 
             _grid.SetFree(cell, distance);
         }
@@ -308,6 +332,21 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         // Mark the endpoint as occupied
         _grid.SetOccupied(endGridPos);
     }
+}
+
+void MappingEngine::IntegrateStablePose()
+{
+    const auto velocity = _lastVelocity * poseIntegrationAlpha + (_currentStablePose - _lastStablePose).Normalized() * (1.0 - poseIntegrationAlpha);
+
+    _lastStablePose = _currentStablePose;
+    _lastVelocity = velocity;
+
+    _app.Events->Publish(RobotPoseEvent {
+        .pose = _currentStablePose,
+        .velocity = velocity
+    });
+
+
 }
 
 void MappingEngine::Publish()
@@ -338,7 +377,7 @@ void MappingEngine::PublishPose()
     poseMsg.header.stamp = now();
     poseMsg.header.frame_id = "map";
 
-    poseMsg.pose = _stablePose.ToRosPoseMessage();
+    poseMsg.pose = _mapStablePose.ToRosPoseMessage();
 
     _posePublisher->publish(poseMsg);
 

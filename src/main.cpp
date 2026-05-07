@@ -15,6 +15,7 @@
 #include "NavigatorGraphBuilder.hpp"
 #include "OdometryEngine.hpp"
 #include "UserInputDriver.hpp"
+#include "DwppNavigatorEngine.hpp"
 
 using namespace std;
 using namespace Manhattan;
@@ -39,7 +40,7 @@ int main(const int argc, char* argv[])
     app->AddEngine<Core::MappingEngine>();
 
     app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
-    app->AddEngine<Core::NavigatorEngine>();
+    app->AddEngine<Core::NavigatorEngine>()->Enable();
 
     // app->AddEngine<Core::NavigatorGraphBuilder>();
     // app->AddEngine<Core::FollowerEngine>();//->Enable();
