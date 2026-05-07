@@ -3,6 +3,7 @@
 #include "ArucoDetectionEngine.hpp"
 #include "MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
+#include "Messages/Nav.hpp"
 #include "Viz/Marker.hpp"
 #include <stdexcept>
 #include <tf2/LinearMath/Quaternion.hpp>
@@ -17,7 +18,6 @@ ExplorerEngine::ExplorerEngine(const App& app)
     , _map(0, 0, 0)
 {
     _mapping = app.GetComponent<MappingEngine>();
-    _navigatorController = app.GetComponent<NavigatorEngine>();
 
     _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
         _grid = event.grid;
@@ -75,8 +75,8 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     auto dirs = Vector2Int::EightDirections();
 
     ranges::sort(dirs, [&](const auto& a, const auto& b) {
-       const auto va = Vector2(a).ToTf2().normalized();
-       const auto vb = Vector2(b).ToTf2().normalized();
+       const auto va = Vector2(a).toTf2().normalized();
+       const auto vb = Vector2(b).toTf2().normalized();
 
        const auto da = va.dot(dirNorm);
        const auto db = vb.dot(dirNorm);
@@ -137,7 +137,7 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
 {
     if (ways.empty()) return std::nullopt;
 
-    auto bestScore = std::numeric_limits<float>::max();
+    auto bestScore = std::numeric_limits<double>::max();
     auto best = ways.front();
 
     for (auto point : ways) {
@@ -322,7 +322,7 @@ void ExplorerEngine::Update()
     case ExplorerState::Exploring: {
         const auto pose = _mapping->CurrentPose();
 
-        _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
+        _currentTarget = ClosestOnThinnedMap(pose.position.toTf2());
         if (!_currentTarget.has_value()) break;
 
 
@@ -340,7 +340,7 @@ void ExplorerEngine::Update()
 
 
         if (ways.size() <= 2) {
-            _junctionEnterDirection = pose.forward.ToTf2();
+            _junctionEnterDirection = pose.forward.toTf2();
 
             if (_inJunction) {
                 // if (_treasureCode.has_value()) {
@@ -373,15 +373,7 @@ void ExplorerEngine::Update()
         _currentTarget = result.target;
         _path = result.path;
 
-        auto navPath = vector<Vector2>();
-
-        navPath.push_back(pose.position);
-
-        for (auto point : _path) {
-            navPath.emplace_back(point.x(), point.y());
-        }
-
-        _navigatorController->SetPath(navPath);
+        _app.Events->Publish(RobotFollowPathEvent { .path = _path });
         break;
     }
     case ExplorerState::Returning:

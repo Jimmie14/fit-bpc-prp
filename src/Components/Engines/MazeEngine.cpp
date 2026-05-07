@@ -43,7 +43,7 @@ void MazeEngine::OnDisable() {
 
 void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const
 {
-    const auto pose = Pose::FromRosPoseMessage(msg->pose);
+    const auto pose = Pose::fromRosPoseMessage(msg->pose);
 }
 
 void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)

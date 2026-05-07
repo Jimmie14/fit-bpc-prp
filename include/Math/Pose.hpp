@@ -2,11 +2,40 @@
 
 #include "Vector2.hpp"
 
+#include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 
 namespace Manhattan::Core {
 
 using namespace Manhattan::Math;
+
+struct Twist {
+    double linear;
+    double angular;
+
+    Twist() = default;
+
+    explicit Twist(const double linear, const double angular)
+        : linear(linear)
+        , angular(angular)
+    {
+    }
+
+    [[nodiscard]] static Twist fromRosTwistMessage(const geometry_msgs::msg::Twist& twist)
+    {
+        return Twist(twist.linear.x, twist.angular.z);
+    }
+
+    [[nodiscard]] static Twist zero()
+    {
+        return Twist(0.0, 0.0);
+    }
+
+    [[nodiscard]] std::string toString() const
+    {
+        return "(linear=" + std::to_string(linear) + ", angular=" + std::to_string(angular) + ")";
+    }
+};
 
 struct Pose {
     Vector2 position;
@@ -14,8 +43,8 @@ struct Pose {
     double theta;
 
     Pose()
-        : position(Vector2::Zero())
-        , forward(Vector2(std::cos(0.0), std::sin(0.0)))
+        : position(Vector2::zero())
+        , forward(Vector2(std::cos(M_PI * 0.5), std::sin(M_PI * 0.5)))
         , theta(0.0)
     {
     }
@@ -24,7 +53,7 @@ struct Pose {
         : position(position)
         , theta(theta)
     {
-        forward = Vector2(std::cos(theta), std::sin(theta));
+        forward = Vector2(std::cos(theta + M_PI * 0.5), std::sin(theta + M_PI * 0.5));
     }
 
     Pose operator-(const Pose& other) const
@@ -44,7 +73,7 @@ struct Pose {
 
     static Pose Zero()
     {
-        return Pose(Vector2::Zero(), 0.0);
+        return Pose(Vector2::zero(), 0.0);
     }
 
     [[nodiscard]] Pose Normalized() const
@@ -89,10 +118,25 @@ struct Pose {
         }
     }
 
+    Vector2 transformInverse(const Vector2& point) const
+    {
+        const auto c = std::cos(theta);
+        const auto s = std::sin(theta);
+
+        const auto dx = point.x - position.x;
+        const auto dy = point.y - position.y;
+
+        Vector2 result;
+
+        result.x = dx * c + dy * s;
+        result.y = -dx * s + dy * c;
+
+        return result;
+    }
+
     [[nodiscard]] geometry_msgs::msg::Pose ToRosPoseMessage() const
     {
-        const double yaw = theta + M_PI * 0.5;
-        const double halfYaw = yaw * 0.5;
+        const double halfTheta = (theta + M_PI * 0.5) * 0.5;
 
         auto msg = geometry_msgs::msg::Pose();
 
@@ -102,19 +146,19 @@ struct Pose {
 
         msg.orientation.x = 0.0;
         msg.orientation.y = 0.0;
-        msg.orientation.z = std::sin(halfYaw);
-        msg.orientation.w = std::cos(halfYaw);
+        msg.orientation.z = std::sin(halfTheta);
+        msg.orientation.w = std::cos(halfTheta);
 
         return msg;
     }
 
-    [[nodiscard]] static Pose FromRosPoseMessage(const geometry_msgs::msg::Pose& pose)
+    [[nodiscard]] static Pose fromRosPoseMessage(const geometry_msgs::msg::Pose& pose)
     {
         Pose result;
 
         result.position.x = pose.position.x;
         result.position.y = pose.position.y;
-        result.theta = 2.0 * std::atan2(pose.orientation.z, pose.orientation.w);
+        result.theta = 2.0 * std::atan2(pose.orientation.z, pose.orientation.w) - M_PI * 0.5;
 
         return result;
     }

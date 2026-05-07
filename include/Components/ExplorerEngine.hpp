@@ -41,7 +41,6 @@ private:
     bool atDeadEnd = true;
 
     std::shared_ptr<MappingEngine> _mapping;
-    std::shared_ptr<NavigatorEngine> _navigatorController;
 
     ExplorerState _state = ExplorerState::Idle;
     std::optional<Vector2Int> _currentTarget = std::nullopt;

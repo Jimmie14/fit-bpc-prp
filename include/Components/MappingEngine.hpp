@@ -61,7 +61,7 @@ public:
 
     [[nodiscard]] Pose CurrentPose() const
     {
-        return _currentStablePose;
+        return _stablePose + _odomPoseDelta;
     }
 
     [[nodiscard]] double GetCellSize() const
@@ -92,13 +92,9 @@ private:
     Pose _lastOdomPose;
     Pose _odomPoseDelta = Pose::Zero();
 
-    Pose _mapStablePose = Pose::Zero();
+    Pose _stablePose = Pose::Zero();
 
-
-    Pose _lastStablePose = Pose::Zero();
-    Pose _currentStablePose = Pose::Zero();
-
-    Pose _lastVelocity = Pose::Zero();
+    Twist _twist = Twist::zero();
 
     bool _reverse = false;
 
@@ -131,7 +127,7 @@ private:
 
     void MapScan(const std::vector<Vector2>& points);
 
-    void IntegrateStablePose();
+    void PublishStablePose() const;
 
     void Publish();
 

@@ -77,7 +77,7 @@ void ArucoDetectionEngine::OnDisable()
 
 void ArucoDetectionEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg)
 {
-    _lastPose = Pose::FromRosPoseMessage(msg->pose);
+    _lastPose = Pose::fromRosPoseMessage(msg->pose);
 }
 
 void ArucoDetectionEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
@@ -106,7 +106,7 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
     const auto stamp = this->now();
 
-    const auto cameraPosition = _lastPose.position.ToTf2() + vec3::Up * cameraHeight;
+    const auto cameraPosition = _lastPose.position.toTf2() + vec3::Up * cameraHeight;
     const auto robotRotation = _lastPose.theta - M_PI * 0.5;
 
     if (!ids.empty()) {

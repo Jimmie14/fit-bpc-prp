@@ -1,5 +1,5 @@
 #include "MappingEngine.hpp"
-#include "../../../include/Messages/RobotMode.hpp"
+#include "Messages/RobotMode.hpp"
 #include "LidarDriver.hpp"
 #include "Messages/Nav.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
@@ -14,9 +14,6 @@ constexpr auto rotationResolution = M_PI * 0.25;
 
 constexpr auto minConfidence = 0.6;
 constexpr auto poseThreshold = 0.05;
-
-constexpr auto poseIntegrationAlpha = 0.3;
-constexpr auto poseIntegrationDeltaTime = 10ms;
 
 namespace Manhattan::Core {
 
@@ -55,12 +52,12 @@ MappingEngine::MappingEngine(const App& app)
     _path.header.frame_id = "map";
 
     _odometrySubscription = create_subscription<nav_msgs::msg::Odometry>(
-        "/odometry/filtered", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
+        "odom", 10, [this](const nav_msgs::msg::Odometry::SharedPtr msg) {
             this->OnOdometry(msg);
         });
 
-    _poseUpdateTimer = create_wall_timer(poseIntegrationDeltaTime, [this] {
-        IntegrateStablePose();
+    _poseUpdateTimer = create_wall_timer(10ms, [this] {
+        PublishStablePose();
     });
 
     _publishTimer = create_wall_timer(200ms, [this] {
@@ -76,8 +73,7 @@ MappingEngine::MappingEngine(const App& app)
 
 void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
 {
-    const auto current = Pose(Vector2(msg->pose.pose.position.x, msg->pose.pose.position.y),
-        2.0 * std::atan2(msg->pose.pose.orientation.z, msg->pose.pose.orientation.w) - M_PI * 0.5);
+    const auto current = Pose::fromRosPoseMessage(msg->pose.pose);
 
     {
         std::lock_guard guard(_odomLock);
@@ -85,10 +81,11 @@ void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
         const auto delta = current - _lastOdomPose;
 
         _odomPoseDelta = _odomPoseDelta + delta;
-        _currentStablePose = _mapStablePose + _odomPoseDelta;
 
         _lastOdomPose = current;
     }
+
+    _twist = Twist::fromRosTwistMessage(msg->twist.twist);
 }
 
 void MappingEngine::OnLidar(const vector<Vector2>& points)
@@ -176,8 +173,7 @@ void MappingEngine::UpdateState()
     }
 
     if (_activeHypothesis.confidence > minConfidence) {
-        _mapStablePose = _activeHypothesis.pose;
-        _currentStablePose = _mapStablePose;
+        _stablePose = _activeHypothesis.pose;
     }
 
     if (_activeHypothesis.confidence >= 0.8) {
@@ -287,10 +283,7 @@ void MappingEngine::Reset()
     _hypotheses = { PoseMatchResult(Pose::Zero(), minConfidence) };
     _grid.Reset();
 
-    _mapStablePose = Pose::Zero();
-
-    _lastStablePose = Pose::Zero();
-    _currentStablePose = Pose::Zero();
+    _stablePose = Pose::Zero();
 
     ChangeState(MappingEngineState::Initializing);
 }
@@ -305,17 +298,17 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
     }
 
     // Convert robot position to grid coordinates
-    const auto startGridPos = _grid.WorldToGrid(_mapStablePose.position);
+    const auto startGridPos = _grid.WorldToGrid(_stablePose.position);
 
-    const auto cosRot = std::cos(_mapStablePose.theta);
-    const auto sinRot = std::sin(_mapStablePose.theta);
+    const auto cosRot = std::cos(_stablePose.theta);
+    const auto sinRot = std::sin(_stablePose.theta);
 
     // For each point in the scan
     for (const auto& p : points) {
 
         const auto point = Vector2(
-            _mapStablePose.position.x + p.x * cosRot - p.y * sinRot,
-            _mapStablePose.position.y + p.x * sinRot + p.y * cosRot);
+            _stablePose.position.x + p.x * cosRot - p.y * sinRot,
+            _stablePose.position.y + p.x * sinRot + p.y * cosRot);
 
         // Convert to grid coordinates
         const auto endGridPos = _grid.WorldToGrid(point);
@@ -324,7 +317,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         const auto bresenhamCells = OccupancyGrid::Bresenham(startGridPos, endGridPos);
         for (const auto& cell : bresenhamCells) {
             // Mark as free with distance-based cost
-            const auto distance = std::sqrt((point.x - _mapStablePose.position.x) * (point.x - _mapStablePose.position.x) + (point.y - _mapStablePose.position.y) * (point.y - _mapStablePose.position.y));
+            const auto distance = std::sqrt((point.x - _stablePose.position.x) * (point.x - _stablePose.position.x) + (point.y - _stablePose.position.y) * (point.y - _stablePose.position.y));
 
             _grid.SetFree(cell, distance);
         }
@@ -334,19 +327,12 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
     }
 }
 
-void MappingEngine::IntegrateStablePose()
+void MappingEngine::PublishStablePose() const
 {
-    const auto velocity = _lastVelocity * poseIntegrationAlpha + (_currentStablePose - _lastStablePose).Normalized() * (1.0 - poseIntegrationAlpha);
-
-    _lastStablePose = _currentStablePose;
-    _lastVelocity = velocity;
-
     _app.Events->Publish(RobotPoseEvent {
-        .pose = _currentStablePose,
-        .velocity = velocity
+        .pose = _stablePose.Normalized(),
+        .twist = _twist
     });
-
-
 }
 
 void MappingEngine::Publish()
@@ -377,7 +363,7 @@ void MappingEngine::PublishPose()
     poseMsg.header.stamp = now();
     poseMsg.header.frame_id = "map";
 
-    poseMsg.pose = _mapStablePose.ToRosPoseMessage();
+    poseMsg.pose = _stablePose.ToRosPoseMessage();
 
     _posePublisher->publish(poseMsg);
 
@@ -505,7 +491,7 @@ std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance)
 {
     const auto startCell = _grid.WorldToGrid(worldPosition);
-    const auto endWorldPosition = worldPosition + direction.Normalized() * maxDistance;
+    const auto endWorldPosition = worldPosition + direction.normalized() * maxDistance;
     const auto endCell = _grid.WorldToGrid(endWorldPosition);
 
     rayHit = RayHit();
@@ -529,9 +515,9 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
         }
 
         if (normalInt != Vector2Int::zero()) {
-            rayHit.normal = Vector2(normalInt).Normalized();
+            rayHit.normal = Vector2(normalInt).normalized();
 
-            if (Vector2::Dot(rayHit.normal, direction) > 0.0)
+            if (Vector2::dot(rayHit.normal, direction) > 0.0)
                 rayHit.normal = -rayHit.normal;
 
             return true;
@@ -539,7 +525,7 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
 
         const auto toStart = Vector2(startCell - pos);
 
-        rayHit.normal = toStart.SqrMagnitude() > 0.0 ? toStart.Normalized() : -direction.Normalized();
+        rayHit.normal = toStart.sqrMagnitude() > 0.0 ? toStart.normalized() : -direction.normalized();
 
         return true;
     }

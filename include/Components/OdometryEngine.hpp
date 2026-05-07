@@ -26,7 +26,7 @@ public:
 private:
     void OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
-    void publishOdometry(const Time& stamp);
+    void publishOdometry(const Time& stamp) const;
 
     // -----------------------------------------------------------------------
     Kinematics _kinematics;

@@ -16,8 +16,6 @@ OdometryEngine::OdometryEngine(const App& app)
     : RosEngine(app, "odometry")
     , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
 {
-    Enable();
-
     _odomPub = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
     _posePub = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);
 }
@@ -79,13 +77,8 @@ void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr
     publishOdometry(now());
 }
 
-void OdometryEngine::publishOdometry(const Time& stamp)
+void OdometryEngine::publishOdometry(const Time& stamp) const
 {
-    if ((stamp - _lastPublishTime).seconds() < 0.1)
-        return;
-
-    _lastPublishTime = stamp;
-
     // nav_msgs/odom
     nav_msgs::msg::Odometry odomMsg;
     odomMsg.header.stamp = stamp;

@@ -10,19 +10,19 @@ Kinematics::Kinematics(const double wheelRadius, const double wheelBase, const i
     , _pulsesPerRotation(pulsesPerRotation)
 {
 }
-WheelSpeed Kinematics::inverse(const RobotSpeed speed) const
+WheelSpeed Kinematics::inverse(const Twist& twist) const
 {
     WheelSpeed result = {};
 
-    result.right = (2 * speed.linear + speed.angular * _wheelBase) / (2 * _wheelRadius);
-    result.left = (2 * speed.linear - speed.angular * _wheelBase) / (2 * _wheelRadius);
+    result.right = (2 * twist.linear + twist.angular * _wheelBase) / (2 * _wheelRadius);
+    result.left = (2 * twist.linear - twist.angular * _wheelBase) / (2 * _wheelRadius);
 
     return result;
 }
 
-RobotSpeed Kinematics::forward(const WheelSpeed speed) const
+Twist Kinematics::forward(const WheelSpeed speed) const
 {
-    RobotSpeed result = {};
+    Twist result;
 
     result.linear = (_wheelRadius / 2) * (speed.right + speed.left);
     result.angular = (_wheelRadius / _wheelBase) * (speed.right - speed.left);
@@ -42,8 +42,8 @@ Pose Kinematics::integrate(Pose pose, const double leftLinear, const double righ
 
     const double heading = pose.theta;
 
-    pose.position.x += dPos * std::cos(heading + dTheta / 2.0);
-    pose.position.y += dPos * std::sin(heading + dTheta / 2.0);
+    pose.position.x += dPos * std::sin(heading + dTheta / 2.0);
+    pose.position.y += dPos * std::cos(heading + dTheta / 2.0);
 
     pose.theta += dTheta;
 

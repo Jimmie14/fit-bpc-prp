@@ -163,55 +163,68 @@ struct Vector2 {
         return Vector2(std::cos(angle), std::sin(angle));
     }
 
-    static double Distance(const Vector2& p1, const Vector2& p2)
+    static double distance(const Vector2& p1, const Vector2& p2)
     {
         return std::sqrt(std::pow(p1.x - p2.x, 2) + std::pow(p1.y - p2.y, 2));
     }
 
-    static Vector2 Lerp(const Vector2& a, const Vector2& b, double t)
+    static Vector2 clamp(const Vector2& value, const Vector2& min, const Vector2& max)
+    {
+        return Vector2(
+            std::clamp(value.x, min.x, max.x),
+            std::clamp(value.y, min.y, max.y)
+        );
+    }
+
+    static Vector2 lerp(const Vector2& a, const Vector2& b, double t)
     {
         t = std::max(0.0, std::min(1.0, t));
         return a + (b - a) * t;
     }
 
-    static double Dot(const Vector2& p1, const Vector2& p2)
+    static double dot(const Vector2& p1, const Vector2& p2)
     {
         return p1.x * p2.x + p1.y * p2.y;
     }
 
-    static double SignedAngle(const Vector2& from, const Vector2& to)
+    static double signedAngle(const Vector2& from, const Vector2& to)
     {
-        const double dot = Dot(from, to);
+        const double dot = Vector2::dot(from, to);
         const double det = from.x * to.y - from.y * to.x;
 
         return std::atan2(det, dot);
     }
 
-    [[nodiscard]] double SqrMagnitude() const
+    [[nodiscard]] double sqrMagnitude() const
     {
         return x * x + y * y;
     }
 
-    [[nodiscard]] double Magnitude() const
+    [[nodiscard]] double magnitude() const
     {
-        return std::sqrt(SqrMagnitude());
+        return std::sqrt(sqrMagnitude());
     }
 
-    [[nodiscard]] Vector2 Normalized() const
+    [[nodiscard]] Vector2 normalized() const
     {
-        const auto c = Magnitude();
+        const auto c = magnitude();
 
         return Vector2(x / c, y / c);
     }
 
-    [[nodiscard]] tf2::Vector3 ToTf2() const
+    [[nodiscard]] tf2::Vector3 toTf2() const
     {
         return { x, y, 0.0f };
     }
 
-    static Vector2 Zero()
+    static Vector2 zero()
     {
         return Vector2(0, 0);
+    }
+
+    static Vector2 one()
+    {
+        return Vector2(1, 1);
     }
 
     [[nodiscard]] std::string toString() const

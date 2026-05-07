@@ -28,7 +28,7 @@ MotorDriver::MotorDriver(const App& app)
     auto kinematics = app.GetComponent<OdometryEngine>()->GetKinematics();
 
     _app.Events->Subscribe<MotorCommand>([this, kinematics](const MotorCommand& command) {
-        const auto [left, right] = kinematics.inverse(RobotSpeed { command.linear, command.angular });
+        const auto [left, right] = kinematics.inverse(Twist(command.linear, command.angular));
 
         SetForce(left, right);
     });

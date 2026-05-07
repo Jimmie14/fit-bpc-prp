@@ -26,7 +26,7 @@ int main(const int argc, char* argv[])
 
     const auto app = make_shared<Core::App>();
 
-    app->AddEngine<Core::OdometryEngine>();
+    app->AddEngine<Core::OdometryEngine>()->Enable();
 
     app->AddDriver<Core::ImuDriver>()->Enable();
     app->AddDriver<Core::LidarDriver>()->Enable();
@@ -40,7 +40,8 @@ int main(const int argc, char* argv[])
     app->AddEngine<Core::MappingEngine>();
 
     app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
-    app->AddEngine<Core::NavigatorEngine>()->Enable();
+    // app->AddEngine<Core::NavigatorEngine>()->Enable();
+    app->AddEngine<Core::DwppNavigatorEngine>()->Enable();
 
     // app->AddEngine<Core::NavigatorGraphBuilder>();
     // app->AddEngine<Core::FollowerEngine>();//->Enable();
@@ -49,8 +50,6 @@ int main(const int argc, char* argv[])
 
     app->AddEngine<Core::ExplorerEngine>()->Enable();
 
-
-    // app->GetComponent<Core::ExplorerEngine>()->Enable();
 
     app->Run();
 

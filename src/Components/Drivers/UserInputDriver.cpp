@@ -92,7 +92,7 @@ void UserInputDriver::ParseMoveCommand(const std::vector<std::string>& values) c
     const auto linear = CommandParser::ParseValue<double>("linear", values).value_or(0);
     const auto angular = CommandParser::ParseValue<double>("angular", values).value_or(0);
 
-    const auto robotSpeed = RobotSpeed(linear, angular);
+    const auto robotSpeed = Twist(linear, angular);
     auto [left, right] = _kinematics.inverse(robotSpeed);
 
     _motorController->SetForce(left, right);

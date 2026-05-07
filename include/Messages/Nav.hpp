@@ -11,7 +11,7 @@ struct RobotFollowPathEvent {
 
 struct RobotPoseEvent {
     Core::Pose pose;
-    Core::Pose velocity;
+    Core::Twist twist;
 };
 
 }
