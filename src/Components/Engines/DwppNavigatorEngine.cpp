@@ -81,9 +81,7 @@ void DwppNavigatorEngine::Update()
     const auto wMax = clamp(_twist.angular + wHalfRange, -_config.maxAngularSpeed, _config.maxAngularSpeed);
 
     auto bestTwist = Twist::zero();
-    auto bestScore = numeric_limits<double>::max();
-
-    std::cout << "Simulating twist range: linear [" << vMin << ", " << vMax << "], angular [" << wMin << ", " << wMax << "]" << std::endl;
+    auto bestScore = -16.0;
 
     _debugSimulations.clear();
 
@@ -97,16 +95,18 @@ void DwppNavigatorEngine::Update()
             const auto w = wMin + j * dw;
 
             const auto twist = Twist(v, w);
+
             const auto score = Evaluate(twist);
 
-            if (score > bestScore) continue;
+            if (score < bestScore) continue;
 
             bestTwist = twist;
             bestScore = score;
         }
     }
 
-    std::cout << "twist: " << bestTwist.toString() << std::endl;
+    std::cout << "twist: " << bestTwist << std::endl;
+
     _app.events->Publish(MotorCommandEvent {
         .twist = bestTwist
     });
@@ -124,6 +124,7 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
     auto pose = _pose;
 
     auto pathError = 0.0;
+    auto headingError = 0.0;
 
     for (int i = 0; i < _config.simulationSteps; i++) {
         pose = _odometry.integrate(pose, step);
@@ -131,15 +132,32 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
         const auto closest = _path.FindClosestPoint(pose.position);
 
         pathError += Vector2::distance(closest.position, pose.position);
+
+        const auto lookahead = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
+
+        const auto toLookahead = (lookahead - pose.position).normalized();
+        headingError += 1.0 - Vector2::dot(pose.forward(), toLookahead);
     }
 
     pathError /= _config.simulationSteps;
+    headingError /= _config.simulationSteps;
 
-    const auto d =  Vector2::distance(_lookaheadPoint, pose.position);
+    const double goalDist = Vector2::distance(_lookaheadPoint, pose.position);
 
-    _debugSimulations.push_back({ pose.position.toTf2(), pathError });
+    const double speedPenalty =
+        std::abs(twist.linear) * _config.linearSpeedWeight +
+        std::abs(twist.angular) * _config.angularSpeedWeight;
 
-    return d;
+    const double cost =
+        _config.pathErrorWeight * pathError +
+        _config.headingErrorWeight * headingError +
+        _config.goalWeight * goalDist +
+        speedPenalty;
+
+    _debugSimulations.push_back({ pose.position.toTf2(), -cost });
+
+
+    return -cost;
 }
 
 void DwppNavigatorEngine::PublishDebug()
@@ -163,20 +181,20 @@ void DwppNavigatorEngine::PublishDebug()
 
     if (!_debugSimulations.empty())
     {
-        double min_error = std::numeric_limits<double>::max();
-        double max_error = std::numeric_limits<double>::lowest();
+        double minScore = std::numeric_limits<double>::max();
+        double maxScore = std::numeric_limits<double>::lowest();
 
         for (const auto& [point, error] : _debugSimulations)
         {
-            min_error = std::min(min_error, error);
-            max_error = std::max(max_error, error);
+            minScore = std::min(minScore, error);
+            maxScore = std::max(maxScore, error);
         }
 
-        const double range = std::max(1e-6, max_error - min_error);
+        const double range = std::max(1e-6, maxScore - minScore);
 
-        for (const auto& [point, error] : _debugSimulations)
+        for (const auto& [point, score] : _debugSimulations)
         {
-            const double t = (error - min_error) / range;
+            const double t = (maxScore - score) / range;
 
             marker = viz::marker::point(point, "map");
 

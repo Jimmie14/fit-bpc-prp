@@ -20,6 +20,14 @@ struct DwppConfig : Configurable {
     int simulationSteps;
     double simulationDeltaTime;
 
+    double linearSpeedWeight;
+    double angularSpeedWeight;
+
+    double pathErrorWeight;
+    double headingErrorWeight;
+    double goalWeight;
+    double speedWeight;
+
     void configure(const Config& config) override
     {
         deltaTime = config["delta_time"].value<double>();
@@ -36,6 +44,13 @@ struct DwppConfig : Configurable {
 
         simulationSteps = config["simulation_steps"].value<int>();
         simulationDeltaTime = config["simulation_delta_time"].value<double>();
+
+        linearSpeedWeight = config["linear_speed_weight"].value<double>();
+        angularSpeedWeight = config["angular_speed_weight"].value<double>();
+
+        pathErrorWeight = config["path_error_weight"].value<double>();
+        headingErrorWeight = config["heading_error_weight"].value<double>();
+        goalWeight = config["goal_weight"].value<double>();
     }
 };
 

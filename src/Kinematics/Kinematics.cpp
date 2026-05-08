@@ -79,8 +79,8 @@ Pose DifferentialDriveOdometry::integrate(Pose pose, const WheelLinearVelocity& 
 
     const double heading = pose.theta;
 
-    pose.position.x += dPos * std::sin(heading + dTheta / 2.0);
-    pose.position.y += dPos * std::cos(heading + dTheta / 2.0);
+    pose.position.x += dPos * std::cos(heading + dTheta / 2.0);
+    pose.position.y += dPos * std::sin(heading + dTheta / 2.0);
 
     pose.theta += dTheta;
 

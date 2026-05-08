@@ -340,7 +340,7 @@ void ExplorerEngine::Update()
 
 
         if (ways.size() <= 2) {
-            _junctionEnterDirection = pose.forward.toTf2();
+            _junctionEnterDirection = pose.forward().toTf2();
 
             if (_inJunction) {
                 // if (_treasureCode.has_value()) {
@@ -419,7 +419,7 @@ void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
     if (aruCode.id >= 10) _treasureCode = aruCode;
     else _exitCode = aruCode;
 
-     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward.x << " " << aruCode.pose.forward.y << std::endl;
+     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward().x << " " << aruCode.pose.forward().y << std::endl;
 }
 
 } // namespace Manhattan::Core

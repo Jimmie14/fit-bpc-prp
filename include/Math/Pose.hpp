@@ -43,21 +43,20 @@ inline std::ostream& operator<<(std::ostream& os, const Twist& twist)
 
 struct Pose {
     Vector2 position;
-    Vector2 forward;
     double theta;
 
     Pose()
         : position(Vector2::zero())
-        , forward(Vector2(std::cos(M_PI * 0.5), std::sin(M_PI * 0.5)))
         , theta(0.0)
     {
+
     }
 
     explicit Pose(const Vector2 position, const double theta)
         : position(position)
         , theta(theta)
     {
-        forward = Vector2(std::cos(theta + M_PI * 0.5), std::sin(theta + M_PI * 0.5));
+
     }
 
     Pose operator-(const Pose& other) const
@@ -78,6 +77,11 @@ struct Pose {
     static Pose Zero()
     {
         return Pose(Vector2::zero(), 0.0);
+    }
+
+    [[nodiscard]] Vector2 forward() const
+    {
+        return Vector2(std::cos(theta), std::sin(theta));
     }
 
     [[nodiscard]] Pose Normalized() const
@@ -140,7 +144,7 @@ struct Pose {
 
     [[nodiscard]] geometry_msgs::msg::Pose ToRosPoseMessage() const
     {
-        const double halfTheta = (theta + M_PI * 0.5) * 0.5;
+        const double halfTheta = theta * 0.5;
 
         auto msg = geometry_msgs::msg::Pose();
 
@@ -162,7 +166,7 @@ struct Pose {
 
         result.position.x = pose.position.x;
         result.position.y = pose.position.y;
-        result.theta = 2.0 * std::atan2(pose.orientation.z, pose.orientation.w) - M_PI * 0.5;
+        result.theta = 2.0 * std::atan2(pose.orientation.z, pose.orientation.w);
 
         return result;
     }

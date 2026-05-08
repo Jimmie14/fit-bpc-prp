@@ -155,8 +155,8 @@ inline visualization_msgs::msg::Marker twist(const core::Pose& pose, const core:
 
         const double len = linear_mag * linear_scale;
 
-        const double fx = pose.forward.x;
-        const double fy = pose.forward.y;
+        const double fx = pose.forward().x;
+        const double fy = pose.forward().y;
 
         const double ex = px + fx * len * dir;
         const double ey = py + fy * len * dir;

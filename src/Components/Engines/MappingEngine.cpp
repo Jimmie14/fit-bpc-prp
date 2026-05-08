@@ -90,8 +90,7 @@ void MappingEngine::OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg)
 
 void MappingEngine::OnLidar(const vector<Vector2>& points)
 {
-    if (points.empty())
-        return;
+    if (points.empty()) return;
 
     Pose odomDelta;
     {
@@ -381,7 +380,7 @@ void MappingEngine::PublishGrid()
     gridMsg.header.frame_id = "map";
 
     gridMsg.info.origin.position.x = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
-    gridMsg.info.origin.position.y = _grid.GetWidth() * _grid.GetCellSize() * -0.5;
+    gridMsg.info.origin.position.y = _grid.GetHeight() * _grid.GetCellSize() * -0.5;
     gridMsg.info.origin.position.z = 0.0;
 
     gridMsg.info.origin.orientation.x = 0.0;
