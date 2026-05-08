@@ -118,9 +118,17 @@ void MazeEngine::FollowCorridor()
     const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
     const auto forwardHits = RayArc(FORWARD_FOV, TurnDirection::FORWARD, FORWARD_RAY_DISTANCE);
 
-    _leftWall = FilterHitPoints(leftHits);
-    _rightWall = FilterHitPoints(rightHits);
-    _frontWall = FilterHitPoints(forwardHits);
+    const auto leftWall = FilterHitPoints(leftHits);
+    if (leftWall.has_value())
+        _leftWall = leftWall;
+
+    const auto rightWall = FilterHitPoints(rightHits);
+    if (rightWall.has_value())
+        _rightWall = rightWall;
+
+    const auto frontWall = FilterHitPoints(forwardHits);
+    if (frontWall.has_value())
+        _frontWall = frontWall;
 
     float centerError = 0.0f;
     float headingError = 0.0f;
@@ -128,10 +136,9 @@ void MazeEngine::FollowCorridor()
     float centerDerivative = 0.0f;
     float headingDerivative = 0.0f;
 
-    if (_leftWall.has_value() && _rightWall.has_value()) {
+    if (_leftWall.has_value() && _rightWall.has_value() && abs(Vector2::Dot(_leftWall->Direction, _rightWall->Direction)) < 0.6){
 
-        const Vector2 corridorDir =
-            (_leftWall->Direction + _rightWall->Direction).Normalized();
+        const Vector2 corridorDir = (_leftWall->Direction + _rightWall->Direction).Normalized();
 
         const Vector2 corridorNormal =
             Vector2::Perpendicular(corridorDir);
@@ -311,16 +318,12 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
 
     for (size_t i = 1; i < hits.size(); ++i)
     {
-        const Vector2& prev = hits[i - 1].hit;
-        const Vector2& curr = hits[i].hit;
+        const auto prev = hits[i - 1];
+        const auto curr = hits[i];
 
-        float dx = curr.x - prev.x;
-        float dy = curr.y - prev.y;
+        const auto dot = Vector2::Dot(prev.normal, curr.normal);
 
-        float dst = std::sqrt(dx * dx + dy * dy);
-
-        // Large jump => new geometric segment
-        if (dst > SPLIT_THRESHOLD)
+        if (dot < 0.8f)
         {
             if (points.size() >= MIN_POINTS_PER_SEGMENT)
             {
@@ -333,7 +336,7 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
             points.clear();
         }
 
-        points.push_back(curr);
+        points.push_back(curr.hit);
     }
 
     // Add final segment
@@ -392,19 +395,6 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
 
         // Prefer larger segments
         score += static_cast<float>(line.PointCount) * 0.5f;
-
-        /*
-        // Previous-line stability
-        if (_previousLine.has_value())
-        {
-            float similarity =
-                std::abs(Dot(
-                    Normalize(line.Direction),
-                    Normalize(_previousLine->Direction)));
-
-            score += similarity * 3.0f;
-        }
-        */
 
         if (score > bestScore)
         {
