@@ -179,6 +179,16 @@ struct Vector2 {
         return p1.x * p2.x + p1.y * p2.y;
     }
 
+    static double Cross(const Vector2& p1, const Vector2& p2)
+    {
+        return p1.x * p2.y - p1.y * p2.x;
+    }
+
+    static Vector2 Perpendicular(const Vector2& p)
+    {
+        return Vector2(p.y, -p.x);
+    }
+
     static double SignedAngle(const Vector2& from, const Vector2& to)
     {
         const double dot = Dot(from, to);

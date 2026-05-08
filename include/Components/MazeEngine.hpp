@@ -2,8 +2,8 @@
 
 #include "ArucoDetectionEngine.hpp"
 #include "Nav/Grid.hpp"
+#include "Nav/PcaFilter.hpp"
 #include "NavigatorEngine.hpp"
-#include "NavigatorGraphBuilder.hpp"
 #include "RosEngine.hpp"
 
 namespace Manhattan::Core {
@@ -11,8 +11,7 @@ namespace Manhattan::Core {
 enum class NavState {
     FOLLOW_CORRIDOR,
     APPROACH_INTERSECTION,
-    TURNING,
-    RECENTER
+    TURNING
 };
 
 enum class TurnDirection {
@@ -34,24 +33,28 @@ private:
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
+    TimerBase::SharedPtr _publisherTimer;
 
     float _targetRotation = 0.f;
 
     float _prevError = 0;
     float _prevTurnError = 0;
+    float _prevCenterError = 0;
+    float _prevHeadingError = 0;
 
     std::mutex _mutex;
     NavState _state = NavState::FOLLOW_CORRIDOR;
 
-    TurnDirection _preferredDirection = TurnDirection::LEFT;
-    TurnDirection _currentDecision = TurnDirection::LEFT;
-
     std::optional<CodeDetectedEvent> _exitCode = std::nullopt;
     std::optional<CodeDetectedEvent> _treasureCode = std::nullopt;
 
+    std::optional<PcaFitter::FittedLine> _leftWall = std::nullopt;
+    std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
+    std::optional<PcaFitter::FittedLine> _frontWall = std::nullopt;
+
     std::chrono::steady_clock::time_point _lastDecision;
 
-    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _graphPublisher;
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _publisher;
 
     void Update();
 
@@ -61,21 +64,17 @@ private:
 
     void ExecuteTurn();
 
-    void Recenter();
+    float GetWallDistance(TurnDirection side) const;
 
-    float GetLeftWallDistance(float dst);
+    std::vector<RayHit> RayArc(float fov, TurnDirection side, float dst) const;
 
-    float GetRightWallDistance(float dst);
-
-    float GetFrontWallDistance(float dst);
-
-    float GetBehindWallDistance();
-
-    float RayArc(float startOffset, float endOffset, float dst, int steps);
+    std::optional<PcaFitter::FittedLine> FilterHitPoints(const std::vector<RayHit>& hits) const;
 
     TurnDirection ChooseDirection(bool left, bool forward, bool right);
 
     void OnAruCode(CodeDetectedEvent aruCode);
+
+    void PublishWalls() const;
 };
 
 } // namespace Manhattan::Core

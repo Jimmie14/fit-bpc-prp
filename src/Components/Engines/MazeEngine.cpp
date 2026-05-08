@@ -1,5 +1,6 @@
 #include "MazeEngine.hpp"
 
+#include "Nav/PcaFilter.hpp"
 #include "Viz/Grid.hpp"
 
 using namespace std;
@@ -8,21 +9,33 @@ namespace Manhattan::Core {
 
 using namespace Manhattan::nav;
 
+// Junction detection
 constexpr float OPEN_THRESHOLD = 0.4f;
-constexpr float WALL_TARGET = 0.18f;
-constexpr float RAY_DISTANCE = 1.0f;
 
+// RayArc settings
+constexpr int RAY_COUNT = 9;
+constexpr float RAY_DISTANCE = 1.0f;
+constexpr float FORWARD_RAY_DISTANCE = 5.0f;
+constexpr float FOV = 160.0f;
+constexpr float FORWARD_FOV = 10.0f;
+
+// walls filtering
+constexpr float SPLIT_THRESHOLD = 0.5f;
+constexpr int MIN_POINTS_PER_SEGMENT = 4;
+
+// Motor settings
 constexpr float NORMAL_SPEED = 0.06f;
 constexpr float TURN_SPEED = 0.0f;
 constexpr float TURN_ANGULAR = 0.5f;
 
 // PID tuning constants
-constexpr float FOLLOW_P = 1.0f;
-constexpr float FOLLOW_D = 0.001f;
+constexpr float HEADING_P = 1.0f;
+constexpr float CENTER_P = 0.5f;
+constexpr float HEADING_D = 0.0f;
+constexpr float CENTER_D = 0.0f;
 
 constexpr float TURN_P = 0.4f;
 constexpr float TURN_D = 0.01f;
-constexpr float RECENTER_P = 2.0f;
 
 static float NormalizeAngle(float angle)
 {
@@ -36,6 +49,9 @@ MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze")
 {
     _mapping = app.GetComponent<MappingEngine>();
+
+    _publisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze_walls", 1);
+
     _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
         OnAruCode(event);
     });
@@ -46,11 +62,16 @@ void MazeEngine::OnEnable() {
         _timer = create_wall_timer(10ms, [this] { Update(); });
         _initialTimer.reset();
     });
+
+    _publisherTimer = create_wall_timer(100ms, [this] {
+        PublishWalls();
+    });
 }
 
 void MazeEngine::OnDisable() {
     _timer.reset();
     _initialTimer.reset();
+    _publisherTimer.reset();
 }
 
 void MazeEngine::Update() {
@@ -64,10 +85,6 @@ void MazeEngine::Update() {
                 ExecuteTurn();
                 break;
 
-            case NavState::RECENTER:
-                Recenter();
-                break;
-
             default:
                 break;
     }
@@ -75,15 +92,13 @@ void MazeEngine::Update() {
 
 void MazeEngine::FollowCorridor()
 {
-    float leftDist = GetLeftWallDistance(RAY_DISTANCE);
-    float rightDist = GetRightWallDistance(RAY_DISTANCE);
-    float frontDist = GetFrontWallDistance(RAY_DISTANCE);
+    const float leftDist = GetWallDistance(TurnDirection::LEFT);
+    const float rightDist = GetWallDistance(TurnDirection::RIGHT);
+    const float frontDist = GetWallDistance(TurnDirection::FORWARD);
 
-    std::cout << frontDist << std::endl;
-
-    bool openLeft = leftDist > OPEN_THRESHOLD;
-    bool openRight = rightDist > OPEN_THRESHOLD;
-    bool openFront = frontDist > OPEN_THRESHOLD;
+    const bool openLeft = leftDist > OPEN_THRESHOLD;
+    const bool openRight = rightDist > OPEN_THRESHOLD;
+    const bool openFront = frontDist > OPEN_THRESHOLD;
 
     const bool tJunction = openLeft && openRight && !openFront;
     const bool cornerLeft = openLeft && !openRight && !openFront;
@@ -99,33 +114,78 @@ void MazeEngine::FollowCorridor()
             return;
     }
 
-    leftDist = GetLeftWallDistance(.2);
-    rightDist = GetRightWallDistance(.2);
+    const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
+    const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
+    const auto forwardHits = RayArc(FORWARD_FOV, TurnDirection::FORWARD, FORWARD_RAY_DISTANCE);
 
-    float error = leftDist - rightDist;
-    float derivative = error - _prevError;
-    _prevError = error;
+    _leftWall = FilterHitPoints(leftHits);
+    _rightWall = FilterHitPoints(rightHits);
+    _frontWall = FilterHitPoints(forwardHits);
 
-    float speed = frontDist < OPEN_THRESHOLD * 0.7f ? 0 : 1;
-    float angular = error * FOLLOW_P + derivative * FOLLOW_D;
+    float centerError = 0.0f;
+    float headingError = 0.0f;
+
+    float centerDerivative = 0.0f;
+    float headingDerivative = 0.0f;
+
+    if (_leftWall.has_value() && _rightWall.has_value()) {
+
+        const Vector2 corridorDir =
+            (_leftWall->Direction + _rightWall->Direction).Normalized();
+
+        const Vector2 corridorNormal =
+            Vector2::Perpendicular(corridorDir);
+
+        const auto pose = _mapping->CurrentPose();
+
+        const Vector2 centerPoint = (_leftWall->Point + _rightWall->Point) * 0.5f;
+
+        const Vector2 errorVec = centerPoint - pose.position;
+
+        centerError = Vector2::Dot(errorVec, corridorNormal);
+        headingError = Vector2::Cross(corridorDir, pose.forward);
+
+        centerDerivative = centerError - _prevCenterError;
+        headingDerivative = headingError - _prevHeadingError;
+
+        _prevCenterError = centerError;
+        _prevHeadingError = headingError;
+
+    } else if (_frontWall.has_value()) {
+        const Vector2 robotFwd = _mapping->CurrentPose().forward;
+
+        headingError = Vector2::Cross(_frontWall->Normal, robotFwd);
+
+        headingDerivative = headingError - _prevHeadingError;
+        _prevHeadingError = headingError;
+
+        centerError = 0.0f;
+        centerDerivative = 0.0f;
+    }
+
+    const float speed = std::clamp(frontDist / OPEN_THRESHOLD, 0.0f, 1.0f);
+    const float angular =
+        HEADING_P * headingError +
+        CENTER_P  * centerError +
+        HEADING_D * headingDerivative +
+        CENTER_D  * centerDerivative;
 
     _app.Events->Publish(MotorCommand {
-        NORMAL_SPEED * speed,
+        NORMAL_SPEED * speed * speed,
         angular
     });
 }
 
-void MazeEngine::StartDecision(bool left, bool forward, bool right)
+void MazeEngine::StartDecision(const bool left, const bool forward, const bool right)
 {
-    auto now = std::chrono::steady_clock::now();
+    const auto now = std::chrono::steady_clock::now();
     if (now - _lastDecision < 2s)
         return;
     _lastDecision = now;
 
-    auto pose = _mapping->CurrentPose();
-    auto dir = ChooseDirection(left, forward, right);
+    const auto pose = _mapping->CurrentPose();
 
-    switch (dir)
+    switch (ChooseDirection(left, forward, right))
     {
         case TurnDirection::LEFT:
             _targetRotation = pose.rotation + M_PI_2;
@@ -151,17 +211,21 @@ void MazeEngine::StartDecision(bool left, bool forward, bool right)
 void MazeEngine::ExecuteTurn()
 {
     auto pose = _mapping->CurrentPose();
-    float error = NormalizeAngle(_targetRotation - pose.rotation);
+
+    float rawError = _targetRotation - pose.rotation;
+    float error = NormalizeAngle(rawError);
 
     if (std::abs(error) < 0.08f)
     {
-        _state = NavState::RECENTER;
+        _state = NavState::FOLLOW_CORRIDOR;
         _prevTurnError = 0;
         return;
     }
 
-    float derivative = error - _prevTurnError;
-    _prevTurnError = error;
+    float rawDerivative = rawError - _prevTurnError;
+    _prevTurnError = rawError;
+
+    float derivative = NormalizeAngle(rawDerivative);
 
     float angular = error * TURN_P + derivative * TURN_D;
     angular = std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR);
@@ -172,106 +236,209 @@ void MazeEngine::ExecuteTurn()
     });
 }
 
-void MazeEngine::Recenter()
+float MazeEngine::GetWallDistance(const TurnDirection side) const
 {
-    _state = NavState::FOLLOW_CORRIDOR;
-    return;
-    float leftDist = GetLeftWallDistance(0.2);
-    float rightDist = GetRightWallDistance(0.2);
+    const auto pose = _mapping->CurrentPose();
 
-    float error = leftDist - rightDist;
+    float offset = 0;
 
-    if (std::abs(error) < 0.03f)
-    {
-        _state = NavState::FOLLOW_CORRIDOR;
-        return;
+    switch (side) {
+        case TurnDirection::FORWARD:
+            offset = M_PI_2;
+            break;
+        case TurnDirection::LEFT:
+            offset = M_PI;
+            break;
+        case TurnDirection::RIGHT:
+            offset = 0;
+            break;
     }
 
-    float angular = error * RECENTER_P;
+    RayHit rayHit;
+    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + offset), rayHit, 5.0);
 
-    _app.Events->Publish(MotorCommand {
-        TURN_SPEED,
-        angular
-    });
+    if (!hit) return 5.0;
+
+    return Vector2::Distance(pose.position, rayHit.hit);
 }
 
-float MazeEngine::GetLeftWallDistance(float dst)
+std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side, const float dst) const
 {
-    return RayArc(M_PI - 0.09f, M_PI + 0.09f, dst, 6);
-}
+    const auto pose = _mapping->CurrentPose();
+    float baseAngle = 0;
+    switch (side) {
+        case TurnDirection::FORWARD:
+            baseAngle = pose.rotation + M_PI_2;
+            break;
+        case TurnDirection::LEFT:
+            baseAngle = pose.rotation + M_PI;
+            break;
+        case TurnDirection::RIGHT:
+            baseAngle = pose.rotation;
+            break;
+    }
 
-float MazeEngine::GetRightWallDistance(float dst)
-{
-    return RayArc(-0.09f, 0.09f, dst, 6);
-}
+    const auto rad = fov * M_PI / 180.0;
+    const auto angleStep = rad / (RAY_COUNT - 1);
 
-float MazeEngine::GetFrontWallDistance(float dst)
-{
-    return RayArc(M_PI_2 - 0.09f, M_PI_2 + 0.09f, dst, 6);
-}
-float MazeEngine::GetBehindWallDistance()
-{
-    return RayArc( -M_PI_2 - 0.09f, -M_PI_2 + 0.09f, RAY_DISTANCE, 6);
-}
+    auto angle = baseAngle - rad * 0.5;
 
-float MazeEngine::RayArc(float startOffset, float endOffset, float dst, int steps)
-{
-    auto pose = _mapping->CurrentPose();
-    const auto centerAngle = pose.rotation;
+    std::vector<RayHit> hits;
 
-    float minDist = dst;
-    bool anyHit = false;
-
-    for (int i = 0; i <= steps; ++i)
+    for (int i = 0; i <= RAY_COUNT; ++i)
     {
-        float t = static_cast<float>(i) / static_cast<float>(steps);
-        float offset = startOffset + (endOffset - startOffset) * t;
+        RayHit ray;
+        const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(angle), ray, dst);
+        angle += angleStep;
 
-        RayHit rayHit;
-        const auto hit = _mapping->RayCast(
-            pose.position,
-            Vector2::FromAngle(centerAngle + offset),
-            rayHit,
-            dst
-        );
+        if (!hit) continue;
+        hits.push_back(ray);
+    }
 
-        if (hit)
+    return hits;
+}
+
+std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vector<RayHit>& hits) const
+{
+    if (hits.empty())
+        return std::nullopt;
+
+    std::vector<PcaFitter::FittedLine> lines;
+    std::vector<Vector2> points;
+
+    // Build contiguous segments
+    points.push_back(hits[0].hit);
+
+    for (size_t i = 1; i < hits.size(); ++i)
+    {
+        const Vector2& prev = hits[i - 1].hit;
+        const Vector2& curr = hits[i].hit;
+
+        float dx = curr.x - prev.x;
+        float dy = curr.y - prev.y;
+
+        float dst = std::sqrt(dx * dx + dy * dy);
+
+        // Large jump => new geometric segment
+        if (dst > SPLIT_THRESHOLD)
         {
-            anyHit = true;
-            float d = Vector2::Distance(pose.position, rayHit.hit);
-            minDist = std::min(minDist, d);
+            if (points.size() >= MIN_POINTS_PER_SEGMENT)
+            {
+                auto line = PcaFitter::FitLine(points);
+                line.PointCount = static_cast<int>(points.size());
+
+                lines.push_back(line);
+            }
+
+            points.clear();
+        }
+
+        points.push_back(curr);
+    }
+
+    // Add final segment
+    if (points.size() >= MIN_POINTS_PER_SEGMENT)
+    {
+        auto line = PcaFitter::FitLine(points);
+        line.PointCount = static_cast<int>(points.size());
+
+        lines.push_back(line);
+    }
+
+    // No valid segments
+    if (lines.empty())
+        return std::nullopt;
+
+    if (lines.size() == 1)
+        return lines[0];
+
+    const auto pose = _mapping->CurrentPose();
+    const Vector2 robotPos = pose.position;
+    const Vector2 forward = pose.forward;
+
+    std::optional<PcaFitter::FittedLine> bestLine;
+    float bestScore = -std::numeric_limits<float>::infinity();
+
+    for (const auto& line : lines)
+    {
+        // Wall direction alignment
+        const float alignment =std::abs(Vector2::Dot(line.Direction.Normalized(), forward));
+
+        // Distance from robot to line
+        Vector2 toLine(
+            line.Point.x - robotPos.x,
+            line.Point.y - robotPos.y);
+
+        Vector2 lineNormal = line.Normal;
+
+        const float distToLine = std::abs(Vector2::Dot(toLine, lineNormal));
+
+        // Reject very far walls
+        if (distToLine > 3.0f)
+            continue;
+
+        // Reject badly aligned walls
+        if (alignment < 0.5f)
+            continue;
+
+        // ---------- SCORE ----------
+        float score = 0.0f;
+
+        // Prefer parallel walls
+        score += alignment * 5.0f;
+
+        // Prefer closer walls
+        score -= distToLine * 2.0f;
+
+        // Prefer larger segments
+        score += static_cast<float>(line.PointCount) * 0.5f;
+
+        /*
+        // Previous-line stability
+        if (_previousLine.has_value())
+        {
+            float similarity =
+                std::abs(Dot(
+                    Normalize(line.Direction),
+                    Normalize(_previousLine->Direction)));
+
+            score += similarity * 3.0f;
+        }
+        */
+
+        if (score > bestScore)
+        {
+            bestScore = score;
+            bestLine = line;
         }
     }
 
-    return anyHit ? minDist : dst;
+    return bestLine;
 }
 
-TurnDirection MazeEngine::ChooseDirection(bool left, bool forward, bool right)
+TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, const bool right)
 {
-    // switch (_currentDecision)
-    // {
-    //     case TurnDirection::LEFT:
-    //         if (left) return TurnDirection::LEFT;
-    //         break;
-    //
-    //     case TurnDirection::FORWARD:
-    //         if (forward) return TurnDirection::FORWARD;
-    //         break;
-    //
-    //     case TurnDirection::RIGHT:
-    //         if (right) return TurnDirection::RIGHT;
-    //         break;
-    //     case TurnDirection::BACK:
-    //         if (!left && !forward && !right) return TurnDirection::BACK;
-    //         break;
-    // }
+    if (!_treasureCode.has_value() && !_exitCode.has_value()) {
+        if (left) return TurnDirection::LEFT;
+        if (forward) return TurnDirection::FORWARD;
+        if (right) return TurnDirection::RIGHT;
 
+        return TurnDirection::LEFT; // todo TurnDirection::BACK
+    }
 
-    if (left) return TurnDirection::LEFT;
-    if (forward) return TurnDirection::FORWARD;
-    if (right) return TurnDirection::RIGHT;
+    auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
 
-    return TurnDirection::LEFT;
+    _treasureCode = std::nullopt;
+    _exitCode = std::nullopt;
+
+    switch (aruCode.id % 10)
+    {
+        case 0: return TurnDirection::FORWARD;
+        case 1: return TurnDirection::LEFT;
+        case 2: return TurnDirection::RIGHT;
+
+        default: return TurnDirection::LEFT;
+    }
 }
 
 void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
@@ -283,24 +450,54 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
     else
         _exitCode = aruCode;
 
-    switch (aruCode.id % 10)
+    std::cout << "Code detected: " << aruCode.id << std::endl;
+}
+
+void MazeEngine::PublishWalls() const
+{
+    visualization_msgs::msg::MarkerArray markerArray;
+
+    auto createMarker = [](const PcaFitter::FittedLine& line, int id) {
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "map";
+        marker.ns = "maze_walls";
+        marker.id = id;
+        marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        marker.action = visualization_msgs::msg::Marker::ADD;
+        marker.scale.x = 0.05f;
+        marker.color.a = 1.0f;
+        marker.color.r = 1.0f;
+
+        geometry_msgs::msg::Point p1;
+        p1.x = line.Point.x + line.Direction.x * 5.0f;
+        p1.y = line.Point.y + line.Direction.y * 5.0f;
+
+        geometry_msgs::msg::Point p2;
+        p2.x = line.Point.x - line.Direction.x * 5.0f;
+        p2.y = line.Point.y - line.Direction.y * 5.0f;
+
+        marker.points.push_back(p1);
+        marker.points.push_back(p2);
+
+        return marker;
+    };
+
+    if (_leftWall.has_value())
     {
-        case 0:
-            _currentDecision = TurnDirection::FORWARD;
-            break;
-
-        case 1:
-            _currentDecision = TurnDirection::LEFT;
-            break;
-
-        case 2:
-            _currentDecision = TurnDirection::RIGHT;
-            break;
-        default:
-            break;
+        markerArray.markers.push_back(createMarker(_leftWall.value(), 0));
     }
 
-    std::cout << "Code detected: " << aruCode.id << std::endl;
+    if (_rightWall.has_value())
+    {
+        markerArray.markers.push_back(createMarker(_rightWall.value(), 1));
+    }
+
+    if (_frontWall.has_value())
+    {
+        markerArray.markers.push_back(createMarker(_frontWall.value(), 2));
+    }
+
+    _publisher->publish(markerArray);
 }
 
 } // namespace Manhattan::Core
