@@ -8,12 +8,12 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "../Math/PoseMatcher.hpp"
-#include "../Math/Vector2.hpp"
+#include "Math/PoseMatcher.hpp"
+#include "Math/Vector2.hpp"
 #include "App.hpp"
 #include "OccupancyGrid.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 enum class MappingEngineState {
     Initializing,
     Stable,

@@ -2,9 +2,11 @@
 
 #include "OccupancyGrid.hpp"
 #include "Pose.hpp"
-#include <iostream>
 
-namespace Manhattan::Core {
+namespace Manhattan::math {
+
+using namespace Manhattan::core;
+
 struct PoseMatchResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };

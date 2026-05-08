@@ -105,7 +105,7 @@ inline visualization_msgs::msg::Marker text(
     return marker;
 }
 
-inline visualization_msgs::msg::Marker twist(const Core::Pose& pose, const Core::Twist& twist, const std::string& frame_id)
+inline visualization_msgs::msg::Marker twist(const core::Pose& pose, const core::Twist& twist, const std::string& frame_id)
 {
     visualization_msgs::msg::Marker marker;
 
@@ -266,7 +266,7 @@ inline visualization_msgs::msg::Marker twist(const Core::Pose& pose, const Core:
     return marker;
 }
 
-inline visualization_msgs::msg::Marker path(const vector<Math::Vector2>& points, const std::string& frame_id, double scale = 0.02)
+inline visualization_msgs::msg::Marker path(const vector<math::Vector2>& points, const std::string& frame_id, double scale = 0.02)
 {
     visualization_msgs::msg::Marker marker;
 

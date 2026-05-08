@@ -1,40 +1,33 @@
-#include "DwppNavigatorEngine.hpp"
+#include "Components/DwppNavigatorEngine.hpp"
 
 #include "App.hpp"
 #include "Messages/Nav.hpp"
 #include "Messages/RobotMode.hpp"
-#include "MotorDriver.hpp"
-#include "OdometryEngine.hpp"
+#include "Components/OdometryEngine.hpp"
 #include "Viz/Marker.hpp"
 
-constexpr auto deltaTime = 50ms;
-constexpr auto lookaheadDistance = 0.2;
+namespace Manhattan::core {
 
-constexpr auto linearAcceleration = 0.03;
-constexpr auto angularAcceleration = 0.01;
-
-constexpr auto maxLinearSpeed = 0.3;
-constexpr auto maxAngularSpeed = 0.3;
-
-constexpr auto linearVelocitySamplingStep = 0.01;
-constexpr auto angularVelocitySamplingStep = 0.01;
-
-constexpr auto simulationSteps = 10;
-constexpr auto simulationDeltaTime = 0.08;
-
-namespace Manhattan::Core {
+using namespace Manhattan::messages;
 
 DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
-    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
+    , _config(_app.getConfig<config::DwppConfig>("navigation.dwpp"))
+    , _kinematics({ })
+    , _odometry({ })
 {
-    _app.Events->Subscribe<Messages::RobotEnvironmentChangeEvent>([this](const auto& _) {
+    const auto geometry = _app.getConfig<config::DifferentialDriveGeometry>("geometry");
+
+    _kinematics = DifferentialDriveKinematics(geometry);
+    _odometry = DifferentialDriveOdometry(geometry);
+
+    _app.events->Subscribe<RobotEnvironmentChangeEvent>([this](const auto& _) {
         std::lock_guard guard(_lock);
 
         _path = LinearPath();
     });
 
-    _app.Events->Subscribe<Messages::RobotFollowPathEvent>([this](const auto& event) {
+    _app.events->Subscribe<RobotFollowPathEvent>([this](const auto& event) {
 
         vector<Vector2> points;
 
@@ -47,7 +40,7 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
         _path.Initialize(points);
     });
 
-    app.Events->Subscribe<Messages::RobotPoseEvent>([this](const auto& event) {
+    app.events->Subscribe<messages::RobotPoseEvent>([this](const auto& event) {
         std::lock_guard guard(_lock);
 
         _pose = event.pose;
@@ -59,7 +52,7 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
 
 void DwppNavigatorEngine::OnEnable()
 {
-    _updateTimer = create_wall_timer(deltaTime, std::bind(&DwppNavigatorEngine::Update, this));
+    _updateTimer = create_wall_timer(duration<double>(_config.deltaTime), std::bind(&DwppNavigatorEngine::Update, this));
 
     _debugTimer = create_wall_timer(100ms, std::bind(&DwppNavigatorEngine::PublishDebug, this));
 }
@@ -77,21 +70,32 @@ void DwppNavigatorEngine::Update()
 
     const auto closest = _path.FindClosestPoint(_pose.position);
 
-    _lookaheadPoint = _path.GetPointAtDistance(closest.distanceAlongPath + lookaheadDistance);
+    _lookaheadPoint = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
 
-    const auto vHalfRange = linearAcceleration * deltaTime.count();
-    const auto vMin = clamp(_twist.linear - vHalfRange, -maxLinearSpeed, maxLinearSpeed);
-    const auto vMax = clamp(_twist.linear + vHalfRange, -maxLinearSpeed, maxLinearSpeed);
+    const auto vHalfRange = _config.linearAcceleration * _config.deltaTime;
+    const auto vMin = clamp(_twist.linear - vHalfRange, -_config.maxLinearSpeed, _config.maxLinearSpeed);
+    const auto vMax = clamp(_twist.linear + vHalfRange, -_config.maxLinearSpeed, _config.maxLinearSpeed);
 
-    const auto wHalfRange = angularAcceleration * deltaTime.count();
-    const auto wMin = clamp(_twist.angular - wHalfRange, -maxAngularSpeed, maxAngularSpeed);
-    const auto wMax = clamp(_twist.angular + wHalfRange, -maxAngularSpeed, maxAngularSpeed);
+    const auto wHalfRange = _config.angularAcceleration * _config.deltaTime;
+    const auto wMin = clamp(_twist.angular - wHalfRange, -_config.maxAngularSpeed, _config.maxAngularSpeed);
+    const auto wMax = clamp(_twist.angular + wHalfRange, -_config.maxAngularSpeed, _config.maxAngularSpeed);
 
     auto bestTwist = Twist::zero();
     auto bestScore = numeric_limits<double>::max();
 
-    for (auto v = vMin; v <= vMax; v += linearVelocitySamplingStep) {
-        for (auto w = wMin; w <= wMax; w += angularVelocitySamplingStep) {
+    std::cout << "Simulating twist range: linear [" << vMin << ", " << vMax << "], angular [" << wMin << ", " << wMax << "]" << std::endl;
+
+    _debugSimulations.clear();
+
+    const double dv = (vMax - vMin) / std::max(1, _config.linearVelocitySamples - 1);
+    const double dw = (wMax - wMin) / std::max(1, _config.angularVelocitySamples - 1);
+
+    for (int i = 0; i < _config.linearVelocitySamples; i++) {
+        const auto v = vMin + i * dv;
+
+        for (int j = 0; j < _config.angularVelocitySamples; j++) {
+            const auto w = wMin + j * dw;
+
             const auto twist = Twist(v, w);
             const auto score = Evaluate(twist);
 
@@ -103,34 +107,39 @@ void DwppNavigatorEngine::Update()
     }
 
     std::cout << "twist: " << bestTwist.toString() << std::endl;
-    _app.Events->Publish(MotorCommand {
-        .linear = bestTwist.linear,
-        .angular = -bestTwist.angular
+    _app.events->Publish(MotorCommandEvent {
+        .twist = bestTwist
     });
 }
 
-double DwppNavigatorEngine::Evaluate(const Twist& twist) const
+double DwppNavigatorEngine::Evaluate(const Twist& twist)
 {
-    auto [left, right] = _kinematics.inverse(twist);
+    auto angular = _kinematics.inverse(twist);
 
-    left *= simulationDeltaTime;
-    right *= simulationDeltaTime;
+    angular.left *= _config.simulationDeltaTime;
+    angular.right *= _config.simulationDeltaTime;
+
+    const auto step = _kinematics.angularToLinear(angular);
 
     auto pose = _pose;
 
     auto pathError = 0.0;
 
-    for (int i = 0; i < simulationSteps; i++) {
-        pose = _kinematics.integrate(pose, left, right);
+    for (int i = 0; i < _config.simulationSteps; i++) {
+        pose = _odometry.integrate(pose, step);
 
         const auto closest = _path.FindClosestPoint(pose.position);
 
         pathError += Vector2::distance(closest.position, pose.position);
     }
 
-    pathError /= simulationSteps;
+    pathError /= _config.simulationSteps;
 
-    return pathError;
+    const auto d =  Vector2::distance(_lookaheadPoint, pose.position);
+
+    _debugSimulations.push_back({ pose.position.toTf2(), pathError });
+
+    return d;
 }
 
 void DwppNavigatorEngine::PublishDebug()
@@ -151,6 +160,35 @@ void DwppNavigatorEngine::PublishDebug()
     builder.add(marker);
 
     builder.add(viz::marker::twist(_pose, _twist, "map"));
+
+    if (!_debugSimulations.empty())
+    {
+        double min_error = std::numeric_limits<double>::max();
+        double max_error = std::numeric_limits<double>::lowest();
+
+        for (const auto& [point, error] : _debugSimulations)
+        {
+            min_error = std::min(min_error, error);
+            max_error = std::max(max_error, error);
+        }
+
+        const double range = std::max(1e-6, max_error - min_error);
+
+        for (const auto& [point, error] : _debugSimulations)
+        {
+            const double t = (error - min_error) / range;
+
+            marker = viz::marker::point(point, "map");
+
+            marker.scale.x = 0.06;
+            marker.scale.y = 0.06;
+            marker.scale.z = 0.06;
+
+            marker.color = viz::marker::color(static_cast<float>(t), static_cast<float>(1.0 - t), 0.0f);
+
+            builder.add(marker);
+        }
+    }
 
     _debugPublisher->publish(builder.array);
 }

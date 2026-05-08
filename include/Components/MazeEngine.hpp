@@ -3,9 +3,9 @@
 #include "Nav/Grid.hpp"
 #include "NavigatorEngine.hpp"
 #include "NavigatorGraphBuilder.hpp"
-#include "RosEngine.hpp"
+#include "Common/RosEngine.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 class MazeEngine final : public RosEngine {
 public:

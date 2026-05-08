@@ -2,7 +2,7 @@
 
 #include "RosComponent.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class RosDeviceDriver : public RosComponent {
 public:
     explicit RosDeviceDriver(const App& app, const string& name)

@@ -1,6 +1,6 @@
-#include "MappingEngine.hpp"
+#include "Components/MappingEngine.hpp"
 #include "Messages/RobotMode.hpp"
-#include "LidarDriver.hpp"
+#include "Components/LidarDriver.hpp"
 #include "Messages/Nav.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
@@ -15,9 +15,9 @@ constexpr auto rotationResolution = M_PI * 0.25;
 constexpr auto minConfidence = 0.6;
 constexpr auto poseThreshold = 0.05;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
-using namespace Manhattan::Messages;
+using namespace Manhattan::messages;
 
 MappingEngine::MappingEngine(const App& app)
     : RosEngine(app, "mapping")
@@ -29,15 +29,15 @@ MappingEngine::MappingEngine(const App& app)
 {
     _lostTime = now();
 
-    app.Events->Subscribe<LidarScan>([this](const LidarScan& scan) {
+    app.events->Subscribe<LidarScan>([this](const LidarScan& scan) {
         this->OnLidar(scan.points);
     });
 
-    app.Events->Subscribe<RobotResetEvent>([this](const RobotResetEvent& _) {
+    app.events->Subscribe<RobotResetEvent>([this](const RobotResetEvent& _) {
         this->Reset();
     });
 
-    app.Events->Subscribe<RobotModeChangeEvent>([this](const RobotModeChangeEvent& event) {
+    app.events->Subscribe<RobotModeChangeEvent>([this](const RobotModeChangeEvent& event) {
         _reverse = event.newMode.reverse;
     });
 
@@ -205,17 +205,17 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 
     _state = newState;
 
-    _app.Events->Publish(MappingEngineStateChangeEvent {
+    _app.events->Publish(MappingEngineStateChangeEvent {
         .oldState = oldState,
         .newState = newState
     });
 
     if (newState == MappingEngineState::Lost) {
-        _app.Events->Publish(RobotEnvironmentChangeEvent { });
+        _app.events->Publish(RobotEnvironmentChangeEvent { });
     }
 
     if (oldState == MappingEngineState::Lost && newState == MappingEngineState::Stable) {
-        _app.Events->Publish(RobotEnvironmentChangeEvent { });
+        _app.events->Publish(RobotEnvironmentChangeEvent { });
     }
 }
 
@@ -329,7 +329,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
 
 void MappingEngine::PublishStablePose() const
 {
-    _app.Events->Publish(RobotPoseEvent {
+    _app.events->Publish(RobotPoseEvent {
         .pose = _stablePose.Normalized(),
         .twist = _twist
     });

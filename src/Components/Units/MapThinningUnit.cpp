@@ -1,10 +1,10 @@
-#include "MapThinningUnit.hpp"
+#include "Components/MapThinningUnit.hpp"
 
 #include "App.hpp"
 #include "Nav/Grid.hpp"
 #include "Viz/Grid.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 Grid<bool> ApplyMedianFilter(const Grid<bool>& grid);
 
@@ -44,7 +44,7 @@ void MapThinningUnit::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg) 
     grid = ApplyMedianFilter(grid);
     grid = ZhangSuenThinning(grid);
 
-    _app.Events->Publish(ThinnedMapEvent { grid });
+    _app.events->Publish(ThinnedMapEvent { grid });
     _mapPublisher->publish(viz::nav::ToOccupancyGridMessage(grid, "map"));
 }
 

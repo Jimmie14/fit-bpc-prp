@@ -2,7 +2,7 @@
 
 #include "RosComponent.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class RosEngine : public RosComponent {
 public:
     explicit RosEngine(const App& app, const string& name)

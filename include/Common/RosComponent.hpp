@@ -5,7 +5,7 @@
 using namespace std;
 using namespace rclcpp;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class App;
 
 class RosComponent : public Node {

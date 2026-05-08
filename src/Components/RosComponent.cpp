@@ -1,8 +1,8 @@
-#include "RosComponent.hpp"
+#include "Common/RosComponent.hpp"
 
 #include "App.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 RosComponent::RosComponent(const App& app, const std::string& nodeName)
     : Node(nodeName, NodeOptions().use_intra_process_comms(true))
     , _app(app)

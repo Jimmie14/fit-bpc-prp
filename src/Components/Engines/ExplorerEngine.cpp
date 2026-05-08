@@ -1,7 +1,7 @@
-#include "ExplorerEngine.hpp"
+#include "Components/ExplorerEngine.hpp"
 
-#include "ArucoDetectionEngine.hpp"
-#include "MapThinningUnit.hpp"
+#include "Components/ArucoDetectionEngine.hpp"
+#include "Components/MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
 #include "Messages/Nav.hpp"
 #include "Viz/Marker.hpp"
@@ -11,20 +11,20 @@
 using namespace std;
 using namespace Manhattan::nav;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 ExplorerEngine::ExplorerEngine(const App& app)
     : RosEngine(app, "explorer")
     , _grid(0, 0, 0)
     , _map(0, 0, 0)
 {
-    _mapping = app.GetComponent<MappingEngine>();
+    _mapping = app.getComponent<MappingEngine>();
 
-    _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
+    _app.events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
         _grid = event.grid;
         _map = GridMap(_grid.width(), _grid.height(), _grid.resolution());
     });
 
-    _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
+    _app.events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
         OnAruCode(event);
     });
 }
@@ -373,7 +373,7 @@ void ExplorerEngine::Update()
         _currentTarget = result.target;
         _path = result.path;
 
-        _app.Events->Publish(RobotFollowPathEvent { .path = _path });
+        _app.events->Publish(RobotFollowPathEvent { .path = _path });
         break;
     }
     case ExplorerState::Returning:

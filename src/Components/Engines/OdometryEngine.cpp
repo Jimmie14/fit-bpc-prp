@@ -1,10 +1,12 @@
-#include "OdometryEngine.hpp"
-#include <cmath>
+#include "Components/OdometryEngine.hpp"
+
+#include "App.hpp"
 
 using namespace std;
 using namespace rclcpp;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
+
 // todo: code duplication with MotorController.cpp
 constexpr double WHEEL_RADIUS = 0.033;
 constexpr double WHEEL_BASE = 0.12;
@@ -14,21 +16,27 @@ constexpr auto ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
 
 OdometryEngine::OdometryEngine(const App& app)
     : RosEngine(app, "odometry")
-    , _kinematics(WHEEL_RADIUS, WHEEL_BASE, PULSES_PER_ROTATION)
+    , _kinematics({ })
+    , _odometry({ })
 {
-    _odomPub = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
-    _posePub = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);
+    const auto geometry = _app.getConfig<config::DifferentialDriveGeometry>("geometry");
+
+    _kinematics = DifferentialDriveKinematics(geometry);
+    _odometry = DifferentialDriveOdometry(geometry);
+
+    _odomPublisher = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
+    _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);
 }
 
 void OdometryEngine::OnEnable()
 {
-    _encoderSub = create_subscription<std_msgs::msg::UInt32MultiArray>(
+    _encoderSubscriber = create_subscription<std_msgs::msg::UInt32MultiArray>(
         ENCODERS_TOPIC, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) { OnEncoders(msg); });
 }
 
 void OdometryEngine::OnDisable()
 {
-    _encoderSub.reset();
+    _encoderSubscriber.reset();
 }
 
 void OdometryEngine::ApplyCorrection(const Pose& correctedPose)
@@ -36,17 +44,9 @@ void OdometryEngine::ApplyCorrection(const Pose& correctedPose)
     _pose = correctedPose;
 }
 
-Kinematics OdometryEngine::GetKinematics() const
-{
-    return _kinematics;
-}
-
 void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg)
 {
-    if (msg->data.size() < 2) {
-        RCLCPP_WARN_ONCE(get_logger(), "Encoder message has fewer than 2 elements — ignoring.");
-        return;
-    }
+    if (msg->data.size() < 2) return;
 
     const int32_t rawLeft = msg->data[0];
     const int32_t rawRight = msg->data[1];
@@ -57,22 +57,20 @@ void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr
         _initialized = true;
         return;
     }
-    // Delta ticks since last callback
     const int32_t dTicksLeft = rawLeft - _prevLeft;
     const int32_t dTicksRight = -(rawRight - _prevRight);
 
     _prevLeft = rawLeft;
     _prevRight = rawRight;
 
-    // Convert to wheel linear distances (m)
-    const double dLeft = _kinematics.ticksToMeters(dTicksLeft);
-    const double dRight = _kinematics.ticksToMeters(dTicksRight);
+
+    const auto linearStep = _kinematics.ticksToLinear(dTicksLeft, dTicksRight);
 
     // Integrate pose
-    _pose = _kinematics.integrate(_pose, dLeft, dRight);
+    _pose = _odometry.integrate(_pose, linearStep);
 
-    _linearVelocity = (dLeft + dRight) * 0.5;
-    _angularVelocity = (dRight - dLeft) / _kinematics.wheelBase();
+    _linearVelocity = (linearStep.left + linearStep.right) * 0.5;
+    _angularVelocity = (linearStep.right - linearStep.left) / _kinematics.geometry().wheelBase;
 
     publishOdometry(now());
 }
@@ -104,7 +102,7 @@ void OdometryEngine::publishOdometry(const Time& stamp) const
     odomMsg.twist.covariance = { 0.1, 0, 0, 0, 0, 0, 0, 0.1, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0,
         0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 999, 0, 0, 0, 0, 0, 0, 0.2 };
 
-    _odomPub->publish(odomMsg);
+    _odomPublisher->publish(odomMsg);
 
     // geometry_msgs/PoseStamped
     geometry_msgs::msg::PoseStamped poseMsg;
@@ -112,7 +110,7 @@ void OdometryEngine::publishOdometry(const Time& stamp) const
     poseMsg.header.frame_id = "odom";
     poseMsg.pose = odomMsg.pose.pose;
 
-    _posePub->publish(poseMsg);
+    _posePublisher->publish(poseMsg);
 }
 
 } // namespace Manhattan::Core

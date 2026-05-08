@@ -1,6 +1,5 @@
-#include "NavigatorEngine.hpp"
-
-#include "OdometryEngine.hpp"
+#include "Components/NavigatorEngine.hpp"
+#include "Components/OdometryEngine.hpp"
 
 using namespace std;
 
@@ -32,15 +31,14 @@ static double MoveTowards(const double current, const double target, const doubl
     return current + (delta > 0 ? maxDelta : -maxDelta);
 }
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 NavigatorEngine::NavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
     , _lastTime(std::chrono::steady_clock::now())
-    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
     , _angularPid(angularKp, angularKi, angularKd)
 {
-    _motor = app.GetComponent<MotorDriver>();
-    _slam = app.GetComponent<MappingEngine>();
+    _motor = app.getComponent<MotorDriver>();
+    _slam = app.getComponent<MappingEngine>();
 
     _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 1);
     _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 1);
@@ -48,7 +46,7 @@ NavigatorEngine::NavigatorEngine(const App& app)
     _timer = create_wall_timer(10ms,
         [this] { Update(); });
 
-    _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
+    _app.events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
     });
 }
@@ -332,7 +330,7 @@ void NavigatorEngine::Update()
     _lastTime = now;
 
     if (!_path.HasPath()) {
-        _app.Events->Publish(MotorCommand { 0, 0 });
+        _app.events->Publish(MotorCommandEvent { Twist::zero() });
         return;
     }
 
@@ -357,7 +355,7 @@ void NavigatorEngine::Update()
     const auto angleToTarget = Vector2::signedAngle(pose.forward, desiredDirection);
     _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
 
-    _app.Events->Publish(MotorCommand { _currentLinearVelocity, _currentAngularVelocity });
+    _app.events->Publish(MotorCommandEvent { Twist(_currentLinearVelocity, _currentAngularVelocity) });
 }
 
 void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)

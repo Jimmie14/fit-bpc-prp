@@ -4,13 +4,13 @@
 #include "MappingEngine.hpp"
 #include "Nav/GridMap.hpp"
 #include "NavigatorEngine.hpp"
-#include "RosEngine.hpp"
+#include "Common/RosEngine.hpp"
 #include "Viz/Grid.hpp"
 
 #include <memory>
 #include <vector>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 enum class ExplorerState {
     Idle,
     Exploring,
@@ -19,10 +19,11 @@ enum class ExplorerState {
 
 class ExplorerEngine : public RosEngine {
 public:
-    ExplorerEngine(const App& app);
+    explicit ExplorerEngine(const App& app);
 
     void Update();
 
+protected:
     void OnEnable() override;
 
     void OnDisable() override;

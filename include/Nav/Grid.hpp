@@ -9,7 +9,7 @@ using namespace std;
 
 namespace Manhattan::nav {
 
-using namespace Manhattan::Math;
+using namespace Manhattan::math;
 
 template <typename T>
 class Grid {

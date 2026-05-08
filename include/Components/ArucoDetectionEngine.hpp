@@ -9,7 +9,7 @@
 
 #include <sensor_msgs/msg/detail/compressed_image__struct.hpp>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 using namespace Manhattan::nav;
 

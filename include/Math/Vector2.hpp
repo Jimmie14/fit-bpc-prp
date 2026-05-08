@@ -6,7 +6,7 @@
 #include <tuple>
 #include <vector>
 
-namespace Manhattan::Math {
+namespace Manhattan::math {
 struct Vector2Int {
     int x, y;
 

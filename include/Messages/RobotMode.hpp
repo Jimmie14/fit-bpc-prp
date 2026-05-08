@@ -1,7 +1,9 @@
 #pragma once
 #include "Math/Pose.hpp"
 
-namespace Manhattan::Messages {
+namespace Manhattan::messages {
+
+using namespace Manhattan::math;
 
 struct RobotMode {
     bool reverse = false;
@@ -20,6 +22,10 @@ struct RobotResetEvent {
 
 struct RobotEnvironmentChangeEvent {
 
+};
+
+struct MotorCommandEvent {
+    Twist twist;
 };
 
 }

@@ -3,20 +3,13 @@
 #include "Messages/RobotMode.hpp"
 
 #include <rclcpp/rclcpp.hpp>
-#include <std_msgs/msg/u_int32_multi_array.hpp>
 #include <std_msgs/msg/u_int8_multi_array.hpp>
 
-#include "RosDeviceDriver.hpp"
+#include "Common/RosDeviceDriver.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
-using namespace Manhattan::Messages;
-
-struct MotorCommand {
-    double linear;
-    double angular;
-};
-
+using namespace Manhattan::messages;
 
 class MotorDriver final : public RosDeviceDriver {
 public:

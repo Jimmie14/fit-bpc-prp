@@ -1,18 +1,19 @@
 #pragma once
 
 #include "Messages/RobotMode.hpp"
-#include "RosDeviceDriver.hpp"
+#include "Common/RosDeviceDriver.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int8.hpp>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
-using namespace Manhattan::Messages;
+using namespace Manhattan::messages;
 
 class ButtonsDriver final : public RosDeviceDriver {
 public:
     explicit ButtonsDriver(const App& app);
 
+protected:
     void OnEnable() override;
 
     void OnDisable() override;

@@ -5,9 +5,7 @@
 #include <geometry_msgs/msg/detail/twist__struct.hpp>
 #include <geometry_msgs/msg/pose.hpp>
 
-namespace Manhattan::Core {
-
-using namespace Manhattan::Math;
+namespace Manhattan::math {
 
 struct Twist {
     double linear;
@@ -36,6 +34,12 @@ struct Twist {
         return "(linear=" + std::to_string(linear) + ", angular=" + std::to_string(angular) + ")";
     }
 };
+
+inline std::ostream& operator<<(std::ostream& os, const Twist& twist)
+{
+    os << twist.toString();
+    return os;
+}
 
 struct Pose {
     Vector2 position;

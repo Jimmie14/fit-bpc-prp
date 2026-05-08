@@ -4,9 +4,9 @@
 #include <limits>
 #include <vector>
 
-#include "Math/Vector2.hpp"
+#include "Vector2.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::math {
 
 class LinearPath {
 public:
