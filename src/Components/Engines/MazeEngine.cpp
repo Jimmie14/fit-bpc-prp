@@ -20,7 +20,6 @@ constexpr float FOV = 160.0f;
 constexpr float FORWARD_FOV = 10.0f;
 
 // walls filtering
-constexpr float SPLIT_THRESHOLD = 0.5f;
 constexpr int MIN_POINTS_PER_SEGMENT = 4;
 
 // Motor settings
@@ -159,9 +158,7 @@ void MazeEngine::FollowCorridor()
         _prevHeadingError = headingError;
 
     } else if (_frontWall.has_value()) {
-        const Vector2 robotFwd = _mapping->CurrentPose().forward;
-
-        headingError = Vector2::Cross(_frontWall->Normal, robotFwd);
+        headingError = Vector2::Cross(_frontWall->Normal, _mapping->CurrentPose().forward);
 
         headingDerivative = headingError - _prevHeadingError;
         _prevHeadingError = headingError;
