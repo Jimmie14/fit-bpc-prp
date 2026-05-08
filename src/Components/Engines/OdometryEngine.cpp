@@ -26,7 +26,7 @@ OdometryEngine::OdometryEngine(const App& app)
 void OdometryEngine::OnEnable()
 {
     _encoderSubscriber = create_subscription<std_msgs::msg::UInt32MultiArray>(
-        _config.odometryTopic, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
+        _config.encodersTopic, 10, [this](const std_msgs::msg::UInt32MultiArray::SharedPtr msg) {
             OnEncoders(msg);
         });
 }

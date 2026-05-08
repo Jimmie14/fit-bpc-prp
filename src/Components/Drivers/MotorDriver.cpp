@@ -11,63 +11,43 @@ using namespace std_msgs;
 
 namespace Manhattan::core {
 
-constexpr auto MOTOR_SPEED_TOPIC = "/bpc_prp_robot/set_motor_speeds";
-constexpr auto MOTOR_ENCODERS_TOPIC = "/bpc_prp_robot/encoders";
+MotorController::MotorController(const config::MotorControllerConfig& config)
+    : _characteristics(config.characteristics)
+    , _pid(config.kp, config.ki, config.kd)
+{
 
-constexpr double ROTATIONS_PER_SECOND = 1.5;
-constexpr double MAX_WHEEL_ANGULAR_SPEED = 2.0 * M_PI * ROTATIONS_PER_SECOND;
-constexpr double ANGULAR_TO_SPEED = 1.0 / MAX_WHEEL_ANGULAR_SPEED;
+}
 
-struct MotorCharacteristics {
-    double minSpeed;
-    double maxSpeed;
-};
+double MotorController::step(const double desired, const double dt)
+{
+    const auto error = desired - _current;
+    const auto speed = desired + _pid.step(error, dt);
 
-struct MotorControllerConfig {
-    MotorCharacteristics characteristics;
+    _current = saturate(speed);
 
-    double kp;
-    double ki;
-    double kd;
-};
+    return _current;
+}
 
-class MotorController {
-public:
-    explicit MotorController(const MotorControllerConfig& config)
-        : _characteristics(config.characteristics)
-        , _pid(config.kp, config.ki, config.kd)
-    {
-    }
+void MotorController::reset()
+{
+    _current = 0.0;
+    _pid.reset();
+}
 
-    [[nodiscard]] double step(const double& desired, const double& actual, const double dt)
-    {
-        const auto error = desired - actual;
+double MotorController::saturate(const double& value) const
+{
+    if (std::abs(value) < _characteristics.minSpeed) return 0.0;
 
-        const auto speed = desired + _pid.step(error, dt);
-
-        return saturate(speed);
-    }
-
-    void reset()
-    {
-        _pid.reset();
-    }
-private:
-    MotorCharacteristics _characteristics;
-    Pid _pid;
-
-    [[nodiscard]] double saturate(const double& value) const
-    {
-        if (std::abs(value) < _characteristics.minSpeed) return 0.0;
-
-        return std::clamp(value, -_characteristics.maxSpeed, _characteristics.maxSpeed);
-    }
-};
+    return std::clamp(value, -_characteristics.maxSpeed, _characteristics.maxSpeed);
+}
 
 MotorDriver::MotorDriver(const App& app)
     : RosDeviceDriver(app, "motor")
+    , _config(_app.getConfig<config::MotorDriverConfig>("motors"))
+    , _left(_config.left)
+    , _right(_config.right)
 {
-    _publisher = create_publisher<msg::UInt8MultiArray>(MOTOR_SPEED_TOPIC, 1);
+    _publisher = create_publisher<msg::UInt8MultiArray>(_config.topic, 1);
 
     _msg = msg::UInt8MultiArray();
     _msg.data.push_back(127);
@@ -91,10 +71,8 @@ MotorDriver::MotorDriver(const App& app)
 
 void MotorDriver::OnEnable()
 {
-    _timer = create_wall_timer(100ms, [this] {
-        if (_mode.motorOff) return;
-
-        _publisher->publish(_msg);
+    _timer = create_wall_timer(duration<double>(_config.deltaTime), [this] {
+        Publish();
     });
 }
 
@@ -105,13 +83,26 @@ void MotorDriver::OnDisable()
 
 void MotorDriver::SetForce(const double leftAngular, const double rightAngular)
 {
-    auto left = leftAngular * ANGULAR_TO_SPEED;
-    auto right = rightAngular * ANGULAR_TO_SPEED;
+    if (_mode.motorOff) {
+        _desired = { 0.0, 0.0 };
+        return;
+    }
+
+    _desired = { leftAngular, rightAngular };
+}
+
+void MotorDriver::Publish()
+{
+    auto left = _left.step(_desired.left, _config.deltaTime) / _config.left.characteristics.maxSpeed;
+    auto right = _right.step(_desired.right, _config.deltaTime) / _config.right.characteristics.maxSpeed;
 
     left = clamp(left, -1.0, 1.0);
     right = clamp(right, -1.0, 1.0);
 
     _msg.data[0] = static_cast<uint8_t>((left * .5 + .5) * 255);
     _msg.data[1] = static_cast<uint8_t>((right * .5 + .5) * 255);
+
+    _publisher->publish(_msg);
 }
+
 } // namespace Manhattan::Core
