@@ -5,11 +5,12 @@
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int32_multi_array.hpp>
 
+#include "Common/RosComponent.hpp"
+#include "Common/RosEngine.hpp"
+#include "Config/OdometryConfig.hpp"
 #include "Kinematics/Kinematics.hpp"
 #include "Math/LinearPath.hpp"
 #include "Math/Pose.hpp"
-#include "Common/RosComponent.hpp"
-#include "Common/RosEngine.hpp"
 
 namespace Manhattan::core {
 
@@ -28,16 +29,20 @@ protected:
     void OnDisable() override;
 
 private:
+    config::OdometryConfig _config;
+
     void OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr& msg);
 
-    void publishOdometry(const Time& stamp) const;
+    void publishOdometry() const;
+
 
     DifferentialDriveKinematics _kinematics;
     DifferentialDriveOdometry _odometry;
 
+    std::chrono::steady_clock::time_point _lastTime;
+
     Pose _pose = {};
-    double _linearVelocity = 0.0;
-    double _angularVelocity = 0.0;
+    Twist _twist = Twist::zero();
 
     int32_t _prevLeft = 0;
     int32_t _prevRight = 0;

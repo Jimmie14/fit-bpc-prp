@@ -9,6 +9,10 @@ pulses_per_rotation = 550
 radius = 0.033
 pulses_per_rotation = 550
 
+[odometry]
+odometry_topic = "/bpc_prp_robot/encoders"
+linear_velocity_smoothing_time = 0.10
+angular_velocity_smoothing_time = 0.07
 
 
 [navigation.dwpp]
