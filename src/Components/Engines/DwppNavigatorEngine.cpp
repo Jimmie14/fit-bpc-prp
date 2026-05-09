@@ -52,9 +52,13 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
 
 void DwppNavigatorEngine::OnEnable()
 {
-    _updateTimer = create_wall_timer(duration<double>(_config.deltaTime), std::bind(&DwppNavigatorEngine::Update, this));
+    _updateTimer = create_wall_timer(duration<double>(_config.deltaTime), [this] {
+        Update();
+    });
 
-    _debugTimer = create_wall_timer(100ms, std::bind(&DwppNavigatorEngine::PublishDebug, this));
+    _debugTimer = create_wall_timer(100ms, [this] {
+        PublishDebug();
+    });
 }
 
 void DwppNavigatorEngine::OnDisable()
@@ -105,8 +109,6 @@ void DwppNavigatorEngine::Update()
         }
     }
 
-    std::cout << "twist: " << bestTwist << std::endl;
-
     _app.events->Publish(MotorCommandEvent {
         .twist = bestTwist
     });
@@ -125,6 +127,9 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
 
     auto pathError = 0.0;
     auto headingError = 0.0;
+    auto progressReward = 0.0;
+
+    auto previous = _path.FindClosestPoint(pose.position);
 
     for (int i = 0; i < _config.simulationSteps; i++) {
         pose = _odometry.integrate(pose, step);
@@ -134,30 +139,28 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
         pathError += Vector2::distance(closest.position, pose.position);
 
         const auto lookahead = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
-
         const auto toLookahead = (lookahead - pose.position).normalized();
+
         headingError += 1.0 - Vector2::dot(pose.forward(), toLookahead);
+
+        progressReward += closest.distanceAlongPath - previous.distanceAlongPath;
+
+        previous = closest;
     }
 
-    pathError /= _config.simulationSteps;
-    headingError /= _config.simulationSteps;
+    auto const time = _config.simulationDeltaTime * _config.simulationSteps;
 
-    const double goalDist = Vector2::distance(_lookaheadPoint, pose.position);
+    pathError /= time;
+    headingError /= time;
+    progressReward /= time;
 
-    const double speedPenalty =
-        std::abs(twist.linear) * _config.linearSpeedWeight +
-        std::abs(twist.angular) * _config.angularSpeedWeight;
+    const auto score =
+        + _config.progressRewardWeight * progressReward
+        - _config.pathErrorCostWeight * pathError
+        - _config.headingErrorCostWeight * headingError;
 
-    const double cost =
-        _config.pathErrorWeight * pathError +
-        _config.headingErrorWeight * headingError +
-        _config.goalWeight * goalDist +
-        speedPenalty;
-
-    _debugSimulations.push_back({ pose.position.toTf2(), -cost });
-
-
-    return -cost;
+    _debugSimulations.push_back({ pose.position.toTf2(), score });
+    return score;
 }
 
 void DwppNavigatorEngine::PublishDebug()
@@ -165,17 +168,15 @@ void DwppNavigatorEngine::PublishDebug()
     std::lock_guard guard(_lock);
 
     auto builder = viz::marker::MarkerArrayBuilder();
-    visualization_msgs::msg::Marker marker;
 
     builder.add(viz::marker::clear("map"));
 
-    marker = viz::marker::point(_lookaheadPoint.toTf2(), "map");
+    auto marker = viz::marker::point(_lookaheadPoint.toTf2(), "map");
     marker.color = viz::marker::color(0, 0, 1);
 
     builder.add(marker);
 
-    marker = viz::marker::path(_path.getWaypoints(), "map");
-    builder.add(marker);
+    builder.add(viz::marker::path(_path.getWaypoints(), "map"));
 
     builder.add(viz::marker::twist(_pose, _twist, "map"));
 

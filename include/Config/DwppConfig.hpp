@@ -20,13 +20,9 @@ struct DwppConfig : Configurable {
     int simulationSteps;
     double simulationDeltaTime;
 
-    double linearSpeedWeight;
-    double angularSpeedWeight;
-
-    double pathErrorWeight;
-    double headingErrorWeight;
-    double goalWeight;
-    double speedWeight;
+    double progressRewardWeight;
+    double pathErrorCostWeight;
+    double headingErrorCostWeight;
 
     void configure(const Config& config) override
     {
@@ -39,18 +35,15 @@ struct DwppConfig : Configurable {
         maxLinearSpeed = config["max_linear_speed"].value<double>();
         maxAngularSpeed = config["max_angular_speed"].value<double>();
 
-        linearVelocitySamples = config["linear_velocity_samples"].value<double>();
-        angularVelocitySamples = config["angular_velocity_samples"].value<double>();
+        linearVelocitySamples = config["linear_velocity_samples"].value<int>();
+        angularVelocitySamples = config["angular_velocity_samples"].value<int>();
 
         simulationSteps = config["simulation_steps"].value<int>();
         simulationDeltaTime = config["simulation_delta_time"].value<double>();
 
-        linearSpeedWeight = config["linear_speed_weight"].value<double>();
-        angularSpeedWeight = config["angular_speed_weight"].value<double>();
-
-        pathErrorWeight = config["path_error_weight"].value<double>();
-        headingErrorWeight = config["heading_error_weight"].value<double>();
-        goalWeight = config["goal_weight"].value<double>();
+        progressRewardWeight = config["progress_reward_weight"].value<double>();
+        pathErrorCostWeight = config["path_error_cost_weight"].value<double>();
+        headingErrorCostWeight = config["heading_error_cost_weight"].value<double>();
     }
 };
 
