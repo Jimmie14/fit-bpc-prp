@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Grid.hpp"
+
 #include <tf2/LinearMath/Vector3.hpp>
 
 namespace Manhattan::nav {
@@ -8,12 +10,32 @@ using namespace tf2;
 
 class GridMap {
 public:
+    GridMap() = default;
+
+    GridMap(const GridMap&) = default;
+
     GridMap(const unsigned int width, const unsigned int height, const float resolution)
         : _width(width)
         , _height(height)
         , _resolution(resolution)
     {
 
+    }
+
+
+    template<typename T>
+    explicit GridMap(const Grid<T>& grid)
+        : _width(grid.width())
+        , _height(grid.height())
+        , _resolution(grid.resolution())
+    {
+
+    }
+
+
+    [[nodiscard]] bool empty() const
+    {
+        return _width == 0 || _height == 0 || _resolution <= 0.0f;
     }
 
     [[nodiscard]] unsigned int width() const

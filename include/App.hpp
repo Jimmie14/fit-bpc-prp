@@ -1,5 +1,7 @@
 #pragma once
 
+#include "Common/ConfigManager.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 
 #include "Config/Configurable.hpp"
@@ -11,9 +13,13 @@
 #include <any>
 
 namespace Manhattan::core {
+
+using namespace Manhattan::common;
+
 class App {
 public:
     const std::unique_ptr<EventBus> events;
+    const std::shared_ptr<ConfigManager> config;
 
     App();
 
@@ -47,21 +53,10 @@ public:
         return component;
     }
 
-    template <typename T>
-    requires std::is_base_of_v<config::Configurable, T> T getConfig(const std::string& key) const
-    {
-        auto config = T();
-
-        config.configure(_config[key]);
-
-        return config;
-    }
-
 private:
     const std::shared_ptr<executors::MultiThreadedExecutor> _executor;
     std::shared_ptr<TcpServer> _tcpServer;
 
     std::unordered_map<std::type_index, std::shared_ptr<RosComponent>> _components;
-    config::Config _config;
 };
 } // namespace Manhattan::Core

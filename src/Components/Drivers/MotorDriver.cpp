@@ -43,21 +43,28 @@ double MotorController::saturate(const double& value) const
 
 MotorDriver::MotorDriver(const App& app)
     : RosDeviceDriver(app, "motor")
-    , _config(_app.getConfig<config::MotorDriverConfig>("motors"))
-    , _left(_config.left)
-    , _right(_config.right)
+    , _left({ })
+    , _right({ })
 {
+    _app.config->watch<MotorDriverConfig>("motors", [this](const MotorDriverConfig& config) {
+        _config = config;
+
+        _left = MotorController(_config.left);
+        _right = MotorController(_config.right);
+    });
+
+    _app.config->watch<DifferentialDriveGeometry>("geometry", [this](const DifferentialDriveGeometry& geometry) {
+        _kinematics = DifferentialDriveKinematics(geometry);
+    });
+
     _publisher = create_publisher<msg::UInt8MultiArray>(_config.topic, 1);
 
     _msg = msg::UInt8MultiArray();
     _msg.data.push_back(127);
     _msg.data.push_back(127);
 
-    const auto geometry = _app.getConfig<config::DifferentialDriveGeometry>("geometry");
-    const auto kinematics = DifferentialDriveKinematics(geometry);
-
-    _app.events->Subscribe<MotorCommandEvent>([this, kinematics](const MotorCommandEvent& command) {
-        const auto [left, right] = kinematics.inverse(command.twist);
+    _app.events->Subscribe<MotorCommandEvent>([this](const MotorCommandEvent& command) {
+        const auto [left, right] = _kinematics.inverse(command.twist);
 
         SetForce(left, right);
     });

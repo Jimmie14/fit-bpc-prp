@@ -46,6 +46,7 @@ MappingEngine::MappingEngine(const App& app)
 
     _hypoPublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/hypo", 1);
 
+    _scanPublisher = create_publisher<sensor_msgs::msg::PointCloud2>("slam/scan", 1);
     _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", 1);
     _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", 1);
 

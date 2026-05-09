@@ -51,6 +51,8 @@ private:
     kinematics::WheelAngularVelocity _desired = { };
 
     config::MotorDriverConfig _config;
+    kinematics::DifferentialDriveKinematics _kinematics = kinematics::DifferentialDriveKinematics({ });
+
     MotorController _left;
     MotorController _right;
 

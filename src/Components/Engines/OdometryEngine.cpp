@@ -10,14 +10,17 @@ namespace Manhattan::core {
 
 OdometryEngine::OdometryEngine(const App& app)
     : RosEngine(app, "odometry")
-    , _config(app.getConfig<config::OdometryConfig>("odometry"))
     , _kinematics({ })
     , _odometry({ })
 {
-    const auto geometry = _app.getConfig<config::DifferentialDriveGeometry>("geometry");
+    _app.config->watch<OdometryConfig>("odometry", [this](const OdometryConfig& config) {
+        _config = config;
+    });
 
-    _kinematics = DifferentialDriveKinematics(geometry);
-    _odometry = DifferentialDriveOdometry(geometry);
+    _app.config->watch<DifferentialDriveGeometry>("geometry", [this](const DifferentialDriveGeometry& geometry) {
+        _kinematics = DifferentialDriveKinematics(geometry);
+        _odometry = DifferentialDriveOdometry(geometry);
+    });
 
     _odomPublisher = create_publisher<nav_msgs::msg::Odometry>("odom", 10);
     _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("pose", 10);

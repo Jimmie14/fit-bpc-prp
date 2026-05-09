@@ -32,7 +32,6 @@ min_speed = 0.01
 max_speed = 9.4247779608
 
 
-
 [odometry]
 encoders_topic = "/bpc_prp_robot/encoders"
 linear_velocity_smoothing_time = 0.10

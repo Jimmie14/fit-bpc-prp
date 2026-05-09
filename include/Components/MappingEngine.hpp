@@ -83,6 +83,7 @@ private:
     Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _hypoPublisher;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
+    Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
     Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
 

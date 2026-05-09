@@ -6,6 +6,7 @@
 #include <rclcpp/rclcpp.hpp>
 #include <tf2/LinearMath/Vector3.hpp>
 #include <visualization_msgs/msg/marker.hpp>
+#include "Math/Pose.hpp"
 
 namespace Manhattan::viz::marker {
 
@@ -105,7 +106,7 @@ inline visualization_msgs::msg::Marker text(
     return marker;
 }
 
-inline visualization_msgs::msg::Marker twist(const core::Pose& pose, const core::Twist& twist, const std::string& frame_id)
+inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math::Twist& twist, const std::string& frame_id)
 {
     visualization_msgs::msg::Marker marker;
 

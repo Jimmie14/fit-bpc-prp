@@ -12,14 +12,18 @@ using namespace Manhattan::messages;
 
 DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
-    , _config(_app.getConfig<config::DwppConfig>("navigation.dwpp"))
     , _kinematics({ })
     , _odometry({ })
 {
-    const auto geometry = _app.getConfig<config::DifferentialDriveGeometry>("geometry");
+    _app.config->watch<DwppConfig>("navigation.dwpp", [this](const DwppConfig& config) {
+        _config = config;
+    });
 
-    _kinematics = DifferentialDriveKinematics(geometry);
-    _odometry = DifferentialDriveOdometry(geometry);
+    _app.config->watch<DifferentialDriveGeometry>("geometry", [this](const DifferentialDriveGeometry& geometry) {
+        _kinematics = DifferentialDriveKinematics(geometry);
+        _odometry = DifferentialDriveOdometry(geometry);
+    });
+
 
     _app.events->Subscribe<RobotEnvironmentChangeEvent>([this](const auto& _) {
         std::lock_guard guard(_lock);

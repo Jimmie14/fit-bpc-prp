@@ -28,6 +28,16 @@ public:
         }
     }
 
+    static Grid<T> uninitialized()
+    {
+        return Grid<T>(0, 0, 0.0f);
+    }
+
+    [[nodiscard]] bool empty() const
+    {
+        return _data.empty();
+    }
+
     [[nodiscard]] unsigned int width() const
     {
         return _width;

@@ -10,17 +10,13 @@ namespace Manhattan::core {
 
 App::App()
     : events(make_unique<EventBus>())
+    , config(make_shared<ConfigManager>())
     , _executor(make_shared<executors::MultiThreadedExecutor>(ExecutorOptions(), 16))
 {
+    _executor->add_node(config);
+
+
     _tcpServer = make_shared<TcpServer>(12345);
-
-    std::cout << std::filesystem::current_path() << std::endl;
-
-    const auto node = std::make_shared<Node>("manhattan_config");
-
-    const auto configPath = node->declare_parameter("config", "manhattan.toml");
-
-    _config = config::Config::load(configPath);
 }
 
 void App::run() const
