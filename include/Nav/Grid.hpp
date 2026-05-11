@@ -9,7 +9,7 @@ using namespace std;
 
 namespace Manhattan::nav {
 
-using namespace Manhattan::Math;
+using namespace Manhattan::math;
 
 template <typename T>
 class Grid {
@@ -26,6 +26,16 @@ public:
                 _data.push_back(defaultValue);
             }
         }
+    }
+
+    static Grid<T> uninitialized()
+    {
+        return Grid<T>(0, 0, 0.0f);
+    }
+
+    [[nodiscard]] bool empty() const
+    {
+        return _data.empty();
     }
 
     [[nodiscard]] unsigned int width() const

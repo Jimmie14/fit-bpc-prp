@@ -1,14 +1,14 @@
 #pragma once
+
 #include <algorithm>
-#include <optional>
 #include <queue>
 #include <vector>
 
 #include "Math/Vector2.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
-using namespace Manhattan::Math;
+using namespace Manhattan::math;
 
 class GridCell {
     double _probability = 0;

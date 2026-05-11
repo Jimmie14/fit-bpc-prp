@@ -8,12 +8,12 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "../Math/PoseMatcher.hpp"
-#include "../Math/Vector2.hpp"
+#include "Math/PoseMatcher.hpp"
+#include "Math/Vector2.hpp"
 #include "App.hpp"
 #include "OccupancyGrid.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 enum class MappingEngineState {
     Initializing,
     Stable,
@@ -72,11 +72,10 @@ public:
     [[nodiscard]] int GetWidth() const { return _grid.GetWidth(); }
     [[nodiscard]] int GetHeight() const { return _grid.GetHeight(); }
 
-    void Reset();
-
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
 
+    TimerBase::SharedPtr _poseUpdateTimer;
     TimerBase::SharedPtr _publishTimer;
     TimerBase::SharedPtr _costUpdateTimer;
 
@@ -84,6 +83,7 @@ private:
     Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _hypoPublisher;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
+    Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
     Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
 
@@ -93,8 +93,12 @@ private:
     Pose _lastOdomPose;
     Pose _odomPoseDelta = Pose::Zero();
 
-    Pose _lastStoredPose = Pose::Identity();
-    Pose _stablePose = Pose::Identity();
+    Pose _stablePose = Pose::Zero();
+
+    Twist _twist = Twist::zero();
+
+    bool _reverse = false;
+
 
     PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;
@@ -109,6 +113,8 @@ private:
     std::mutex _mapLock;
     std::mutex _odomLock;
 
+    void Reset();
+
     void OnOdometry(const nav_msgs::msg::Odometry::SharedPtr& msg);
 
     void OnLidar(const std::vector<Vector2>& points);
@@ -121,6 +127,8 @@ private:
     void CreateHypothesis();
 
     void MapScan(const std::vector<Vector2>& points);
+
+    void PublishStablePose() const;
 
     void Publish();
 

@@ -1,0 +1,59 @@
+[geometry]
+wheel_base = 0.12
+
+[geometry.left]
+radius = 0.033
+pulses_per_rotation = 550
+
+[geometry.right]
+radius = 0.033
+pulses_per_rotation = 550
+
+[motors]
+topic = "/bpc_prp_robot/set_motor_speeds"
+delta_time = 0.01
+
+[motors.left]
+kp = 0.8
+ki = 0.001
+kd = 0.0002
+
+[motors.right]
+kp = 0.8
+ki = 0.001
+kd = 0.0002
+
+[motors.left.characteristics]
+min_speed = 0.02
+max_speed = 9.4247779608
+
+[motors.right.characteristics]
+min_speed = 0.01
+max_speed = 9.4247779608
+
+
+[odometry]
+encoders_topic = "/bpc_prp_robot/encoders"
+linear_velocity_smoothing_time = 0.10
+angular_velocity_smoothing_time = 0.07
+
+
+[navigation.dwpp]
+delta_time = 0.1
+lookahead_distance = 0.2
+
+linear_acceleration = 0.5
+angular_acceleration = 1.0
+
+max_linear_speed = 0.3
+max_angular_speed = 0.6
+
+linear_velocity_samples = 10
+angular_velocity_samples = 10
+
+simulation_steps = 100
+simulation_delta_time = 0.08
+
+progress_reward_weight = 4.0
+path_error_cost_weight = 1.0
+heading_error_cost_weight = 1.0

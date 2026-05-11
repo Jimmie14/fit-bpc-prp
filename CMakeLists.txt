@@ -27,6 +27,17 @@ find_package(grid_map_msgs REQUIRED)
 find_package(grid_map_ros REQUIRED)
 find_package(OpenCV REQUIRED)
 
+
+include(FetchContent)
+
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.4.0
+)
+
+FetchContent_MakeAvailable(tomlplusplus)
+
 # Setup ament package
 ament_package()
 

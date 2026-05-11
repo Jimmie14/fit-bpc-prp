@@ -1,4 +1,4 @@
-#include "ArucoDetectionEngine.hpp"
+#include "Components/ArucoDetectionEngine.hpp"
 
 #include "Math/Vec3.hpp"
 #include "Viz/Marker.hpp"
@@ -17,7 +17,7 @@ constexpr auto markerSize = 0.065;
 constexpr auto cameraHeight = 0.165;
 constexpr auto cameraPitchToFloor = M_PI * 0.25;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
     : RosEngine(app, "aruco_detection")
@@ -37,7 +37,7 @@ ArucoDetectionEngine::ArucoDetectionEngine(const App& app)
         0.0000215995344,
         -36.5553743);
 
-    _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
+    _app.events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
     });
 }
@@ -77,7 +77,7 @@ void ArucoDetectionEngine::OnDisable()
 
 void ArucoDetectionEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg)
 {
-    _lastPose = Pose::FromRosPoseMessage(msg->pose);
+    _lastPose = Pose::fromRosPoseMessage(msg->pose);
 }
 
 void ArucoDetectionEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)
@@ -106,8 +106,8 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
 
     const auto stamp = this->now();
 
-    const auto cameraPosition = _lastPose.position.ToTf2() + vec3::Up * cameraHeight;
-    const auto robotRotation = _lastPose.rotation;
+    const auto cameraPosition = _lastPose.position.toTf2() + vec3::Up * cameraHeight;
+    const auto robotRotation = _lastPose.theta - M_PI * 0.5;
 
     if (!ids.empty()) {
         std::vector<cv::Vec3d> rVectors, tVectors;
@@ -175,7 +175,7 @@ void ArucoDetectionEngine::UpdateOrCreateCode(const int id, const std::pair<int,
     }
 
     _codes.push_back(Code { id, position, rotation });
-    _app.Events->Publish(CodeDetectedEvent { id, Pose(Vector2(position.first, position.second), rotation) });
+    _app.events->Publish(CodeDetectedEvent { id, Pose(Vector2(position.first, position.second), rotation) });
 }
 
 void ArucoDetectionEngine::Publish() const

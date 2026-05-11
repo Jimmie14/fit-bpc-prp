@@ -1,8 +1,8 @@
-#include "NavigatorGraphBuilder.hpp"
+#include "Components/NavigatorGraphBuilder.hpp"
 
 #include <bitset>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h)
 {
@@ -73,7 +73,7 @@ static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int
 NavigatorGraphBuilder::NavigatorGraphBuilder(const App& app)
     : RosEngine(app, "navigator_graph_builder")
 {
-    _mappingEngine = app.GetComponent<MappingEngine>();
+    _mappingEngine = app.getComponent<MappingEngine>();
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/graph", 1);
     _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("nav/grid", 1);
 

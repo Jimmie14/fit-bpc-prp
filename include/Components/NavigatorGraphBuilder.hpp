@@ -8,7 +8,7 @@
 #include "MappingEngine.hpp"
 #include "Math/Vector2.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 struct NavigatorNode;
 

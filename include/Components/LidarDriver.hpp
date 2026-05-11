@@ -1,14 +1,13 @@
 #pragma once
 
-#include <nav_msgs/msg/odometry.hpp>
 #include <sensor_msgs/msg/laser_scan.hpp>
 
 #include "Math/Vector2.hpp"
-#include "RosDeviceDriver.hpp"
+#include "Common/RosDeviceDriver.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
-using namespace Manhattan::Math;
+using namespace Manhattan::math;
 
 class LidarDriver final : public RosDeviceDriver {
     std::vector<Vector2> _points {};

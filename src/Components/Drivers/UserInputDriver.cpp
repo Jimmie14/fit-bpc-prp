@@ -1,12 +1,11 @@
-#include "UserInputDriver.hpp"
+#include "Components/UserInputDriver.hpp"
 
 #include "App.hpp"
-#include "Kinematics.hpp"
 #include "Networking/CommandParser.hpp"
 using namespace std;
 using namespace rclcpp;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 static std::vector<std::string> SplitBySpace(const std::string& value)
 {
     std::istringstream iss(value);
@@ -20,12 +19,10 @@ static std::vector<std::string> SplitBySpace(const std::string& value)
 
 UserInputDriver::UserInputDriver(const App& app)
     : RosDeviceDriver(app, "user_input")
-    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
 {
-    _tcpServer = app.GetTcpServer();
+    _tcpServer = app.getTcpServer();
 
-    _motorController = app.GetComponent<MotorDriver>();
-    _lineController = app.GetComponent<LineEngine>();
+    _lineController = app.getComponent<LineEngine>();
 
     Enable();
 }
@@ -49,7 +46,7 @@ void UserInputDriver::ReceiveMessage(const std::vector<uint8_t>& data)
 void UserInputDriver::DecodeMessage(const std::string& command, const std::vector<std::string>& values)
 {
     if (command == "STOP") {
-        _motorController->SetForce(0, 0);
+        _app.events->Publish(MotorCommandEvent { Twist::zero() });
         if (_activeController)
             _activeController->Disable();
 
@@ -92,10 +89,9 @@ void UserInputDriver::ParseMoveCommand(const std::vector<std::string>& values) c
     const auto linear = CommandParser::ParseValue<double>("linear", values).value_or(0);
     const auto angular = CommandParser::ParseValue<double>("angular", values).value_or(0);
 
-    const auto robotSpeed = RobotSpeed(linear, angular);
-    auto [left, right] = _kinematics.inverse(robotSpeed);
+    const auto twist = Twist(linear, angular);
 
-    _motorController->SetForce(left, right);
+    _app.events->Publish(MotorCommandEvent { twist });
 }
 
 void UserInputDriver::ParseLineConfig(const std::vector<std::string>& values) const

@@ -2,7 +2,7 @@
 // Created by guest on 3/17/26.
 //
 
-#include "LineEngine.hpp"
+#include "Components/LineEngine.hpp"
 
 #include "App.hpp"
 
@@ -10,7 +10,7 @@ using namespace std;
 using namespace rclcpp;
 using namespace std_msgs;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 constexpr auto subscriber = "/bpc_prp_robot/line_sensors";
 
 LineEngine::LineEngine(const App& app)
@@ -18,7 +18,7 @@ LineEngine::LineEngine(const App& app)
     , _lineEstimator(0, 1000)
     , _linePid(0.36f, 0.03f, 0.02f)
 {
-    _motorController = _app.GetComponent<MotorDriver>();
+    _motorController = _app.getComponent<MotorDriver>();
 }
 
 Pid& LineEngine::GetPid()
@@ -36,7 +36,7 @@ void LineEngine::OnEnable()
     _subscriber = create_subscription<msg::UInt16MultiArray>(
         subscriber, 1, std::bind(&LineEngine::OnLineSensorMsg, this, std::placeholders::_1));
 
-    _motorController = _app.GetComponent<MotorDriver>();
+    _motorController = _app.getComponent<MotorDriver>();
 
     // _lineSensorsPublisher =
     // create_publisher<msg::Float64MultiArray>("~/line_sensors", 10);

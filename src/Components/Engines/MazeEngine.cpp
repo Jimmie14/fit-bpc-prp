@@ -1,19 +1,19 @@
-#include "MazeEngine.hpp"
+#include "Components/MazeEngine.hpp"
 
 #include "Viz/Grid.hpp"
 #include "Viz/Marker.hpp"
 
 using namespace std;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 using namespace Manhattan::nav;
 
 MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze"), _thinned_map(0,0,0)
 {
-    _navigator = app.GetComponent<NavigatorEngine>();
-    _mapping = app.GetComponent<MappingEngine>();
+    _navigator = app.getComponent<NavigatorEngine>();
+    _mapping = app.getComponent<MappingEngine>();
 
     _graphPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze/graph", 10);
 }
@@ -43,7 +43,7 @@ void MazeEngine::OnDisable() {
 
 void MazeEngine::OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const
 {
-    const auto pose = Pose::FromRosPoseMessage(msg->pose);
+    const auto pose = Pose::fromRosPoseMessage(msg->pose);
 }
 
 void MazeEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg)

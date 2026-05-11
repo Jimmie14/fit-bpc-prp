@@ -1,39 +1,49 @@
 #pragma once
+
+#include "Common/ConfigManager.hpp"
+
 #include <rclcpp/rclcpp.hpp>
 
-#include "EventBus.hpp"
+#include "Config/Configurable.hpp"
+#include "Common/EventBus.hpp"
 #include "Networking/TcpServer.h"
-#include "RosDeviceDriver.hpp"
-#include "RosEngine.hpp"
+#include "Common/RosEngine.hpp"
+#include <toml++/toml.hpp>
 
-namespace Manhattan::Core {
+#include <any>
+
+namespace Manhattan::core {
+
+using namespace Manhattan::common;
+
 class App {
 public:
-    const std::unique_ptr<EventBus> Events;
+    const std::unique_ptr<EventBus> events;
+    const std::shared_ptr<ConfigManager> config;
 
     App();
 
-    std::shared_ptr<TcpServer> GetTcpServer() const
+    std::shared_ptr<TcpServer> getTcpServer() const
     {
         return _tcpServer;
     }
 
-    void Run() const;
+    void run() const;
 
     template <typename T>
-    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> GetComponent()
+    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> getComponent()
     const
     {
-        auto it = _components.find(typeid(T));
+        const auto it = _components.find(typeid(T));
         if (it != _components.end()) {
             return std::static_pointer_cast<T>(it->second);
         }
 
-        return nullptr;
+        throw std::runtime_error("Component not found");
     }
 
     template <typename T, typename... Args>
-    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> AddComponent(Args&&... args)
+    requires std::is_base_of_v<RosComponent, T> std::shared_ptr<T> addComponent(Args&&... args)
     {
         auto component = std::make_shared<T>(*this, std::forward<Args>(args)...);
 
@@ -41,18 +51,6 @@ public:
         _executor->add_node(component);
 
         return component;
-    }
-
-    template <typename T, typename... Args>
-    requires std::is_base_of_v<RosDeviceDriver, T> std::shared_ptr<T> AddDriver(Args&&... args)
-    {
-        return AddComponent<T>(std::forward<Args>(args)...);
-    }
-
-    template <typename T, typename... Args>
-    requires std::is_base_of_v<RosEngine, T> std::shared_ptr<T> AddEngine(Args&&... args)
-    {
-        return AddComponent<T>(std::forward<Args>(args)...);
     }
 
 private:

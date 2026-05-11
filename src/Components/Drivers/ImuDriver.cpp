@@ -1,7 +1,7 @@
 
-#include "ImuDriver.hpp"
+#include "Components/ImuDriver.hpp"
 
-#include "OdometryEngine.hpp"
+#include "Components/OdometryEngine.hpp"
 
 #include <nav_msgs/msg/detail/grid_cells__builder.hpp>
 
@@ -14,7 +14,7 @@ constexpr auto imuOrientationCovariance = 0.01;
 constexpr auto imuAngularCovariance = 0.01;
 constexpr auto imuLinearCovariance = 0.01;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 ImuDriver::ImuDriver(const App& app)
     : RosDeviceDriver(app, "imu")

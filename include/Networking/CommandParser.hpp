@@ -4,7 +4,7 @@
 #include <string>
 #include <vector>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class CommandParser {
 public:
     template <typename T>

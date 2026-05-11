@@ -1,8 +1,9 @@
-#include "ExplorerEngine.hpp"
+#include "Components/ExplorerEngine.hpp"
 
-#include "ArucoDetectionEngine.hpp"
-#include "MapThinningUnit.hpp"
+#include "Components/ArucoDetectionEngine.hpp"
+#include "Components/MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
+#include "Messages/Nav.hpp"
 #include "Viz/Marker.hpp"
 #include <stdexcept>
 #include <tf2/LinearMath/Quaternion.hpp>
@@ -10,21 +11,20 @@
 using namespace std;
 using namespace Manhattan::nav;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 ExplorerEngine::ExplorerEngine(const App& app)
     : RosEngine(app, "explorer")
     , _grid(0, 0, 0)
     , _map(0, 0, 0)
 {
-    _mapping = app.GetComponent<MappingEngine>();
-    _navigatorController = app.GetComponent<NavigatorEngine>();
+    _mapping = app.getComponent<MappingEngine>();
 
-    _app.Events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
+    _app.events->Subscribe<ThinnedMapEvent>([this](const ThinnedMapEvent& event) {
         _grid = event.grid;
         _map = GridMap(_grid.width(), _grid.height(), _grid.resolution());
     });
 
-    _app.Events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
+    _app.events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
         OnAruCode(event);
     });
 }
@@ -39,7 +39,7 @@ void ExplorerEngine::OnEnable()
 
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("explorer/markers", 1);
 
-    _startTimer = create_wall_timer(1s, [this] {
+    _startTimer = create_wall_timer(3s, [this] {
         _timer = create_wall_timer(100ms, [this] { Update(); });
         _startTimer->reset();
     });
@@ -75,8 +75,8 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     auto dirs = Vector2Int::EightDirections();
 
     ranges::sort(dirs, [&](const auto& a, const auto& b) {
-       const auto va = Vector2(a).ToTf2().normalized();
-       const auto vb = Vector2(b).ToTf2().normalized();
+       const auto va = Vector2(a).toTf2().normalized();
+       const auto vb = Vector2(b).toTf2().normalized();
 
        const auto da = va.dot(dirNorm);
        const auto db = vb.dot(dirNorm);
@@ -137,7 +137,7 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
 {
     if (ways.empty()) return std::nullopt;
 
-    auto bestScore = std::numeric_limits<float>::max();
+    auto bestScore = std::numeric_limits<double>::max();
     auto best = ways.front();
 
     for (auto point : ways) {
@@ -245,6 +245,72 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos
     return std::nullopt;
 }
 
+Vector3 ExplorerEngine::GetPreferredDirection() const
+{
+    auto getAngleFromId = [](const int id) {
+        switch (id) {
+        case 0:
+        case 10:
+            return 0.0;
+        case 1:
+        case 11:
+            return M_PI_2 * 0.5f;
+        case 2:
+        case 12:
+            return -M_PI_2 * 0.5f;
+        default:
+            return -M_PI * 0.5;
+        }
+    };
+
+    auto angle = M_PI * 0.5;
+
+    if (_treasureCode.has_value()) {
+        // const auto treasureAngle = getAngleFromId(_treasureCode->id);
+        //
+        // if (_exitCode.has_value()) {
+        //     const auto exitAngle = getAngleFromId(_exitCode->id);
+        //
+        //     angle = exitAngle - treasureAngle;
+        // } else {
+        //     angle = treasureAngle;
+        // }
+
+        angle = getAngleFromId(_treasureCode->id);
+    }
+    else if (_exitCode.has_value()) {
+        angle = getAngleFromId(_exitCode->id);
+    }
+
+    return quatRotate(Quaternion(vec3::Up, angle), _junctionEnterDirection);
+}
+
+static optional<CodeDetectedEvent> GetCodeFromTressure(const optional<CodeDetectedEvent>& exit, const optional<CodeDetectedEvent>& treasure)
+{
+    if (!treasure.has_value()) return treasure;
+    if (!exit.has_value()) return treasure;
+
+    switch (treasure->id) {
+    case 10: // straight
+        if (exit->id == 0) return std::nullopt;;
+        if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 1 });
+        break;
+    case 11: // left
+        if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 1) return std::nullopt;;
+        if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 0 });
+        break;
+    case 12: // right
+        if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
+        if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 0 });
+        if (exit->id == 2) return std::nullopt;;
+        break;
+    }
+
+    return std::nullopt;
+}
+
 void ExplorerEngine::Update()
 {
     if (_grid.size() == 0) return;
@@ -256,13 +322,38 @@ void ExplorerEngine::Update()
     case ExplorerState::Exploring: {
         const auto pose = _mapping->CurrentPose();
 
-        _currentTarget = ClosestOnThinnedMap(pose.position.ToTf2());
+        _currentTarget = ClosestOnThinnedMap(pose.position.toTf2());
         if (!_currentTarget.has_value()) break;
 
 
         const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
+        if (ways.size() == 1) {
+            if (atDeadEnd == false) {
+                atDeadEnd = true;
+
+                // _reverse = !_reverse;
+                // _app.Events->Publish(RobotModeChangeEvent { .newMode = RobotMode { .reverse = _reverse } });
+            }
+        } else {
+            atDeadEnd = false;
+        }
+
+
         if (ways.size() <= 2) {
-            _junctionEnterDirection = pose.forward.ToTf2();
+            _junctionEnterDirection = pose.forward().toTf2();
+
+            if (_inJunction) {
+                // if (_treasureCode.has_value()) {
+                //     _exitCode = GetCodeFromTressure(_exitCode, _treasureCode);
+                //     _treasureCode = std::nullopt;
+                // } else {
+                //     _exitCode = std::nullopt;
+                // }
+                _treasureCode = std::nullopt;
+                _exitCode = std::nullopt;
+            }
+
+            _inJunction = false;
         } else {
             _options.clear();
 
@@ -270,9 +361,10 @@ void ExplorerEngine::Update()
                 _options.push_back(_map.coordToWorld(way));
             }
 
-            const auto preferred = quatRotate(Quaternion(vec3::Up, -M_PI * 0.5), _junctionEnterDirection);
+            const auto preferred = GetPreferredDirection();
 
             _currentTarget = PickFollowingDirection(_currentTarget.value(), ways, _junctionEnterDirection, preferred);
+            _inJunction = true;
         }
 
 
@@ -281,15 +373,7 @@ void ExplorerEngine::Update()
         _currentTarget = result.target;
         _path = result.path;
 
-        auto navPath = vector<Vector2>();
-
-        navPath.push_back(pose.position);
-
-        for (auto point : _path) {
-            navPath.emplace_back(Vector2(point.x(), point.y()));
-        }
-
-        _navigatorController->SetPath(navPath);
+        _app.events->Publish(RobotFollowPathEvent { .path = _path });
         break;
     }
     case ExplorerState::Returning:
@@ -330,8 +414,12 @@ void ExplorerEngine::Publish() const
 
 void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
-    _aruCode = aruCode;
-     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward.x << " " << aruCode.pose.forward.y << std::endl;
+    std::lock_guard lock(_mutex);
+
+    if (aruCode.id >= 10) _treasureCode = aruCode;
+    else _exitCode = aruCode;
+
+     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward().x << " " << aruCode.pose.forward().y << std::endl;
 }
 
 } // namespace Manhattan::Core

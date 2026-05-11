@@ -1,9 +1,9 @@
-#include "LidarDriver.hpp"
+#include "Components/LidarDriver.hpp"
 
-#include "../../../include/Math/Vector2.hpp"
+#include "Math/Vector2.hpp"
 #include "App.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 constexpr auto LIDAR_TOPIC = "/bpc_prp_robot/lidar";
 
 static double Median(double a, double b, double c)
@@ -27,13 +27,13 @@ void LidarDriver::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
 {
     const auto length = msg->ranges.size();
     const auto angleStep = M_PI * 2.0 / static_cast<double>(length);
-    auto angle = M_PI * 0.5; // forward dir
+    auto angle = 0.0; // forward dir
     auto pointIndex = 0;
 
     _points.resize(length);
 
     if (IsInRange(msg->ranges[0], msg->range_min, msg->range_max))
-        _points[pointIndex++] = Vector2(0, msg->ranges[0]);
+        _points[pointIndex++] = Vector2(msg->ranges[0], 0);
 
     for (auto i = 1; i < length - 1; ++i) {
         angle += angleStep;
@@ -50,8 +50,6 @@ void LidarDriver::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
     if (IsInRange(msg->ranges[length - 1], msg->range_min, msg->range_max))
         _points[pointIndex++] = Vector2(msg->ranges[length - 1] * std::cos(angle), msg->ranges[length - 1] * std::sin(angle));
 
-    _points.resize(pointIndex);
-
-    _app.Events->Publish(LidarScan { _points });
+    _app.events->Publish(LidarScan { _points });
 }
 } // namespace Manhattan::Core

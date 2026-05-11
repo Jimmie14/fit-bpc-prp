@@ -8,9 +8,9 @@
 #include "LineEstimator.hpp"
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
-#include "RosEngine.hpp"
+#include "Common/RosEngine.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class LineEngine final : public RosEngine {
     Subscription<std_msgs::msg::UInt16MultiArray>::SharedPtr _subscriber;
     DiscreteLinePose _linePose = DiscreteLinePose::LineNone;

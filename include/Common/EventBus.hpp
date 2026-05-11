@@ -1,6 +1,6 @@
 #pragma once
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class EventBus {
 public:
     template <typename T>

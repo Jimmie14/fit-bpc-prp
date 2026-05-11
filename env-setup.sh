@@ -20,3 +20,7 @@ sudo apt update
 sudo apt install ros-humble-image-transport-plugins
 sudo apt install ros-humble-image-view
 
+# install toml
+git clone https://github.com/marzer/tomlplusplus.git
+cd tomlplusplus
+sudo cp -r include/toml++ /usr/local/include/
