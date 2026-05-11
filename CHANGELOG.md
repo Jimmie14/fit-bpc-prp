@@ -1,5 +1,27 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Use aru code in explorer
+- Aru code applying on junctions
+- Enhance navigation with reverse speed and distance calculations
+- Add reverse mode
+- Add stable version of navigator and explorer
+- Add correct odometry linear and angular velocity detection
+- Add pid regulator for each motor
+- Minor dwpp cost function adjustments
+- Add maze graph engine
+
+### 🐛 Bug Fixes
+
+- Fix all x-axis forward bugs
+- Multiple node creation for single crossroad in maze graph engine
+
+### 🚜 Refactor
+
+- Change Pose to theta instead of rotation
+- Major kinematics refactor
+
 ### ⚙️ Miscellaneous Tasks
 
 - Removed unused constants
