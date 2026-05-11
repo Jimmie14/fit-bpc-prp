@@ -7,46 +7,49 @@
 #include <vector>
 
 namespace Manhattan::math {
-struct Vector2Int {
+
+struct Vector2;
+
+struct Vector2i {
     int x, y;
 
-    Vector2Int() = default;
+    Vector2i() = default;
 
-    Vector2Int(const int x, const int y)
+    Vector2i(const int x, const int y)
         : x(x)
         , y(y)
     {
 
     }
 
-    Vector2Int(const std::pair<int, int>& point)
+    Vector2i(const std::pair<int, int>& point)
         : x(point.first)
         , y(point.second)
     {
 
     }
 
-    Vector2Int operator+(const Vector2Int& other) const
+    Vector2i operator+(const Vector2i& other) const
     {
-        return Vector2Int(x + other.x, y + other.y);
+        return Vector2i(x + other.x, y + other.y);
     }
 
-    Vector2Int operator-(const Vector2Int& other) const
+    Vector2i operator-(const Vector2i& other) const
     {
-        return Vector2Int(x - other.x, y - other.y);
+        return Vector2i(x - other.x, y - other.y);
     }
 
-    bool operator<(const Vector2Int& other) const
+    bool operator<(const Vector2i& other) const
     {
         return std::tie(x, y) < std::tie(other.x, other.y);
     }
 
-    bool operator==(const Vector2Int& other) const
+    bool operator==(const Vector2i& other) const
     {
         return std::tie(x, y) == std::tie(other.x, other.y);
     }
 
-    bool operator!=(const Vector2Int& other) const
+    bool operator!=(const Vector2i& other) const
     {
         return !(*this == other);
     }
@@ -56,44 +59,46 @@ struct Vector2Int {
         return "(" + std::to_string(x) + ", " + std::to_string(y) + ")";
     }
 
-    static Vector2Int zero()
+    static Vector2i zero()
     {
-        return Vector2Int(0, 0);
+        return Vector2i(0, 0);
     }
 
-    static Vector2Int up()
+    static Vector2i up()
     {
-        return Vector2Int(0, 1);
+        return Vector2i(0, 1);
     }
 
-    static Vector2Int down()
+    static Vector2i down()
     {
-        return Vector2Int(0, -1);
+        return Vector2i(0, -1);
     }
 
-    static Vector2Int left()
+    static Vector2i left()
     {
-        return Vector2Int(-1, 0);
+        return Vector2i(-1, 0);
     }
 
-    static Vector2Int right()
+    static Vector2i right()
     {
-        return Vector2Int(1, 0);
+        return Vector2i(1, 0);
     }
 
-    static std::vector<Vector2Int> directions()
+    static std::vector<Vector2i> directions()
     {
         return { up(), right(), down(), left() };
     }
 
-    static std::vector<Vector2Int> EightDirections()
+    static std::vector<Vector2i> EightDirections()
     {
         return { up(), right(), down(), left(), up() + left(), up() + right(), down() + right(), down() + left() };
     }
+
+    static Vector2i round(const Vector2& vector);
 };
 
-struct Vector2IntHash {
-    size_t operator()(const Vector2Int& vector) const noexcept
+struct Vector2iHash {
+    size_t operator()(const Vector2i& vector) const noexcept
     {
         const size_t h1 = std::hash<int> {}(vector.x);
         const size_t h2 = std::hash<int> {}(vector.y);
@@ -114,7 +119,7 @@ struct Vector2 {
         , y(y)
     {
     }
-    explicit Vector2(const Vector2Int& v)
+    explicit Vector2(const Vector2i& v)
         : x(v.x)
         , y(v.y)
     {

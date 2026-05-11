@@ -4,6 +4,7 @@
 #include "Components/MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
 #include "Viz/Marker.hpp"
+#include "Messages/Nav.hpp"
 
 #include <queue>
 
@@ -35,11 +36,11 @@ void MazeGraphEngine::OnDisable()
     _timer.reset();
 }
 
-static vector<Vector2Int> getNeighbours(const Grid<bool>& skeleton, const Vector2Int& cell)
+static vector<Vector2i> getNeighbours(const Grid<bool>& skeleton, const Vector2i& cell)
 {
-    vector<Vector2Int> result;
+    vector<Vector2i> result;
 
-    for (auto dir : Vector2Int::EightDirections()) {
+    for (auto dir : Vector2i::EightDirections()) {
         const auto neighbour = cell + dir;
 
         if (!skeleton.inBounds(neighbour.x, neighbour.y)) continue;
@@ -51,12 +52,12 @@ static vector<Vector2Int> getNeighbours(const Grid<bool>& skeleton, const Vector
     return result;
 }
 
-static bool isCrossroad(const Grid<bool>& skeleton, const Vector2Int& cell)
+static bool isCrossroad(const Grid<bool>& skeleton, const Vector2i& cell)
 {
     vector frontiers = { cell };
-    vector<Vector2Int> nextFrontiers;
+    vector<Vector2i> nextFrontiers;
 
-    set<Vector2Int> visited;
+    set<Vector2i> visited;
 
     for (int iteration = 0; iteration < 4; iteration++) {
         if (frontiers.empty()) return false;
@@ -77,9 +78,9 @@ static bool isCrossroad(const Grid<bool>& skeleton, const Vector2Int& cell)
     return frontiers.size() > 2;
 }
 
-static vector<Vector2Int> extractCommonPath(vector<vector<Vector2Int>>& ways)
+static vector<Vector2i> extractCommonPath(vector<vector<Vector2i>>& ways)
 {
-    vector<Vector2Int> result;
+    vector<Vector2i> result;
 
     if (ways.empty()) return result;
 
@@ -99,7 +100,7 @@ static vector<Vector2Int> extractCommonPath(vector<vector<Vector2Int>>& ways)
     int commonLength = 0;
 
     for (auto i = 0; i < maxCommonLength; i++) {
-        const Vector2Int& candidate = ways[0][i];
+        const Vector2i& candidate = ways[0][i];
 
         const auto allMatch = std::ranges::all_of(ways | std::views::drop(1), [&](const auto& way) { return way[i] == candidate; });
         if (!allMatch) break;
@@ -118,7 +119,7 @@ static vector<Vector2Int> extractCommonPath(vector<vector<Vector2Int>>& ways)
     return result;
 }
 
-static int getCommonPathLength(const vector<Vector2Int>& path1, const vector<Vector2Int>& path2)
+static int getCommonPathLength(const vector<Vector2i>& path1, const vector<Vector2i>& path2)
 {
     auto length = 0;
     while (length < path1.size() && length < path2.size() && path1[length] == path2[length]) {
@@ -128,7 +129,7 @@ static int getCommonPathLength(const vector<Vector2Int>& path1, const vector<Vec
     return length;
 }
 
-static void filterSimilarPaths(vector<vector<Vector2Int>>& ways) {
+static void filterSimilarPaths(vector<vector<Vector2i>>& ways) {
     vector removed(ways.size(), false);
 
     for (auto i = 0; i < ways.size(); i++) {
@@ -154,7 +155,7 @@ static void filterSimilarPaths(vector<vector<Vector2Int>>& ways) {
         }
     }
 
-    vector<vector<Vector2Int>> newWays;
+    vector<vector<Vector2i>> newWays;
     newWays.reserve(ways.size());
 
     for (auto i = 0; i < ways.size(); i++) {
@@ -166,10 +167,10 @@ static void filterSimilarPaths(vector<vector<Vector2Int>>& ways) {
     ways.swap(newWays);
 }
 
-vector<vector<Vector2Int>> MazeGraphEngine::followPath(set<Vector2Int>& visited, vector<Vector2Int>& path)
+vector<vector<Vector2i>> MazeGraphEngine::followPath(set<Vector2i>& visited, vector<Vector2i>& path)
 {
-    vector<vector<Vector2Int>> ways;
-    vector<vector<Vector2Int>> newWays;
+    vector<vector<Vector2i>> ways;
+    vector<vector<Vector2i>> newWays;
 
     auto lookaheadVisited = visited;
 
@@ -209,7 +210,7 @@ vector<vector<Vector2Int>> MazeGraphEngine::followPath(set<Vector2Int>& visited,
         const auto endPath = ranges::find_if(ways, [&](const auto& w) {
             const auto cell = w.back();
 
-            return cell != start && _nodes.contains(cell);
+            return cell != start && _graph.containsNode(cell);
         });
 
         if (endPath != ways.end()) {
@@ -235,11 +236,11 @@ vector<vector<Vector2Int>> MazeGraphEngine::followPath(set<Vector2Int>& visited,
     return { };
 }
 
-vector<Vector2Int> MazeGraphEngine::pathToClosestNode(const Vector2Int& start, const int radius)
+vector<Vector2i> MazeGraphEngine::pathToClosestNode(const Vector2i& start, const int radius)
 {
-    vector<vector<Vector2Int>> ways;
-    vector<vector<Vector2Int>> newWays;
-    set<Vector2Int> visited;
+    vector<vector<Vector2i>> ways;
+    vector<vector<Vector2i>> newWays;
+    set<Vector2i> visited;
 
     ways.push_back({ start });
 
@@ -250,8 +251,7 @@ vector<Vector2Int> MazeGraphEngine::pathToClosestNode(const Vector2Int& start, c
             for (auto neighbour : getNeighbours(_skeleton, frontier)) {
                 if (visited.contains(neighbour)) continue;
 
-                const auto it = _nodes.find(frontier);
-                if (it != _nodes.end()) return way;
+                if (_graph.containsNode(frontier)) return way;
 
 
                 visited.insert(neighbour);
@@ -273,11 +273,11 @@ vector<Vector2Int> MazeGraphEngine::pathToClosestNode(const Vector2Int& start, c
     return { };
 }
 
-static void clearVisitedAround(const Grid<bool>& skeleton, set<Vector2Int>& visited, const Vector2Int& start, const int radius)
+static void clearVisitedAround(const Grid<bool>& skeleton, set<Vector2i>& visited, const Vector2i& start, const int radius)
 {
-    set<Vector2Int> closed;
-    vector<Vector2Int> frontiers = { start };
-    vector<Vector2Int> nextFrontiers;
+    set<Vector2i> closed;
+    vector<Vector2i> frontiers = { start };
+    vector<Vector2i> nextFrontiers;
 
     for (auto i = 0; i < radius; i++) {
         for (auto frontier : frontiers) {
@@ -296,17 +296,17 @@ static void clearVisitedAround(const Grid<bool>& skeleton, set<Vector2Int>& visi
 }
 
 
-Vector2Int MazeGraphEngine::findStartCandidate() const
+Vector2i MazeGraphEngine::findStartCandidate() const
 {
     auto min = std::numeric_limits<double>::max();
-    Vector2Int result = _map.worldToCoord(vec3::zero);
+    Vector2i result = _map.worldToCoord(vec3::zero);
 
     const auto start = Vector2(result);
 
     for (int i = 0; i < _skeleton.size(); i++) {
         if (!_skeleton[i]) continue;
 
-        const auto cell = Vector2Int(_skeleton.indexToCoord(i));
+        const auto cell = Vector2i(_skeleton.indexToCoord(i));
 
         const auto neighbourCount = getNeighbours(_skeleton, cell).size();
         if (neighbourCount != 1) continue;
@@ -321,48 +321,61 @@ Vector2Int MazeGraphEngine::findStartCandidate() const
     return result;
 }
 
+nav::NodeId MazeGraphEngine::getNodeId(const MazeGraph& oldGraph, const Vector2i& cell)
+{
+    const auto id = oldGraph.findClosestNode(cell, 5);
+    if (id) return id.value();
 
+    return ++_currentNodeId;
+}
 
 void MazeGraphEngine::update()
 {
     if (_skeleton.empty()) return;
 
-    _nodes.clear();
-    _paths.clear();
+    const auto oldGraph = _graph;
 
-    set<Vector2Int> visited;
+    _graph = MazeGraph();
+
+    set<Vector2i> visited;
 
     const auto start = findStartCandidate();
-    _nodes[start] = Node { start, false };
+    const auto startNodeId = getNodeId(oldGraph, start);
 
-    queue<vector<Vector2Int>> queue;
+    _graph.createNode(startNodeId, start);
 
-
-    queue.push({ start });
+    queue<pair<NodeId, vector<Vector2i>>> queue;
+    queue.push({ startNodeId, { start } });
 
     while (!queue.empty()) {
-        auto path = queue.front(); queue.pop();
+        auto [startNode, path] = queue.front(); queue.pop();
 
         auto ways = followPath(visited, path);
         if (path.size() <= 2) continue;
-
-        _paths.push_back(path);
 
         for (auto point : ways | views::join) {
             visited.insert(point);
         }
 
-        for (auto& way : ways) {
-            queue.push(way);
-        }
-
         auto endCell = path.back();
 
-        const auto it = _nodes.find(endCell);
-        if (it == _nodes.end()) {
-            _nodes[endCell] = Node { endCell, true };
+        NodeId endNode;
+
+        if (const auto endNodeId = _graph.findNode(path.back())) {
+            endNode = endNodeId.value();
+        } else {
+            endNode = getNodeId(oldGraph, endCell);
+            _graph.createNode(endNode, endCell);
         }
+
+        for (auto& way : ways) {
+            queue.emplace(endNode, way);
+        }
+
+        _graph.connect(startNode, endNode, path);
     }
+
+    _app.events->Publish<messages::MazeGraphPublishEvent>({ _graph });
 }
 
 void MazeGraphEngine::publish() const
@@ -371,21 +384,20 @@ void MazeGraphEngine::publish() const
 
     markers.add(viz::marker::clear("map"));
 
-    for (const auto cell : _nodes | views::keys) {
+    for (const auto& node : _graph.nodes() | views::values) {
 
-        const auto worldPoint = _map.coordToWorld(cell);
+        const auto worldPoint = _map.coordToWorld(node.cell());
 
         markers.add(viz::marker::point(worldPoint, "map"));
+        markers.add(viz::marker::text(worldPoint, std::to_string(node.id()), "map"));
     }
 
-    std::cout << "path_count  : " << _paths.size() << std::endl;
-
-    for (const auto& path : _paths) {
+    for (const auto& edge : _graph.edges() | views::values) {
 
         vector<Vector2> worldPath;
-        worldPath.resize(path.size());
+        worldPath.reserve(edge.path().size());
 
-        ranges::transform(path, worldPath.begin(), [&](const auto& p) {
+        ranges::transform(edge.path(), worldPath.begin(), [&](const auto& p) {
             return Vector2(_map.coordToWorld(p));
         });
 

@@ -19,7 +19,7 @@ struct Edge {
 };
 
 struct NavigatorNode {
-    Vector2Int gridPosition;
+    Vector2i gridPosition;
     Vector2 worldPosition;
     std::vector<std::shared_ptr<Edge>> connections;
 };

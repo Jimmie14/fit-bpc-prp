@@ -15,16 +15,16 @@ class GridCell {
     double _cost = 0;
 
     Vector2 _worldPosition;
-    Vector2Int _gridPosition;
+    Vector2i _gridPosition;
 
 public:
-    GridCell(const Vector2Int gridPos, const Vector2 worldPos)
+    GridCell(const Vector2i gridPos, const Vector2 worldPos)
         : _worldPosition(worldPos)
         , _gridPosition(gridPos)
     {
     }
 
-    [[nodiscard]] Vector2Int GetGridPosition() const
+    [[nodiscard]] Vector2i GetGridPosition() const
     {
         return _gridPosition;
     }
@@ -94,7 +94,7 @@ class OccupancyGrid {
     const double LogOddsOccupied = 1.85f;
 
 public:
-    OccupancyGrid(const Vector2Int size, const double cellSize, const int costSteps = 5,
+    OccupancyGrid(const Vector2i size, const double cellSize, const int costSteps = 5,
         const double inflationPenalty = 5)
         : _cellSize(cellSize)
     {
@@ -106,7 +106,7 @@ public:
 
         for (int y = 0; y < _height; y++)
             for (int x = 0; x < _width; x++) {
-                auto cell = GridCell(Vector2Int(x, y), GridToWorld(Vector2Int(x, y)));
+                auto cell = GridCell(Vector2i(x, y), GridToWorld(Vector2i(x, y)));
                 _grid.emplace_back(cell);
             }
     }
@@ -131,13 +131,13 @@ public:
         return y * _width + x;
     }
 
-    Vector2Int WorldToGrid(const Vector2& worldPos) const
+    Vector2i WorldToGrid(const Vector2& worldPos) const
     {
-        return Vector2Int(std::floor(worldPos.x / _cellSize + _width * 0.5),
+        return Vector2i(std::floor(worldPos.x / _cellSize + _width * 0.5),
             std::floor(worldPos.y / _cellSize + _height * 0.5));
     }
 
-    Vector2 GridToWorld(const Vector2Int& gridPos) const
+    Vector2 GridToWorld(const Vector2i& gridPos) const
     {
         return Vector2((gridPos.x - _width * 0.5) * _cellSize + _cellSize * 0.5,
             (gridPos.y - _height * 0.5) * _cellSize + _cellSize * 0.5);
@@ -156,7 +156,7 @@ public:
         return _grid[GetIndex(x, y)].GetProbability();
     }
 
-    void SetFree(const Vector2Int cell, const double dst)
+    void SetFree(const Vector2i cell, const double dst)
     {
         if (!InBounds(cell.x, cell.y))
             return;
@@ -164,7 +164,7 @@ public:
         _grid[GetIndex(cell.x, cell.y)].Add(LogOddsFree);
     }
 
-    void SetOccupied(const Vector2Int cell)
+    void SetOccupied(const Vector2i cell)
     {
         if (!InBounds(cell.x, cell.y))
             return;
@@ -172,7 +172,7 @@ public:
         _grid[GetIndex(cell.x, cell.y)].Add(LogOddsOccupied);
     }
 
-    GridCell* GetCell(const Vector2Int cell)
+    GridCell* GetCell(const Vector2i cell)
     {
         if (!InBounds(cell.x, cell.y))
             return nullptr;
@@ -182,7 +182,7 @@ public:
 
     void RecalculateCosts()
     {
-        std::queue<Vector2Int> queue;
+        std::queue<Vector2i> queue;
         std::vector<bool> visited(_width * _height, false);
 
         for (int i = 0; i < static_cast<int>(_grid.size()); i++) {
@@ -190,25 +190,25 @@ public:
             cell.SetCost(0.0);
 
             if (cell.IsOccupied()) {
-                Vector2Int pos = cell.GetGridPosition();
+                Vector2i pos = cell.GetGridPosition();
                 queue.push(pos);
                 visited[i] = true;
             }
         }
 
-        const std::vector<Vector2Int> directions = { { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 },
+        const std::vector<Vector2i> directions = { { 1, 0 }, { 1, 1 }, { 0, 1 }, { -1, 1 },
             { -1, 0 }, { -1, -1 }, { 0, -1 }, { 1, -1 } };
 
         int currentStep = 1;
         size_t nodesInCurrentLayer = queue.size();
 
         while (!queue.empty() && currentStep <= _costSteps) {
-            const Vector2Int current = queue.front();
+            const Vector2i current = queue.front();
             queue.pop();
             nodesInCurrentLayer--;
 
             for (const auto& dir : directions) {
-                Vector2Int neighbour(current.x + dir.x, current.y + dir.y);
+                Vector2i neighbour(current.x + dir.x, current.y + dir.y);
 
                 if (!InBounds(neighbour.x, neighbour.y))
                     continue;
@@ -239,9 +239,9 @@ public:
             cell.Reset();
     }
 
-    static std::vector<Vector2Int> Bresenham(const Vector2Int start, const Vector2Int end)
+    static std::vector<Vector2i> Bresenham(const Vector2i start, const Vector2i end)
     {
-        std::vector<Vector2Int> path;
+        std::vector<Vector2i> path;
         int x0 = start.x;
         int y0 = start.y;
         const int x1 = end.x;

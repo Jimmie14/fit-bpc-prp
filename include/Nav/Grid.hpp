@@ -78,7 +78,7 @@ public:
         return _data[coordToIndex(coord.first, coord.second)];
     }
 
-    T operator[](const Vector2Int coord) const
+    T operator[](const Vector2i coord) const
     {
         return _data[coordToIndex(coord.x, coord.y)];
     }

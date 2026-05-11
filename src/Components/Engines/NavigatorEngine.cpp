@@ -53,7 +53,7 @@ NavigatorEngine::NavigatorEngine(const App& app)
 
 void NavigatorEngine::SetPath(const std::vector<Vector2>& path)
 {
-    _path.Initialize(path);
+    _path.init(path);
 }
 
 void NavigatorEngine::PublishPath() const
@@ -175,7 +175,7 @@ void NavigatorEngine::SetDestination(GridCell* destination)
 
 void NavigatorEngine::ClearPath()
 {
-    _path.Initialize({});
+    _path.init({});
 }
 
 bool NavigatorEngine::IsInDestination() const
@@ -337,7 +337,7 @@ void NavigatorEngine::Update()
     PublishPath();
 
     auto pose = _slam->CurrentPose();
-    auto result = _path.FindClosestPoint(pose.position);
+    auto result = _path.findClosestPoint(pose.position);
 
     if (_path.GetTotalLength() <= 0)
         return;

@@ -75,7 +75,7 @@ public:
         return coordToWorld(coord.first, coord.second);
     }
 
-    [[nodiscard]] Vector3 coordToWorld(const math::Vector2Int& coord) const
+    [[nodiscard]] Vector3 coordToWorld(const math::Vector2i& coord) const
     {
         return coordToWorld(coord.x, coord.y);
     }

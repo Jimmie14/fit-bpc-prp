@@ -16,32 +16,32 @@ public:
         double distanceToPathSq {};
     };
 
-    void Initialize(const std::vector<Vector2>& points)
+    void init(const std::vector<Vector2>& points)
     {
-        waypoints = points;
-        segmentLengths.clear();
-        totalLength = 0.0;
+        _waypoints = points;
+        _segmentLengths.clear();
+        _totalLength = 0.0;
 
-        if (waypoints.size() < 2)
+        if (_waypoints.size() < 2)
             return;
 
-        segmentLengths.resize(waypoints.size() - 1);
+        _segmentLengths.resize(_waypoints.size() - 1);
 
-        for (size_t i = 0; i < waypoints.size() - 1; i++) {
-            double len = Vector2::distance(waypoints[i], waypoints[i + 1]);
-            segmentLengths[i] = len;
-            totalLength += len;
+        for (size_t i = 0; i < _waypoints.size() - 1; i++) {
+            double len = Vector2::distance(_waypoints[i], _waypoints[i + 1]);
+            _segmentLengths[i] = len;
+            _totalLength += len;
         }
     }
 
     [[nodiscard]] bool HasPath() const
     {
-        return waypoints.size() >= 2;
+        return _waypoints.size() >= 2;
     }
 
     [[nodiscard]] double GetTotalLength() const
     {
-        return totalLength;
+        return _totalLength;
     }
 
     [[nodiscard]] Vector2 GetPointAtDistance(double distance) const
@@ -49,25 +49,25 @@ public:
         if (!HasPath())
             return Vector2 {0, 0};
 
-        distance = std::max(0.0, std::min(totalLength, distance));
+        distance = std::max(0.0, std::min(_totalLength, distance));
 
         double accumulated = 0.0;
 
-        for (size_t i = 0; i < segmentLengths.size(); i++) {
-            double segLen = segmentLengths[i];
+        for (size_t i = 0; i < _segmentLengths.size(); i++) {
+            double segLen = _segmentLengths[i];
 
-            if (distance <= accumulated + segLen || i == segmentLengths.size() - 1) {
+            if (distance <= accumulated + segLen || i == _segmentLengths.size() - 1) {
                 double t = segLen > 0 ? (distance - accumulated) / segLen : 0.0;
-                return Vector2::lerp(waypoints[i], waypoints[i + 1], t);
+                return Vector2::lerp(_waypoints[i], _waypoints[i + 1], t);
             }
 
             accumulated += segLen;
         }
 
-        return waypoints.back();
+        return _waypoints.back();
     }
 
-    [[nodiscard]] ClosestPointResult FindClosestPoint(const Vector2& p) const
+    [[nodiscard]] ClosestPointResult findClosestPoint(const Vector2& p) const
     {
         ClosestPointResult result;
         result.distanceToPathSq = std::numeric_limits<double>::max();
@@ -77,9 +77,9 @@ public:
 
         double accumulated = 0.0;
 
-        for (size_t i = 0; i < waypoints.size() - 1; i++) {
-            Vector2 a = waypoints[i];
-            Vector2 b = waypoints[i + 1];
+        for (size_t i = 0; i < _waypoints.size() - 1; i++) {
+            Vector2 a = _waypoints[i];
+            Vector2 b = _waypoints[i + 1];
             Vector2 ab = b - a;
 
             double abLenSq = ab.sqrMagnitude();
@@ -96,24 +96,29 @@ public:
             if (distSq < result.distanceToPathSq) {
                 result.distanceToPathSq = distSq;
                 result.position = pt;
-                result.distanceAlongPath = accumulated + segmentLengths[i] * t;
+                result.distanceAlongPath = accumulated + _segmentLengths[i] * t;
             }
 
-            accumulated += segmentLengths[i];
+            accumulated += _segmentLengths[i];
         }
 
         return result;
     }
 
+    [[nodiscard]] const std::vector<Vector2>& waypoints() const
+    {
+        return _waypoints;
+    }
+
     [[nodiscard]] std::vector<Vector2> getWaypoints() const
     {
-        return waypoints;
+        return _waypoints;
     }
 
 private:
-    std::vector<Vector2> waypoints;
-    std::vector<double> segmentLengths;
-    double totalLength = 0.0;
+    std::vector<Vector2> _waypoints;
+    std::vector<double> _segmentLengths;
+    double _totalLength = 0.0;
 };
 
 } // namespace Manhattan::Core

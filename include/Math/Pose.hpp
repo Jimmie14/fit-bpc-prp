@@ -74,7 +74,7 @@ struct Pose {
         return Pose(position * scalar, theta * scalar);
     }
 
-    static Pose Zero()
+    static Pose zero()
     {
         return Pose(Vector2::zero(), 0.0);
     }

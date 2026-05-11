@@ -76,12 +76,12 @@ private:
 
     std::shared_ptr<WayPoint> NextJunction(const std::shared_ptr<WayPoint>& current);
 
-    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector2& position);
+    std::optional<Vector2i> ClosestOnThinnedMap(const Vector2& position);
 
-    std::vector<Vector2Int> GetValidNeighbors(const Vector2Int& cell);
+    std::vector<Vector2i> GetValidNeighbors(const Vector2i& cell);
 
-    bool IsWaypoint(const Vector2Int& cell);
-    std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2Int prev, Vector2Int current);
+    bool IsWaypoint(const Vector2i& cell);
+    std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2i prev, Vector2i current);
 
     std::shared_ptr<WayPoint> Init();
 

@@ -21,10 +21,10 @@ using namespace Manhattan::messages;
 
 MappingEngine::MappingEngine(const App& app)
     : RosEngine(app, "mapping")
-    , _grid(Vector2Int(200, 200), gridResolution, 8, 20)
+    , _grid(Vector2i(200, 200), gridResolution, 8, 20)
     , _poseMatcher(PoseMatcher(_grid, 5))
-    , _lastOdomPose(Pose::Zero())
-    , _activeHypothesis(PoseMatchResult(Pose::Zero(), minConfidence))
+    , _lastOdomPose(Pose::zero())
+    , _activeHypothesis(PoseMatchResult(Pose::zero(), minConfidence))
     , _hypotheses({})
 {
     _lostTime = now();
@@ -98,7 +98,7 @@ void MappingEngine::OnLidar(const vector<Vector2>& points)
         std::lock_guard guard(_odomLock);
 
         odomDelta = _odomPoseDelta;
-        _odomPoseDelta = Pose::Zero();
+        _odomPoseDelta = Pose::zero();
     }
 
     std::lock_guard lock(_mapLock);
@@ -280,10 +280,10 @@ void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
 
 void MappingEngine::Reset()
 {
-    _hypotheses = { PoseMatchResult(Pose::Zero(), minConfidence) };
+    _hypotheses = { PoseMatchResult(Pose::zero(), minConfidence) };
     _grid.Reset();
 
-    _stablePose = Pose::Zero();
+    _stablePose = Pose::zero();
 
     ChangeState(MappingEngineState::Initializing);
 }
@@ -458,17 +458,17 @@ GridCell* MappingEngine::GetCell(const Vector2& position)
     return _grid.GetCell(_grid.WorldToGrid(position));
 }
 
-GridCell* MappingEngine::GetCell(Vector2Int gridPosition)
+GridCell* MappingEngine::GetCell(Vector2i gridPosition)
 {
     return _grid.GetCell(gridPosition);
 }
 
-Vector2 MappingEngine::GridToWorld(const Vector2Int& pos) const
+Vector2 MappingEngine::GridToWorld(const Vector2i& pos) const
 {
     return _grid.GridToWorld(pos);
 }
 
-Vector2Int MappingEngine::WorldToGrid(const Vector2& pos) const
+Vector2i MappingEngine::WorldToGrid(const Vector2& pos) const
 {
     return _grid.WorldToGrid(pos);
 }
@@ -477,7 +477,7 @@ std::vector<GridCell*> MappingEngine::GetNeighbors(const GridCell* cell)
 {
     auto neighbours = std::vector<GridCell*>();
 
-    for (auto direction : Vector2Int::directions()) {
+    for (auto direction : Vector2i::directions()) {
         auto neighbourCell = _grid.GetCell(cell->GetGridPosition() + direction);
         if (neighbourCell == nullptr)
             continue;
@@ -503,9 +503,9 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
 
         rayHit.hit = _grid.GridToWorld(pos);
 
-        auto normalInt = Vector2Int::zero();
+        auto normalInt = Vector2i::zero();
 
-        for (auto dir : Vector2Int::directions()) {
+        for (auto dir : Vector2i::directions()) {
             const auto nCell = _grid.GetCell(pos + dir);
 
             if (nCell != nullptr && nCell->IsOccupied())
@@ -514,7 +514,7 @@ bool MappingEngine::RayCast(const Vector2& worldPosition, const Vector2& directi
             normalInt = normalInt + dir;
         }
 
-        if (normalInt != Vector2Int::zero()) {
+        if (normalInt != Vector2i::zero()) {
             rayHit.normal = Vector2(normalInt).normalized();
 
             if (Vector2::dot(rayHit.normal, direction) > 0.0)

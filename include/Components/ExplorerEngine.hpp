@@ -30,7 +30,7 @@ protected:
 
 private:
     struct ExplorerResult {
-        std::optional<Vector2Int> target;
+        std::optional<Vector2i> target;
         std::vector<Vector3> path;
     };
 
@@ -44,7 +44,7 @@ private:
     std::shared_ptr<MappingEngine> _mapping;
 
     ExplorerState _state = ExplorerState::Idle;
-    std::optional<Vector2Int> _currentTarget = std::nullopt;
+    std::optional<Vector2i> _currentTarget = std::nullopt;
 
     Vector3 _junctionEnterDirection;
 
@@ -64,13 +64,13 @@ private:
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
 
-    ExplorerResult Explore(const Vector3 &inDirection, Vector2Int startCell);
+    ExplorerResult Explore(const Vector3 &inDirection, Vector2i startCell);
 
-    std::optional<Vector2Int> PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const Vector3& forward, const Vector3& preferred) const;
+    std::optional<Vector2i> PickFollowingDirection(const Vector2i& current, const vector<Vector2i>& ways, const Vector3& forward, const Vector3& preferred) const;
 
-    std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const;
+    std::pair<std::vector<Vector2i>, std::set<Vector2i>> GetCrossroadWays(std::set<Vector2i> visited, const Vector2i& start) const;
 
-    std::optional<Vector2Int> ClosestOnThinnedMap(const Vector3& position) const;
+    std::optional<Vector2i> ClosestOnThinnedMap(const Vector3& position) const;
 
     Vector3 GetPreferredDirection() const;
 

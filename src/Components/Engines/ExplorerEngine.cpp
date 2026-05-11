@@ -64,15 +64,15 @@ static bool Walkable(const bool value)
     return value;
 }
 
-ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2Int startCell)
+ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2i startCell)
 {
     vector<Vector3> path;
 
-    std::set<Vector2Int> visited;
-    std::optional<Vector2Int> frontier = std::nullopt;
+    std::set<Vector2i> visited;
+    std::optional<Vector2i> frontier = std::nullopt;
 
     auto dirNorm = inDirection.normalized();
-    auto dirs = Vector2Int::EightDirections();
+    auto dirs = Vector2i::EightDirections();
 
     ranges::sort(dirs, [&](const auto& a, const auto& b) {
        const auto va = Vector2(a).toTf2().normalized();
@@ -93,11 +93,11 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
 
         path.push_back(_map.coordToWorld(current));
 
-        std::vector<Vector2Int> options;
+        std::vector<Vector2i> options;
 
         int neighbourCount = 1;
         for (auto dir : dirs) {
-            Vector2Int neighbour = current + dir;
+            Vector2i neighbour = current + dir;
             if (!_grid.inBounds(neighbour.x, neighbour.y)) continue;
 
             if (!Walkable(_grid[neighbour])) continue;
@@ -133,7 +133,7 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     return ExplorerResult{ target, path };
 }
 
-std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2Int& current, const vector<Vector2Int>& ways, const Vector3& forward, const Vector3& preferred) const
+std::optional<Vector2i> ExplorerEngine::PickFollowingDirection(const Vector2i& current, const vector<Vector2i>& ways, const Vector3& forward, const Vector3& preferred) const
 {
     if (ways.empty()) return std::nullopt;
 
@@ -157,10 +157,10 @@ std::optional<Vector2Int> ExplorerEngine::PickFollowingDirection(const Vector2In
     return best;
 }
 
-std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCrossroadWays(std::set<Vector2Int> visited, const Vector2Int& start) const
+std::pair<std::vector<Vector2i>, std::set<Vector2i>> ExplorerEngine::GetCrossroadWays(std::set<Vector2i> visited, const Vector2i& start) const
 {
-    std::vector<Vector2Int> ways;
-    std::vector<Vector2Int> newWays;
+    std::vector<Vector2i> ways;
+    std::vector<Vector2i> newWays;
 
 
     ways.push_back(start);
@@ -171,7 +171,7 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
         iteration++;
 
         for (auto current : ways) {
-            for (auto direction : Vector2Int::EightDirections()) {
+            for (auto direction : Vector2i::EightDirections()) {
                 const auto next = current + direction;
 
                 if (!Walkable(_grid[next])) continue;
@@ -186,12 +186,12 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
         newWays.clear();
     }
 
-    std::unordered_set<Vector2Int, Vector2IntHash> filtered;
+    std::unordered_set<Vector2i, Vector2iHash> filtered;
 
     for (const auto& point : ways) {
         bool hasNeighbor = false;
 
-        for (const auto& direction : Vector2Int::EightDirections()) {
+        for (const auto& direction : Vector2i::EightDirections()) {
             if (!filtered.contains(point + direction)) continue;
 
             hasNeighbor = true;
@@ -203,7 +203,7 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
         filtered.insert(point);
     }
 
-    vector<Vector2Int> result;
+    vector<Vector2i> result;
 
     for (auto way : filtered) {
         result.push_back(way);
@@ -212,15 +212,15 @@ std::pair<std::vector<Vector2Int>, std::set<Vector2Int>> ExplorerEngine::GetCros
     return { result, visited };
 }
 
-std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) const
+std::optional<Vector2i> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) const
 {
-    const auto intPos = Vector2Int(_map.worldToCoord(pos));
+    const auto intPos = Vector2i(_map.worldToCoord(pos));
 
     if (Walkable(_grid[intPos]))
         return intPos;
 
-    std::queue<Vector2Int> q;
-    std::set<Vector2Int> visited;
+    std::queue<Vector2i> q;
+    std::set<Vector2i> visited;
 
     q.push(intPos);
     visited.insert(intPos);
@@ -228,7 +228,7 @@ std::optional<Vector2Int> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos
     while (!q.empty()) {
         auto cell = q.front(); q.pop();
 
-        for (auto direction : Vector2Int::EightDirections()) {
+        for (auto direction : Vector2i::EightDirections()) {
             const auto neighbour = cell + direction;
 
             if (neighbour.x >= _grid.width() || neighbour.x < 0 || neighbour.y >= _grid.height() || neighbour.y < 0) continue;

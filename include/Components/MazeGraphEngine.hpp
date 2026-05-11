@@ -3,6 +3,7 @@
 #include "Common/RosEngine.hpp"
 #include "Nav/Grid.hpp"
 #include "Nav/GridMap.hpp"
+#include "Nav/MazeGraph.hpp"
 
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -23,14 +24,8 @@ protected:
     void OnDisable() override;
 
 private:
-    struct Node {
-        Vector2Int cell;
-        bool isCrossing = false;
-    };
-
-
-    unordered_map<Vector2Int, Node, Vector2IntHash> _nodes;
-    vector<vector<Vector2Int>> _paths;
+    nav::NodeId _currentNodeId = 0;
+    nav::MazeGraph _graph;
 
     nav::Grid<bool> _skeleton;
     nav::GridMap _map;
@@ -38,11 +33,13 @@ private:
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _debugPublisher;
 
-    vector<vector<Vector2Int>> followPath(set<Vector2Int>& visited, vector<Vector2Int>& path);
+    vector<vector<Vector2i>> followPath(set<Vector2i>& visited, vector<Vector2i>& path);
 
-    vector<Vector2Int> pathToClosestNode(const Vector2Int& cell, int radius);
+    vector<Vector2i> pathToClosestNode(const Vector2i& cell, int radius);
 
-    Vector2Int findStartCandidate() const;
+    Vector2i findStartCandidate() const;
+
+    nav::NodeId getNodeId(const nav::MazeGraph& oldGraph, const Vector2i& cell);
 
 
     void update();

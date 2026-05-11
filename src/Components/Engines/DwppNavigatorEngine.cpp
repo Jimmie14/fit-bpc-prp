@@ -41,10 +41,10 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
 
         std::lock_guard guard(_lock);
 
-        _path.Initialize(points);
+        _path.init(points);
     });
 
-    app.events->Subscribe<messages::RobotPoseEvent>([this](const auto& event) {
+    app.events->Subscribe<RobotPoseEvent>([this](const auto& event) {
         std::lock_guard guard(_lock);
 
         _pose = event.pose;
@@ -76,7 +76,7 @@ void DwppNavigatorEngine::Update()
 
     if (!_path.HasPath()) return;
 
-    const auto closest = _path.FindClosestPoint(_pose.position);
+    const auto closest = _path.findClosestPoint(_pose.position);
 
     _lookaheadPoint = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
 
@@ -133,12 +133,12 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
     auto headingError = 0.0;
     auto progressReward = 0.0;
 
-    auto previous = _path.FindClosestPoint(pose.position);
+    auto previous = _path.findClosestPoint(pose.position);
 
     for (int i = 0; i < _config.simulationSteps; i++) {
         pose = _odometry.integrate(pose, step);
 
-        const auto closest = _path.FindClosestPoint(pose.position);
+        const auto closest = _path.findClosestPoint(pose.position);
 
         pathError += Vector2::distance(closest.position, pose.position);
 
@@ -163,7 +163,7 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
         - _config.pathErrorCostWeight * pathError
         - _config.headingErrorCostWeight * headingError;
 
-    _debugSimulations.push_back({ pose.position.toTf2(), score });
+    _debugSimulations.emplace_back(pose.position.toTf2(), score);
     return score;
 }
 
@@ -180,7 +180,7 @@ void DwppNavigatorEngine::PublishDebug()
 
     builder.add(marker);
 
-    builder.add(viz::marker::path(_path.getWaypoints(), "map"));
+    builder.add(viz::marker::path(_path.waypoints(), "map"));
 
     builder.add(viz::marker::twist(_pose, _twist, "map"));
 
@@ -189,7 +189,7 @@ void DwppNavigatorEngine::PublishDebug()
         double minScore = std::numeric_limits<double>::max();
         double maxScore = std::numeric_limits<double>::lowest();
 
-        for (const auto& [point, error] : _debugSimulations)
+        for (const auto& error : _debugSimulations | views::values)
         {
             minScore = std::min(minScore, error);
             maxScore = std::max(maxScore, error);

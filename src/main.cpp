@@ -8,6 +8,7 @@
 #include "Components/ImuDriver.hpp"
 #include "Components/LidarDriver.hpp"
 #include "Components/LineEngine.hpp"
+#include "Components/ManualPathPlannerEngine.hpp"
 #include "Components/MapThinningUnit.hpp"
 #include "Components/MappingEngine.hpp"
 #include "Components/MazeGraphEngine.hpp"
@@ -40,9 +41,10 @@ int main(const int argc, char* argv[])
     app->addComponent<DwppNavigatorEngine>()->Enable();
 
     app->addComponent<MapThinningUnit>()->Enable();
-    app->addComponent<ExplorerEngine>()->Enable();
+    // app->addComponent<ExplorerEngine>()->Enable();
 
     app->addComponent<MazeGraphEngine>()->Enable();
+    app->addComponent<ManualPathPlannerEngine>()->Enable();
 
     app->run();
 

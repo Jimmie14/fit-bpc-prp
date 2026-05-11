@@ -53,9 +53,9 @@ class MappingEngine final : public RosEngine {
 public:
     explicit MappingEngine(const App& app);
     GridCell* GetCell(const Vector2& position);
-    GridCell* GetCell(Vector2Int position);
-    Vector2 GridToWorld(const Vector2Int& position) const;
-    Vector2Int WorldToGrid(const Vector2& position) const;
+    GridCell* GetCell(Vector2i position);
+    Vector2 GridToWorld(const Vector2i& position) const;
+    Vector2i WorldToGrid(const Vector2& position) const;
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);
 
@@ -91,9 +91,9 @@ private:
     PoseMatcher _poseMatcher;
 
     Pose _lastOdomPose;
-    Pose _odomPoseDelta = Pose::Zero();
+    Pose _odomPoseDelta = Pose::zero();
 
-    Pose _stablePose = Pose::Zero();
+    Pose _stablePose = Pose::zero();
 
     Twist _twist = Twist::zero();
 

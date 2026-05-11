@@ -162,11 +162,11 @@ void MazeEngine::Update() {
     _navigator->SetDestination(cell);
 }
 
-std::vector<Vector2Int> MazeEngine::GetValidNeighbors(const Vector2Int& cell) {
-    std::vector<Vector2Int> result;
+std::vector<Vector2i> MazeEngine::GetValidNeighbors(const Vector2i& cell) {
+    std::vector<Vector2i> result;
 
-    for (auto dir : Vector2Int::EightDirections()) {
-        Vector2Int next = cell + dir;
+    for (auto dir : Vector2i::EightDirections()) {
+        Vector2i next = cell + dir;
 
         if (!_thinned_map[next]) continue;
         result.push_back(next);
@@ -175,17 +175,17 @@ std::vector<Vector2Int> MazeEngine::GetValidNeighbors(const Vector2Int& cell) {
     return result;
 }
 
-bool MazeEngine::IsWaypoint(const Vector2Int& cell) {
+bool MazeEngine::IsWaypoint(const Vector2i& cell) {
     auto neighbors = GetValidNeighbors(cell);
     return neighbors.size() != 2;
 }
 
-std::shared_ptr<MazeEngine::WayPoint> MazeEngine::WalkUntilWaypoint(Vector2Int prev, Vector2Int current) {
+std::shared_ptr<MazeEngine::WayPoint> MazeEngine::WalkUntilWaypoint(Vector2i prev, Vector2i current) {
     auto waypoint = std::make_shared<WayPoint>();
     waypoint->connected = {};
 
     std::vector<Vector2> path;
-    std::set<Vector2Int> visited;
+    std::set<Vector2i> visited;
 
     while (true) {
         auto neighbors = GetValidNeighbors(current);
@@ -216,7 +216,7 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::Init()
 
     _currentWayPoint = std::make_shared<WayPoint>();
 
-    for (auto dir : Vector2Int::EightDirections()) {
+    for (auto dir : Vector2i::EightDirections()) {
         auto wp = WalkUntilWaypoint(initPos.value(), initPos.value() + dir);
         if (!wp) continue;
 
@@ -233,11 +233,11 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::Init()
     return _currentWayPoint;
 }
 
-std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
+std::optional<Vector2i> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
     const auto intPos = _mapping->WorldToGrid(pos);
 
-    std::queue<Vector2Int> q;
-    std::set<Vector2Int> visited;
+    std::queue<Vector2i> q;
+    std::set<Vector2i> visited;
 
     q.push(intPos);
 
@@ -246,7 +246,7 @@ std::optional<Vector2Int> MazeEngine::ClosestOnThinnedMap(const Vector2& pos) {
         if (visited.contains(cell))
             continue;
 
-        for (auto direction : Vector2Int::EightDirections()) {
+        for (auto direction : Vector2i::EightDirections()) {
             const auto neighbour = cell + direction;
 
             if (neighbour.x >= _thinned_map.width() || neighbour.x < 0 || neighbour.y >= _thinned_map.height() || neighbour.y < 0)
@@ -270,8 +270,8 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(const std::shared
     const auto initPos = ClosestOnThinnedMap(current->position);
     if (!initPos) return nullptr;
 
-    std::queue<Vector2Int> q;
-    std::set<Vector2Int> visited;
+    std::queue<Vector2i> q;
+    std::set<Vector2i> visited;
 
     q.push(initPos.value());
     visited.insert(q.front());
@@ -279,7 +279,7 @@ std::shared_ptr<MazeEngine::WayPoint> MazeEngine::NextJunction(const std::shared
     while (!q.empty()) {
         auto cell = q.front(); q.pop();
         int traversable_neighbors = 0;
-        std::vector<Vector2Int> neighbors;
+        std::vector<Vector2i> neighbors;
     }
 
     return nullptr;
