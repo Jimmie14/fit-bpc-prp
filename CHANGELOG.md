@@ -1,4 +1,4 @@
-## [unreleased]
+## [1.6.0] - 2026-05-11
 
 ### 🚀 Features
 
@@ -25,6 +25,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Removed unused constants
+- Bump version to 1.6.0
 ## [1.5.1] - 2026-05-06
 
 ### 🐛 Bug Fixes
