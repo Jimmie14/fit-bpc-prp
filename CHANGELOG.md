@@ -1,5 +1,9 @@
 ## [unreleased]
 
+### 🚀 Features
+
+- Minor dwpp score function enhancements
+
 ### 🐛 Bug Fixes
 
 - All bugs in maze graph engine
