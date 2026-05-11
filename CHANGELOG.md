@@ -1,3 +1,8 @@
+## [unreleased]
+
+### 🐛 Bug Fixes
+
+- All bugs in maze graph engine
 ## [1.6.0] - 2026-05-11
 
 ### 🚀 Features
