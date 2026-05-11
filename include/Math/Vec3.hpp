@@ -5,7 +5,7 @@
 using tf2::Vector3;
 
 namespace Manhattan::math::vec3 {
-const Vector3 Zero(0.0, 0.0, 0.0);
+const Vector3 zero(0.0, 0.0, 0.0);
 const Vector3 One(1.0, 1.0, 1.0);
 
 const Vector3 Right(0.0, 1.0, 0.0);

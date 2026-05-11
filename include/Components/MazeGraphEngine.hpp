@@ -7,6 +7,9 @@
 #include <visualization_msgs/msg/marker_array.hpp>
 
 namespace Manhattan::core {
+
+using namespace Manhattan::math;
+
 class MazeGraphEngine : public RosEngine {
 public:
     explicit MazeGraphEngine(const App& app);
@@ -21,12 +24,13 @@ protected:
 
 private:
     struct Node {
-        math::Vector2Int cell;
+        Vector2Int cell;
+        bool isCrossing = false;
     };
 
 
-    unordered_map<math::Vector2Int, Node, math::Vector2IntHash> _nodes;
-    vector<vector<math::Vector2Int>> _paths;
+    unordered_map<Vector2Int, Node, Vector2IntHash> _nodes;
+    vector<vector<Vector2Int>> _paths;
 
     nav::Grid<bool> _skeleton;
     nav::GridMap _map;
@@ -34,9 +38,11 @@ private:
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _debugPublisher;
 
-    vector<math::Vector2Int> pathToClosestNode(const math::Vector2Int& cell, int radius);
+    vector<vector<Vector2Int>> followPath(set<Vector2Int>& visited, vector<Vector2Int>& path);
 
-    void createDeadEnds();
+    vector<Vector2Int> pathToClosestNode(const Vector2Int& cell, int radius);
+
+    Vector2Int findStartCandidate() const;
 
 
     void update();
