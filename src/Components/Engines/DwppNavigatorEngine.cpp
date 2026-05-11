@@ -89,7 +89,7 @@ void DwppNavigatorEngine::Update()
     const auto wMax = clamp(_twist.angular + wHalfRange, -_config.maxAngularSpeed, _config.maxAngularSpeed);
 
     auto bestTwist = Twist::zero();
-    auto bestScore = -16.0;
+    auto bestScore = -2.0e-16;
 
     _debugSimulations.clear();
 
@@ -140,12 +140,13 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
 
         const auto closest = _path.findClosestPoint(pose.position);
 
-        pathError += Vector2::distance(closest.position, pose.position);
+        pathError += closest.distanceToPathSq;
+        //pathError += closest.distanceToPathSq;
 
         const auto lookahead = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
         const auto toLookahead = (lookahead - pose.position).normalized();
 
-        headingError += 1.0 - Vector2::dot(pose.forward(), toLookahead);
+        headingError += 1.0 - abs(Vector2::dot(pose.forward(), toLookahead));
 
         progressReward += closest.distanceAlongPath - previous.distanceAlongPath;
 
