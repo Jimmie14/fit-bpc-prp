@@ -20,20 +20,20 @@ constexpr float FOV = 160.0f;
 constexpr float FORWARD_FOV = 10.0f;
 
 // walls filtering
-constexpr int MIN_POINTS_PER_SEGMENT = 4;
+constexpr int MIN_POINTS_PER_SEGMENT = 2;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.06f;
+constexpr float NORMAL_SPEED = 0.015f;
 constexpr float TURN_SPEED = 0.0f;
 constexpr float TURN_ANGULAR = 0.5f;
 
 // PID tuning constants
-constexpr float HEADING_P = 1.0f;
-constexpr float CENTER_P = 0.5f;
-constexpr float HEADING_D = 0.0f;
-constexpr float CENTER_D = 0.0f;
+constexpr float HEADING_P = 0.1f;
+constexpr float CENTER_P = 0.4f;
+constexpr float HEADING_D = 0.01f;
+constexpr float CENTER_D = 0.01f;
 
-constexpr float TURN_P = 0.4f;
+constexpr float TURN_P = 0.5f;
 constexpr float TURN_D = 0.01f;
 
 static float NormalizeAngle(float angle)
@@ -42,6 +42,16 @@ static float NormalizeAngle(float angle)
     while (angle < -M_PI) angle += 2.f * M_PI;
 
     return angle;
+}
+
+static Vector2 ClosestPointOnLine(Vector2 direction, Vector2 start, Vector2 target)
+{
+    Vector2 normalizedDir = direction.Normalized();
+    Vector2 toTarget = target - start;
+    float projection = Vector2::Dot(toTarget, normalizedDir);
+    Vector2 closestPoint = start + normalizedDir * projection;
+
+    return closestPoint;
 }
 
 MazeEngine::MazeEngine(const App& app)
@@ -57,7 +67,7 @@ MazeEngine::MazeEngine(const App& app)
 }
 
 void MazeEngine::OnEnable() {
-    _initialTimer = create_wall_timer(1s, [this] {
+    _initialTimer = create_wall_timer(3s, [this] {
         _timer = create_wall_timer(10ms, [this] { Update(); });
         _initialTimer.reset();
     });
@@ -113,21 +123,7 @@ void MazeEngine::FollowCorridor()
             return;
     }
 
-    const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
-    const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
-    const auto forwardHits = RayArc(FORWARD_FOV, TurnDirection::FORWARD, FORWARD_RAY_DISTANCE);
-
-    const auto leftWall = FilterHitPoints(leftHits);
-    if (leftWall.has_value())
-        _leftWall = leftWall;
-
-    const auto rightWall = FilterHitPoints(rightHits);
-    if (rightWall.has_value())
-        _rightWall = rightWall;
-
-    const auto frontWall = FilterHitPoints(forwardHits);
-    if (frontWall.has_value())
-        _frontWall = frontWall;
+    CalculateWalls();
 
     float centerError = 0.0f;
     float headingError = 0.0f;
@@ -135,36 +131,24 @@ void MazeEngine::FollowCorridor()
     float centerDerivative = 0.0f;
     float headingDerivative = 0.0f;
 
-    if (_leftWall.has_value() && _rightWall.has_value() && abs(Vector2::Dot(_leftWall->Direction, _rightWall->Direction)) < 0.6){
-
+    if (_leftWall.has_value() && _rightWall.has_value()){
         const Vector2 corridorDir = (_leftWall->Direction + _rightWall->Direction).Normalized();
 
-        const Vector2 corridorNormal =
-            Vector2::Perpendicular(corridorDir);
+        const Vector2 corridorNormal = Vector2::Perpendicular(corridorDir);
 
         const auto pose = _mapping->CurrentPose();
+        headingError = Vector2::Dot(corridorNormal, pose.forward); // Vector2::Cross(corridorDir, pose.forward);
+        headingDerivative = headingError - _prevHeadingError;
+        _prevHeadingError = headingError;
 
-        const Vector2 centerPoint = (_leftWall->Point + _rightWall->Point) * 0.5f;
-
+        const Vector2 centerPoint = (ClosestPointOnLine(_leftWall->Direction, _leftWall->Point, pose.position) + ClosestPointOnLine(_rightWall->Direction, _rightWall->Point, pose.position)) * 0.5f;
         const Vector2 errorVec = centerPoint - pose.position;
 
         centerError = Vector2::Dot(errorVec, corridorNormal);
-        headingError = Vector2::Cross(corridorDir, pose.forward);
-
         centerDerivative = centerError - _prevCenterError;
-        headingDerivative = headingError - _prevHeadingError;
-
         _prevCenterError = centerError;
-        _prevHeadingError = headingError;
 
-    } else if (_frontWall.has_value()) {
-        headingError = Vector2::Cross(_frontWall->Normal, _mapping->CurrentPose().forward);
-
-        headingDerivative = headingError - _prevHeadingError;
-        _prevHeadingError = headingError;
-
-        centerError = 0.0f;
-        centerDerivative = 0.0f;
+        std::cout << "Computing" << std::endl;
     }
 
     const float speed = std::clamp(frontDist / OPEN_THRESHOLD, 0.0f, 1.0f);
@@ -176,14 +160,42 @@ void MazeEngine::FollowCorridor()
 
     _app.Events->Publish(MotorCommand {
         NORMAL_SPEED * speed * speed,
-        angular
+        std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)
     });
+}
+
+void MazeEngine::CalculateWalls()
+{
+    const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
+    const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
+
+    const auto leftWall = FilterHitPoints(leftHits);
+    const auto rightWall = FilterHitPoints(rightHits);
+
+    if (leftWall.has_value() && rightWall.has_value() && Vector2::Dot(leftWall.value().Direction, rightWall.value().Direction) > 0.8) {
+        _leftWall = leftWall;
+        _rightWall = rightWall;
+
+        _frontWall = std::nullopt;
+        return;
+    }
+
+    const auto forwardHits = RayArc(FORWARD_FOV, TurnDirection::FORWARD, FORWARD_RAY_DISTANCE);
+    const auto frontWall = FilterHitPoints(forwardHits);
+
+    if (!frontWall.has_value())
+        return;
+
+    _frontWall = frontWall;
+
+    _leftWall = std::nullopt;
+    _rightWall = std::nullopt;
 }
 
 void MazeEngine::StartDecision(const bool left, const bool forward, const bool right)
 {
     const auto now = std::chrono::steady_clock::now();
-    if (now - _lastDecision < 2s)
+    if (now - _lastDecision < 5s)
         return;
     _lastDecision = now;
 
@@ -444,24 +456,45 @@ void MazeEngine::PublishWalls() const
 {
     visualization_msgs::msg::MarkerArray markerArray;
 
-    auto createMarker = [](const PcaFitter::FittedLine& line, int id) {
+    // Create delete markers with offset IDs (0-2 for deletes, 10-12 for adds)
+    auto createDeleteMarker = [](int id) {
         visualization_msgs::msg::Marker marker;
         marker.header.frame_id = "map";
         marker.ns = "maze_walls";
         marker.id = id;
-        marker.type = visualization_msgs::msg::Marker::LINE_STRIP;
+        marker.action = visualization_msgs::msg::Marker::DELETE;
+        return marker;
+    };
+
+    // Add delete commands with IDs 10, 11, 12
+    markerArray.markers.push_back(createDeleteMarker(10)); // left wall
+    markerArray.markers.push_back(createDeleteMarker(11)); // right wall
+    markerArray.markers.push_back(createDeleteMarker(12)); // front wall
+
+    auto createMarker = [](const PcaFitter::FittedLine& line, int id, float r, float g, float b) {
+        visualization_msgs::msg::Marker marker;
+        marker.header.frame_id = "map";
+        marker.ns = "maze_walls";
+        marker.id = id;
+        marker.type = visualization_msgs::msg::Marker::ARROW;
         marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.scale.x = 0.05f;
+        marker.scale.x = 0.1f;  // arrow shaft diameter
+        marker.scale.y = 0.15f; // arrow head width
+        marker.scale.z = 0.15f; // arrow head height
         marker.color.a = 1.0f;
-        marker.color.r = 1.0f;
+        marker.color.r = r;
+        marker.color.g = g;
+        marker.color.b = b;
 
+        // Start point
         geometry_msgs::msg::Point p1;
-        p1.x = line.Point.x + line.Direction.x * 5.0f;
-        p1.y = line.Point.y + line.Direction.y * 5.0f;
+        p1.x = line.Point.x - line.Direction.x * 2.0f;
+        p1.y = line.Point.y - line.Direction.y * 2.0f;
 
+        // End point (direction)
         geometry_msgs::msg::Point p2;
-        p2.x = line.Point.x - line.Direction.x * 5.0f;
-        p2.y = line.Point.y - line.Direction.y * 5.0f;
+        p2.x = line.Point.x + line.Direction.x * 2.0f;
+        p2.y = line.Point.y + line.Direction.y * 2.0f;
 
         marker.points.push_back(p1);
         marker.points.push_back(p2);
@@ -471,17 +504,17 @@ void MazeEngine::PublishWalls() const
 
     if (_leftWall.has_value())
     {
-        markerArray.markers.push_back(createMarker(_leftWall.value(), 0));
+        markerArray.markers.push_back(createMarker(_leftWall.value(), 0, 1.0f, 0.0f, 0.0f)); // Red
     }
 
     if (_rightWall.has_value())
     {
-        markerArray.markers.push_back(createMarker(_rightWall.value(), 1));
+        markerArray.markers.push_back(createMarker(_rightWall.value(), 1, 0.0f, 1.0f, 0.0f)); // Green
     }
 
     if (_frontWall.has_value())
     {
-        markerArray.markers.push_back(createMarker(_frontWall.value(), 2));
+        markerArray.markers.push_back(createMarker(_frontWall.value(), 2, 0.0f, 0.0f, 1.0f)); // Blue
     }
 
     _publisher->publish(markerArray);

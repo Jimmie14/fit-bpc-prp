@@ -60,6 +60,8 @@ private:
 
     void FollowCorridor();
 
+    void CalculateWalls();
+
     void StartDecision(bool left, bool forward, bool right);
 
     void ExecuteTurn();
