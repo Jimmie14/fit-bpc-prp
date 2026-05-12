@@ -33,7 +33,7 @@ constexpr float CENTER_P = 0.4f;
 constexpr float HEADING_D = 0.01f;
 constexpr float CENTER_D = 0.01f;
 
-constexpr float TURN_P = 0.5f;
+constexpr float TURN_P = 0.4f;
 constexpr float TURN_D = 0.01f;
 
 static float NormalizeAngle(float angle)
@@ -68,6 +68,7 @@ MazeEngine::MazeEngine(const App& app)
 
 void MazeEngine::OnEnable() {
     _initialTimer = create_wall_timer(3s, [this] {
+        _lastUpdate = std::chrono::steady_clock::now();
         _timer = create_wall_timer(10ms, [this] { Update(); });
         _initialTimer.reset();
     });
@@ -84,6 +85,10 @@ void MazeEngine::OnDisable() {
 }
 
 void MazeEngine::Update() {
+    auto now = std::chrono::steady_clock::now();
+    _dt = duration<float>(now - _lastUpdate).count();
+    _lastUpdate = now;
+
     switch (_state)
     {
         case NavState::FOLLOW_CORRIDOR:
@@ -132,23 +137,64 @@ void MazeEngine::FollowCorridor()
     float headingDerivative = 0.0f;
 
     if (_leftWall.has_value() && _rightWall.has_value()){
-        const Vector2 corridorDir = (_leftWall->Direction + _rightWall->Direction).Normalized();
-
-        const Vector2 corridorNormal = Vector2::Perpendicular(corridorDir);
-
         const auto pose = _mapping->CurrentPose();
-        headingError = Vector2::Dot(corridorNormal, pose.forward); // Vector2::Cross(corridorDir, pose.forward);
-        headingDerivative = headingError - _prevHeadingError;
+
+        Vector2 leftDir  = _leftWall->Direction.Normalized();
+        Vector2 rightDir = _rightWall->Direction.Normalized();
+
+        if (Vector2::Dot(leftDir, rightDir) < 0.0f)
+            rightDir = -rightDir;
+
+        const Vector2 corridorDir =
+            (leftDir + rightDir).Normalized();
+
+        Vector2 corridorNormal =
+            Vector2::Perpendicular(corridorDir).Normalized();
+
+        const Vector2 leftToRight =
+            _rightWall->Point - _leftWall->Point;
+
+        if (Vector2::Dot(corridorNormal, leftToRight) < 0.0f)
+            corridorNormal = -corridorNormal;
+
+        headingError =
+            Vector2::Cross(pose.forward, corridorDir);
+
+        headingDerivative =
+            (headingError - _prevHeadingError) / _dt;
+
         _prevHeadingError = headingError;
 
-        const Vector2 centerPoint = (ClosestPointOnLine(_leftWall->Direction, _leftWall->Point, pose.position) + ClosestPointOnLine(_rightWall->Direction, _rightWall->Point, pose.position)) * 0.5f;
-        const Vector2 errorVec = centerPoint - pose.position;
+        const Vector2 leftClosest =
+            ClosestPointOnLine(
+                leftDir,
+                _leftWall->Point,
+                pose.position);
 
-        centerError = Vector2::Dot(errorVec, corridorNormal);
-        centerDerivative = centerError - _prevCenterError;
+        const Vector2 rightClosest =
+            ClosestPointOnLine(
+                rightDir,
+                _rightWall->Point,
+                pose.position);
+
+        const Vector2 centerPoint =
+            (leftClosest + rightClosest) * 0.5f;
+
+        const Vector2 errorVec =
+            pose.position - centerPoint;
+
+        centerError =
+            Vector2::Dot(errorVec, corridorNormal);
+
+        centerDerivative =
+            (centerError - _prevCenterError) / _dt;
+
         _prevCenterError = centerError;
 
-        std::cout << "Computing" << std::endl;
+        std::cout
+            << "center: " << centerError
+            << " heading: " << headingError
+            << std::endl;
     }
 
     const float speed = std::clamp(frontDist / OPEN_THRESHOLD, 0.0f, 1.0f);
@@ -172,7 +218,7 @@ void MazeEngine::CalculateWalls()
     const auto leftWall = FilterHitPoints(leftHits);
     const auto rightWall = FilterHitPoints(rightHits);
 
-    if (leftWall.has_value() && rightWall.has_value() && Vector2::Dot(leftWall.value().Direction, rightWall.value().Direction) > 0.8) {
+    if (leftWall.has_value() && rightWall.has_value() && std::abs(Vector2::Dot(leftWall.value().Direction, rightWall.value().Direction)) > 0.8) {
         _leftWall = leftWall;
         _rightWall = rightWall;
 
@@ -228,8 +274,7 @@ void MazeEngine::ExecuteTurn()
 {
     auto pose = _mapping->CurrentPose();
 
-    float rawError = _targetRotation - pose.rotation;
-    float error = NormalizeAngle(rawError);
+    float error = NormalizeAngle(_targetRotation - pose.rotation);
 
     if (std::abs(error) < 0.08f)
     {
@@ -238,10 +283,8 @@ void MazeEngine::ExecuteTurn()
         return;
     }
 
-    float rawDerivative = rawError - _prevTurnError;
-    _prevTurnError = rawError;
-
-    float derivative = NormalizeAngle(rawDerivative);
+    float derivative = NormalizeAngle(error - _prevTurnError) / _dt;
+    _prevTurnError = error;
 
     float angular = error * TURN_P + derivative * TURN_D;
     angular = std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR);

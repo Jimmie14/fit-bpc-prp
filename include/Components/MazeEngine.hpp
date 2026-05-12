@@ -31,6 +31,9 @@ private:
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
 
+    std::chrono::steady_clock::time_point _lastUpdate;
+    float _dt;
+
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
     TimerBase::SharedPtr _publisherTimer;
