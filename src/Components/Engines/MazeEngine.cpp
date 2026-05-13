@@ -10,7 +10,7 @@ namespace Manhattan::Core {
 using namespace Manhattan::nav;
 
 // Junction detection
-constexpr float CORRIDOR_SIZE = 0.4f;
+constexpr float HALF_CORRIDOR_SIZE = 0.2f;
 
 // RayArc settings
 constexpr int RAY_COUNT = 9;
@@ -21,7 +21,7 @@ constexpr float FOV = 20.0f;
 constexpr int MIN_POINTS_PER_SEGMENT = 2;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.1f;
+constexpr float NORMAL_SPEED = 0.07f;
 constexpr float TURN_SPEED = 0.0f;
 constexpr float TURN_ANGULAR = 0.5f;
 
@@ -30,6 +30,7 @@ constexpr float HEADING_P = 0.7f;
 constexpr float HEADING_D = 0.05f;
 
 constexpr float TURN_P = 0.5f;
+constexpr float TURN_I = 0.01f;
 constexpr float TURN_D = 0.01f;
 
 constexpr float JUNCTION_CONFIRMATION_TIME = 0.5f;
@@ -171,7 +172,7 @@ void MazeEngine::FollowCorridor()
     }
     frontDist /= RAY_COUNT;
 
-    const float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
+    const float speed = std::clamp(static_cast<float>(frontDist) / (HALF_CORRIDOR_SIZE * 2.0f), 0.0f, 1.0f);
     const float angular =
         HEADING_P * headingError +
         HEADING_D * headingDerivative;
@@ -219,11 +220,6 @@ void MazeEngine::CalculateWalls()
 
 void MazeEngine::StartDecision(const bool left, const bool forward, const bool right)
 {
-    const auto now = std::chrono::steady_clock::now();
-    if (now - _lastDecision < 5s)
-        return;
-    _lastDecision = now;
-
     const auto pose = _mapping->CurrentPose();
 
     switch (ChooseDirection(left, forward, right))
@@ -235,12 +231,12 @@ void MazeEngine::StartDecision(const bool left, const bool forward, const bool r
 
         case TurnDirection::RIGHT:
             _targetRotation = static_cast<float>(pose.rotation - M_PI_2);
-                std::cout << "Turning right" << std::endl;
+            std::cout << "Turning right" << std::endl;
             break;
 
         case TurnDirection::FORWARD:
             _targetRotation = static_cast<float>(pose.rotation);
-            std::cout << "Going forward" << std::endl;
+            // std::cout << "Going forward" << std::endl;
             _state = NavState::FOLLOW_CORRIDOR;
             return;
     }
@@ -258,15 +254,19 @@ void MazeEngine::ExecuteTurnState()
     {
         _state = NavState::RECENTER;
         _prevTurnError = 0;
+        _turnIntegralError = 0;
 
         CalculateWalls();
         return;
     }
 
+    _turnIntegralError += error * _dt;
+    _turnIntegralError = std::clamp(_turnIntegralError, -0.5f, 0.5f);
+
     float derivative = NormalizeAngle(error - _prevTurnError) / _dt;
     _prevTurnError = error;
 
-    float angular = error * TURN_P + derivative * TURN_D;
+    float angular = error * TURN_P + _turnIntegralError * TURN_I + derivative * TURN_D;
     angular = std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR);
 
     _app.Events->Publish(MotorCommand {
@@ -302,13 +302,18 @@ void MazeEngine::RecenterState()
     {
         _state = NavState::FOLLOW_CORRIDOR;
         _prevTurnError = 0;
+        _turnIntegralError = 0;
+
         return;
     }
+
+    _turnIntegralError += headingError * _dt;
+    _turnIntegralError = std::clamp(_turnIntegralError, -0.5f, 0.5f);
 
     const auto headingDerivative = (headingError - _prevHeadingError) / _dt;
     _prevHeadingError = headingError;
 
-    const float angular = TURN_P * headingError + TURN_D * headingDerivative;
+    const float angular = TURN_P * headingError + _turnIntegralError * TURN_I + TURN_D * headingDerivative;
 
     _app.Events->Publish(MotorCommand {
         0,
@@ -319,7 +324,7 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side) const
 {
     const auto pose = _mapping->CurrentPose();
-    const auto offset = (CORRIDOR_SIZE * 0.5f) * 0.5f; // half corridor size, then offset it to have center with robot
+    const auto offset = HALF_CORRIDOR_SIZE * 0.5f;
     const auto stepSize = offset / RAY_COUNT;
 
     auto direction = pose.forward;
@@ -340,7 +345,7 @@ bool MazeEngine::WallInDirection(const TurnDirection side) const
 
     for (auto i = 0; i < RAY_COUNT; ++i) {
         RayHit rayHit;
-        if (_mapping->RayCast(origin, direction, rayHit, CORRIDOR_SIZE))
+        if (_mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE))
             return true;
 
         origin = origin + perpendicularDir * stepSize;

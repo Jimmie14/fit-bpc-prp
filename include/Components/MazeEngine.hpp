@@ -45,7 +45,10 @@ private:
     float _targetRotation = 0.f;
 
     float _prevError = 0;
+
     float _prevTurnError = 0;
+    float _turnIntegralError = 0;
+
     float _prevHeadingError = 0;
 
     std::mutex _mutex;
@@ -56,8 +59,6 @@ private:
 
     std::optional<PcaFitter::FittedLine> _leftWall = std::nullopt;
     std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
-
-    std::chrono::steady_clock::time_point _lastDecision;
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _publisher;
 
