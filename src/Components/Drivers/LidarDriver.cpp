@@ -50,6 +50,8 @@ void LidarDriver::LidarFilter(const sensor_msgs::msg::LaserScan::SharedPtr& msg)
     if (IsInRange(msg->ranges[length - 1], msg->range_min, msg->range_max))
         _points[pointIndex++] = Vector2(msg->ranges[length - 1] * std::cos(angle), msg->ranges[length - 1] * std::sin(angle));
 
+    _points.resize(pointIndex);
+
     _app.events->Publish(LidarScan { _points });
 }
 } // namespace Manhattan::Core

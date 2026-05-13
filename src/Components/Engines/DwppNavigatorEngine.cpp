@@ -74,7 +74,10 @@ void DwppNavigatorEngine::Update()
 {
     std::lock_guard guard(_lock);
 
-    if (!_path.HasPath()) return;
+    if (!_path.HasPath()) {
+        _app.events->Publish(MotorCommandEvent { Twist::zero() });
+        return;
+    }
 
     const auto closest = _path.findClosestPoint(_pose.position);
 
@@ -89,7 +92,7 @@ void DwppNavigatorEngine::Update()
     const auto wMax = clamp(_twist.angular + wHalfRange, -_config.maxAngularSpeed, _config.maxAngularSpeed);
 
     auto bestTwist = Twist::zero();
-    auto bestScore = -2.0e-16;
+    auto bestScore = -2.0e+16;
 
     _debugSimulations.clear();
 
@@ -113,6 +116,7 @@ void DwppNavigatorEngine::Update()
         }
     }
 
+    std::cout << "twist  : " << bestTwist << std::endl;
     _app.events->Publish(MotorCommandEvent {
         .twist = bestTwist
     });
@@ -141,7 +145,6 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
         const auto closest = _path.findClosestPoint(pose.position);
 
         pathError += closest.distanceToPathSq;
-        //pathError += closest.distanceToPathSq;
 
         const auto lookahead = _path.GetPointAtDistance(closest.distanceAlongPath + _config.lookaheadDistance);
         const auto toLookahead = (lookahead - pose.position).normalized();

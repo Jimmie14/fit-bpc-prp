@@ -6,18 +6,22 @@
 
 namespace Manhattan::core {
 ManualPathPlannerEngine::ManualPathPlannerEngine(const App& app) : RosEngine(app, "manual_path_planner")
-    , _map()
-    , _target(-1)
 {
     app.events->Subscribe<messages::MazeGraphPublishEvent>([this](const auto& msg) {
+        std::lock_guard guard(_lock);
+
         _graph = msg.graph;
     });
 
     app.events->Subscribe<messages::RobotPoseEvent>([this](const auto& event) {
+        std::lock_guard guard(_lock);
+
         _pose = event.pose;
     });
 
     app.events->Subscribe<ThinnedMapEvent>([this](const auto& event) {
+        std::lock_guard guard(_lock);
+
         _map = GridMap(event.grid);
 
         planPath();
@@ -33,13 +37,8 @@ void ManualPathPlannerEngine::OnEnable()
             if (_map.empty()) return;
 
             const Vector2i coord = _map.worldToCoord(Vector3(msg->point.x, msg->point.y, 0));
-            const auto node = _graph.findClosestNode(coord, 20);
-            if (!node.has_value()) {
-                _target = -1;
-                return;
-            }
 
-            _target = node.value();
+            _target = _graph.findClosestPosition(coord, 20);
         }
     );
 }
@@ -52,13 +51,18 @@ void ManualPathPlannerEngine::OnDisable()
 void ManualPathPlannerEngine::planPath()
 {
     if (_map.empty()) return;
-    if (_target == -1) return;
+    if (!_target.has_value()) return;
+
+    if (!_graph.containsEdge(_target->from, _target->to)) {
+        _target = nullopt;
+        return;
+    }
 
     const Vector2i coord = _map.worldToCoord(_pose.position.toTf2());
-    const auto node = _graph.findClosestNode(coord, 20);
+    const auto node = _graph.findClosestPosition(coord, 20);
     if (!node.has_value()) return;
 
-    const auto path = _graph.calculatePath(node.value(), _target);
+    const auto path = _graph.calculatePath(node.value(), _target.value());
     if (!path.has_value()) return;
 
     vector<Vector3> worldPath;

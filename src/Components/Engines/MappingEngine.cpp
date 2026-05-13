@@ -344,6 +344,39 @@ void MappingEngine::Publish()
     PublishPose();
     PublishGrid();
     // PublishGridMap();
+    // PublishScan();
+
+
+}
+
+void MappingEngine::PublishScan() const
+{
+    auto msg = sensor_msgs::msg::PointCloud2();
+    msg.header.stamp = now();
+    msg.header.frame_id = "map";
+
+    msg.height = 1;
+    msg.width = _lastScan.size();
+
+    auto modifier = sensor_msgs::PointCloud2Modifier(msg);
+    modifier.setPointCloud2FieldsByString(1, "xyz");
+    modifier.resize(msg.width * msg.height);
+
+    auto iterX = sensor_msgs::PointCloud2Iterator<float>(msg, "x");
+    auto iterY = sensor_msgs::PointCloud2Iterator<float>(msg, "y");
+    auto iterZ = sensor_msgs::PointCloud2Iterator<float>(msg, "z");
+
+    for (const auto& p : _lastScan) {
+        *iterX = static_cast<float>(p.x);
+        *iterY = static_cast<float>(p.y);
+        *iterZ = 0.0f;
+
+        ++iterX;
+        ++iterY;
+        ++iterZ;
+    }
+
+    _scanPublisher->publish(msg);
 }
 
 void MappingEngine::PublishPose()

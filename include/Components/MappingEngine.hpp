@@ -132,6 +132,7 @@ private:
 
     void Publish();
 
+    void PublishScan() const;
     void PublishPose();
     void PublishGrid();
     void PublishGridMap();

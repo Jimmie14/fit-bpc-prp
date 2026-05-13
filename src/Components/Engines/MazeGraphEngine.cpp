@@ -393,9 +393,8 @@ void MazeGraphEngine::publish() const
     }
 
     for (const auto& edge : _graph.edges() | views::values) {
-
         vector<Vector2> worldPath;
-        worldPath.reserve(edge.path().size());
+        worldPath.resize(edge.path().size());
 
         ranges::transform(edge.path(), worldPath.begin(), [&](const auto& p) {
             return Vector2(_map.coordToWorld(p));

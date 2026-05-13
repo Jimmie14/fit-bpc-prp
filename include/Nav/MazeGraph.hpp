@@ -21,10 +21,12 @@ using EdgeId = pair<NodeId, NodeId>;
 struct GraphPosition {
     GraphPosition() = default;
 
-    explicit GraphPosition(const Vector2i& cell, const NodeId from, const NodeId to)
-        : from(from)
-        , to(to)
+    explicit GraphPosition(const Vector2i& cell, const NodeId start, const NodeId end, const int costToStart, const int costToEnd)
+        : from(start)
+        , to(end)
         , cell(cell)
+        , costToStart(costToStart)
+        , costToEnd(costToEnd)
     {
 
     }
@@ -33,6 +35,9 @@ struct GraphPosition {
     NodeId to = 0;
 
     Vector2i cell = vec2i::zero;
+
+    int costToStart = 0;
+    int costToEnd = 0;
 };
 
 
@@ -132,9 +137,10 @@ public:
             const auto& path = edge.path();
 
             buffer.resize(path.size());
-            for (auto& p : path) {
-                buffer.emplace_back(static_cast<double>(p.x), static_cast<double>(p.y));
-            }
+
+            ranges::transform(path, buffer.begin(), [&](const auto& p) {
+                return Vector2(p);
+            });
 
             auto lPath = LinearPath();
             lPath.init(buffer);
@@ -144,7 +150,9 @@ public:
 
             bestDistanceSq = segmentResult.distanceToPathSq;
 
-            result = GraphPosition(Vector2i::round(segmentResult.position), edge.from(), edge.to());
+            result = GraphPosition(Vector2i::round(segmentResult.position), edge.from(), edge.to(),
+                lPath.getTotalLength() - segmentResult.distanceAlongPath,
+                segmentResult.distanceAlongPath);
         }
 
         return result;
@@ -165,6 +173,11 @@ public:
         _edges[{from, to}] = Edge(from, to, path);
         _toEdges[from].push_back(to);
         _toEdges[to].push_back(from);
+    }
+
+    bool containsEdge(NodeId from, NodeId to) const
+    {
+        return _edges.contains({ from, to }) || _edges.contains({ to, from });
     }
 
     const Edge& getEdge(NodeId from, NodeId to) const
@@ -188,6 +201,84 @@ public:
     const map<pair<NodeId, NodeId>, Edge>& edges() const
     {
         return _edges;
+    }
+
+    optional<vector<Vector2i>> calculatePath(const GraphPosition& start, const GraphPosition& end) const
+    {
+        if (start.from == end.from && start.to == end.to) {
+            const auto path = getEdge(end.from, end.to).path();
+            vector<Vector2i> result;
+
+            if (start.costToStart < end.costToStart) {
+                auto view = path
+                    | views::drop_while([&](const auto& p) { return p != end.cell; })
+                    | views::take_while([&](const auto& p) { return p != start.cell; });
+
+                for (auto p : view) {
+                    result.push_back(p);
+                }
+
+                return result;
+            }
+
+            auto view = path
+                | views::drop_while([&](const auto& p) { return p != start.cell; })
+                | views::take_while([&](const auto& p) { return p != end.cell; });
+
+            for (auto p : view) {
+                result.push_back(p);
+            }
+
+            return result;
+        }
+
+        struct Candidate {
+            NodeId from;
+            NodeId to;
+            optional<vector<Vector2i>> path;
+            int cost;
+        };
+
+        auto makeCandidate = [&](NodeId a, NodeId b, const int baseCost) -> Candidate
+        {
+            auto p = calculatePath(a, b);
+            if (!p.has_value()) return {a, b, std::nullopt, INT_MAX};
+
+            const int cost = baseCost + static_cast<int>(p.value().size());
+
+            return { a, b, p, cost };
+        };
+
+        vector<Candidate> candidates;
+
+        candidates.push_back(makeCandidate(start.from, end.from,start.costToStart + end.costToStart));
+        candidates.push_back(makeCandidate(start.from, end.to, start.costToStart + end.costToEnd));
+        candidates.push_back(makeCandidate(start.to, end.from, start.costToEnd + end.costToStart));
+        candidates.push_back(makeCandidate(start.to, end.to, start.costToEnd + end.costToEnd));
+
+        const Candidate* best = nullptr;
+
+        for (const auto& c : candidates)
+        {
+            if (!c.path.has_value()) continue;
+
+            if (!best || c.cost < best->cost) best = &c;
+        }
+
+        if (!best) return std::nullopt;
+
+        auto path = best->path.value();
+
+        auto startPath = getPathTo(start, best->from);
+        path.insert(path.begin(), startPath.begin(), startPath.end());
+
+
+        auto endPath = getPathTo(end, best->to);
+        ranges::reverse(endPath);
+        path.insert(path.end(), endPath.begin(), endPath.end());
+
+
+        return path;
     }
 
     optional<vector<Vector2i>> calculatePath(const NodeId start, const NodeId end) const
@@ -249,6 +340,34 @@ private:
 
     std::map<EdgeId, Edge> _edges;
     std::unordered_map<NodeId, vector<NodeId>> _toEdges;
+
+    vector<Vector2i> getPathTo(const GraphPosition& position, const NodeId end) const
+    {
+        vector<Vector2i> result;
+
+        const auto edge = getEdge(position.from, position.to);
+
+        if (position.to == end) {
+            auto view = edge.path()
+                | views::drop_while([&](const auto& p) { return p != position.cell; });
+
+            for (auto p : view) {
+                result.push_back(p);
+            }
+
+            return result;
+        }
+
+        auto view = edge.path()
+            | views::take_while([&](const auto& p) { return p != position.cell; })
+            | views::reverse;
+
+        for (auto p : view) {
+            result.push_back(p);
+        }
+
+        return result;
+    }
 };
 
 

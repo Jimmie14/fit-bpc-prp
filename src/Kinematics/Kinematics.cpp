@@ -15,11 +15,11 @@ WheelAngularVelocity DifferentialDriveKinematics::inverse(const Twist& twist) co
 {
     auto result = WheelAngularVelocity();
 
-    const auto leftLinear = twist.linear + 0.5 * twist.angular * _geometry.wheelBase;
-    const auto rightLinear = twist.linear - 0.5 * twist.angular * _geometry.wheelBase;
+    const auto leftLinear = twist.linear - 0.5 * twist.angular * _geometry.wheelBase;
+    const auto rightLinear = twist.linear + 0.5 * twist.angular * _geometry.wheelBase;
 
-    result.right = leftLinear / _geometry.left.radius;
-    result.left = rightLinear / _geometry.right.radius;
+    result.left = leftLinear / _geometry.left.radius;
+    result.right = rightLinear / _geometry.right.radius;
 
     return result;
 }

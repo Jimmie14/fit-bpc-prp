@@ -39,7 +39,7 @@ public:
         return _waypoints.size() >= 2;
     }
 
-    [[nodiscard]] double GetTotalLength() const
+    [[nodiscard]] double getTotalLength() const
     {
         return _totalLength;
     }

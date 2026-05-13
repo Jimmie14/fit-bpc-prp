@@ -14,6 +14,7 @@ namespace Manhattan::core {
 MotorController::MotorController(const config::MotorControllerConfig& config)
     : _characteristics(config.characteristics)
     , _pid(config.kp, config.ki, config.kd)
+    , _calibrationSolver(config.calibration)
 {
 
 }
@@ -23,9 +24,15 @@ double MotorController::step(const double desired, const double dt)
     const auto error = desired - _current;
     const auto speed = desired + _pid.step(error, dt);
 
-    _current = saturate(speed);
+    _current = speed;
+    // _current = saturate(speed);
 
     return _current;
+}
+
+uint8_t MotorController::angularToPwm(const double angular) const
+{
+    return _calibrationSolver.angularToPwm(angular);
 }
 
 void MotorController::reset()
@@ -100,14 +107,14 @@ void MotorDriver::SetForce(const double leftAngular, const double rightAngular)
 
 void MotorDriver::Publish()
 {
-    auto left = _left.step(_desired.left, _config.deltaTime) / _config.left.characteristics.maxSpeed;
-    auto right = _right.step(_desired.right, _config.deltaTime) / _config.right.characteristics.maxSpeed;
+    auto left = _left.step(_desired.left, _config.deltaTime);
+    auto right = _right.step(_desired.right, _config.deltaTime);
 
-    left = clamp(left, -1.0, 1.0);
-    right = clamp(right, -1.0, 1.0);
+    const auto leftPwm = _left.angularToPwm(-left);
+    const auto rightPwm = _right.angularToPwm(-right);
 
-    _msg.data[0] = static_cast<uint8_t>((left * .5 + .5) * 255);
-    _msg.data[1] = static_cast<uint8_t>((right * .5 + .5) * 255);
+    _msg.data[0] = leftPwm;
+    _msg.data[1] = rightPwm;
 
     _publisher->publish(_msg);
 }

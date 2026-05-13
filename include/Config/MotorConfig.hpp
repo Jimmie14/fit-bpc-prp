@@ -3,6 +3,7 @@
 #include "Configurable.hpp"
 
 namespace Manhattan::config {
+
 struct MotorCharacteristics : Configurable {
     double minSpeed;
     double maxSpeed;
@@ -14,12 +15,39 @@ struct MotorCharacteristics : Configurable {
     }
 };
 
+struct MotorCalibrationConfig : Configurable {
+    struct CalibrationPoint {
+        uint8_t pwm;
+        double angular;
+    };
+
+    std::vector<CalibrationPoint> table;
+
+    void configure(const Config& config) override
+    {
+        const auto& arr = config;
+
+        table.clear();
+        table.reserve(arr.size());
+
+        for (const auto& v : arr) {
+            auto point = CalibrationPoint(v.at(0).value<uint8_t>(), v.at(1).value<double>());
+            table.push_back(point);
+        }
+
+        ranges::sort(table, [](const auto& a, const auto& b) {
+            return a.pwm < b.pwm;
+        });
+    }
+};
+
 struct MotorControllerConfig : Configurable {
     double kp;
     double ki;
     double kd;
 
     MotorCharacteristics characteristics;
+    MotorCalibrationConfig calibration;
 
     void configure(const Config& config) override
     {
@@ -28,6 +56,7 @@ struct MotorControllerConfig : Configurable {
         kd = config["kd"].value<double>();
 
         characteristics.configure(config["characteristics"]);
+        calibration.configure(config["samples"]);
     }
 };
 
