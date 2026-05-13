@@ -73,7 +73,7 @@ private:
 
     void RecenterState();
 
-    float GetWallDistance(TurnDirection side) const;
+    bool WallInDirection(TurnDirection side) const;
 
     std::vector<RayHit> RayArc(float fov, TurnDirection side, float dst) const;
 

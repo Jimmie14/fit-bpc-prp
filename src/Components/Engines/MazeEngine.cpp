@@ -10,7 +10,7 @@ namespace Manhattan::Core {
 using namespace Manhattan::nav;
 
 // Junction detection
-constexpr float OPEN_THRESHOLD = 0.4f;
+constexpr float CORRIDOR_SIZE = 0.4f;
 
 // RayArc settings
 constexpr int RAY_COUNT = 9;
@@ -109,13 +109,15 @@ void MazeEngine::Update() {
 
 void MazeEngine::FollowCorridor()
 {
-    const float leftDist = GetWallDistance(TurnDirection::LEFT);
-    const float rightDist = GetWallDistance(TurnDirection::RIGHT);
-    const float frontDist = GetWallDistance(TurnDirection::FORWARD);
+    // const float leftDist = GetWallDistance(TurnDirection::LEFT);
+    // const float rightDist = GetWallDistance(TurnDirection::RIGHT);
+    // const float frontDist = GetWallDistance(TurnDirection::FORWARD);
 
-    const bool openLeft = leftDist > OPEN_THRESHOLD;
-    const bool openRight = rightDist > OPEN_THRESHOLD;
-    const bool openFront = frontDist > OPEN_THRESHOLD;
+    const bool openLeft = !WallInDirection(TurnDirection::LEFT); // leftDist > OPEN_THRESHOLD;
+    const bool openRight = !WallInDirection(TurnDirection::RIGHT); // rightDist > OPEN_THRESHOLD;
+    const bool openFront = !WallInDirection(TurnDirection::FORWARD); // frontDist > OPEN_THRESHOLD;
+
+    // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
 
     const bool tJunction = openLeft && openRight && !openFront;
     const bool cornerLeft = openLeft && !openRight && !openFront;
@@ -136,9 +138,9 @@ void MazeEngine::FollowCorridor()
 
     CalculateWalls();
 
-    if (_leftWall.has_value() && _rightWall.has_value()) {
-        const auto pose = _mapping->CurrentPose();
+    const auto pose = _mapping->CurrentPose();
 
+    if (_leftWall.has_value() && _rightWall.has_value()) {
         auto leftDir  = _leftWall->Direction.Normalized();
         auto rightDir = _rightWall->Direction.Normalized();
 
@@ -162,7 +164,14 @@ void MazeEngine::FollowCorridor()
         _prevHeadingError = headingError;
     }
 
-    const float speed = std::clamp(frontDist / OPEN_THRESHOLD, 0.0f, 1.0f);
+    auto frontDist = 0.0;
+    for (auto hit : RayArc(5.0f, TurnDirection::FORWARD, RAY_DISTANCE)) {
+        const auto dst = Vector2::Distance(hit.hit, pose.position);
+        frontDist += dst;
+    }
+    frontDist /= RAY_COUNT;
+
+    const float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
     const float angular =
         HEADING_P * headingError +
         HEADING_D * headingDerivative;
@@ -307,24 +316,37 @@ void MazeEngine::RecenterState()
     });
 }
 
-float MazeEngine::GetWallDistance(const TurnDirection side) const
+bool MazeEngine::WallInDirection(const TurnDirection side) const
 {
     const auto pose = _mapping->CurrentPose();
+    const auto offset = (CORRIDOR_SIZE * 0.5f) * 0.5f; // half corridor size, then offset it to have center with robot
+    const auto stepSize = offset / RAY_COUNT;
 
+    auto direction = pose.forward;
 
-
-    const auto hits = RayArc(FOV, side, RAY_DISTANCE);
-
-    if (hits.empty())
-        return RAY_DISTANCE;
-
-    float totalDist = 0.0;
-    for (const auto& hit : hits)
-    {
-        totalDist += static_cast<float>(Vector2::Distance(pose.position, hit.hit));
+    switch (side) {
+    case TurnDirection::FORWARD:
+        break;
+    case TurnDirection::LEFT:
+        direction = -Vector2::Perpendicular(direction);
+        break;
+    case TurnDirection::RIGHT:
+        direction = Vector2::Perpendicular(direction);
+        break;
     }
 
-    return totalDist / static_cast<float>(hits.size());
+    auto perpendicularDir = Vector2::Perpendicular(direction);
+    auto origin = pose.position + -perpendicularDir * offset;
+
+    for (auto i = 0; i < RAY_COUNT; ++i) {
+        RayHit rayHit;
+        if (_mapping->RayCast(origin, direction, rayHit, CORRIDOR_SIZE))
+            return true;
+
+        origin = origin + perpendicularDir * stepSize;
+    }
+
+    return false;
 }
 
 std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side, const float dst) const
