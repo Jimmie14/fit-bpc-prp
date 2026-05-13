@@ -14,27 +14,25 @@ constexpr float OPEN_THRESHOLD = 0.4f;
 
 // RayArc settings
 constexpr int RAY_COUNT = 9;
-constexpr float RAY_DISTANCE = 1.0f;
-constexpr float FORWARD_RAY_DISTANCE = 5.0f;
-constexpr float FOV = 160.0f;
-constexpr float FORWARD_FOV = 10.0f;
+constexpr float RAY_DISTANCE = 5.0f;
+constexpr float FOV = 20.0f;
 
 // walls filtering
 constexpr int MIN_POINTS_PER_SEGMENT = 2;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.015f;
+constexpr float NORMAL_SPEED = 0.1f;
 constexpr float TURN_SPEED = 0.0f;
 constexpr float TURN_ANGULAR = 0.5f;
 
 // PID tuning constants
-constexpr float HEADING_P = 0.1f;
-constexpr float CENTER_P = 0.4f;
-constexpr float HEADING_D = 0.01f;
-constexpr float CENTER_D = 0.01f;
+constexpr float HEADING_P = 0.7f;
+constexpr float HEADING_D = 0.05f;
 
-constexpr float TURN_P = 0.4f;
+constexpr float TURN_P = 0.5f;
 constexpr float TURN_D = 0.01f;
+
+constexpr float JUNCTION_CONFIRMATION_TIME = 0.5f;
 
 static float NormalizeAngle(float angle)
 {
@@ -48,7 +46,7 @@ static Vector2 ClosestPointOnLine(Vector2 direction, Vector2 start, Vector2 targ
 {
     Vector2 normalizedDir = direction.Normalized();
     Vector2 toTarget = target - start;
-    float projection = Vector2::Dot(toTarget, normalizedDir);
+    auto projection = Vector2::Dot(toTarget, normalizedDir);
     Vector2 closestPoint = start + normalizedDir * projection;
 
     return closestPoint;
@@ -75,6 +73,7 @@ void MazeEngine::OnEnable() {
 
     _publisherTimer = create_wall_timer(100ms, [this] {
         PublishWalls();
+        PublishHeading();
     });
 }
 
@@ -92,15 +91,19 @@ void MazeEngine::Update() {
     switch (_state)
     {
         case NavState::FOLLOW_CORRIDOR:
-                FollowCorridor();
-                break;
+            FollowCorridor();
+            break;
 
-            case NavState::TURNING:
-                ExecuteTurn();
-                break;
+        case NavState::TURNING:
+            ExecuteTurnState();
+            break;
 
-            default:
-                break;
+        case NavState::RECENTER:
+            RecenterState();
+            break;
+
+        default:
+            break;
     }
 }
 
@@ -128,81 +131,41 @@ void MazeEngine::FollowCorridor()
             return;
     }
 
-    CalculateWalls();
-
-    float centerError = 0.0f;
     float headingError = 0.0f;
-
-    float centerDerivative = 0.0f;
     float headingDerivative = 0.0f;
 
-    if (_leftWall.has_value() && _rightWall.has_value()){
+    CalculateWalls();
+
+    if (_leftWall.has_value() && _rightWall.has_value()) {
         const auto pose = _mapping->CurrentPose();
 
-        Vector2 leftDir  = _leftWall->Direction.Normalized();
-        Vector2 rightDir = _rightWall->Direction.Normalized();
+        auto leftDir  = _leftWall->Direction.Normalized();
+        auto rightDir = _rightWall->Direction.Normalized();
 
         if (Vector2::Dot(leftDir, rightDir) < 0.0f)
             rightDir = -rightDir;
 
-        const Vector2 corridorDir =
-            (leftDir + rightDir).Normalized();
+        const Vector2 corridorDir = (leftDir + rightDir).Normalized();
 
-        Vector2 corridorNormal =
-            Vector2::Perpendicular(corridorDir).Normalized();
+        const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
+        const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
 
-        const Vector2 leftToRight =
-            _rightWall->Point - _leftWall->Point;
+        const auto center = (leftPoint + rightPoint) * 0.5f;
 
-        if (Vector2::Dot(corridorNormal, leftToRight) < 0.0f)
-            corridorNormal = -corridorNormal;
+        _heading = corridorDir;
+        _center = center;
 
-        headingError =
-            Vector2::Cross(pose.forward, corridorDir);
+        const auto target = center + corridorDir;
 
-        headingDerivative =
-            (headingError - _prevHeadingError) / _dt;
-
+        headingError = static_cast<float>(Vector2::SignedAngle(pose.forward, (target - pose.position).Normalized()));
+        headingDerivative = (headingError - _prevHeadingError) / _dt;
         _prevHeadingError = headingError;
-
-        const Vector2 leftClosest =
-            ClosestPointOnLine(
-                leftDir,
-                _leftWall->Point,
-                pose.position);
-
-        const Vector2 rightClosest =
-            ClosestPointOnLine(
-                rightDir,
-                _rightWall->Point,
-                pose.position);
-
-        const Vector2 centerPoint =
-            (leftClosest + rightClosest) * 0.5f;
-
-        const Vector2 errorVec =
-            pose.position - centerPoint;
-
-        centerError =
-            Vector2::Dot(errorVec, corridorNormal);
-
-        centerDerivative =
-            (centerError - _prevCenterError) / _dt;
-
-        _prevCenterError = centerError;
-
-        std::cout
-            << "center: " << centerError
-            << " heading: " << headingError
-            << std::endl;
     }
 
     const float speed = std::clamp(frontDist / OPEN_THRESHOLD, 0.0f, 1.0f);
     const float angular =
         HEADING_P * headingError +
-        CENTER_P  * centerError +
-        HEADING_D * headingDerivative +
-        CENTER_D  * centerDerivative;
+        HEADING_D * headingDerivative;
 
     _app.Events->Publish(MotorCommand {
         NORMAL_SPEED * speed * speed,
@@ -218,24 +181,31 @@ void MazeEngine::CalculateWalls()
     const auto leftWall = FilterHitPoints(leftHits);
     const auto rightWall = FilterHitPoints(rightHits);
 
-    if (leftWall.has_value() && rightWall.has_value() && std::abs(Vector2::Dot(leftWall.value().Direction, rightWall.value().Direction)) > 0.8) {
-        _leftWall = leftWall;
-        _rightWall = rightWall;
+    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::Dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.9) return;
 
-        _frontWall = std::nullopt;
-        return;
-    }
+    _leftWall = leftWall;
+    _rightWall = rightWall;
 
-    const auto forwardHits = RayArc(FORWARD_FOV, TurnDirection::FORWARD, FORWARD_RAY_DISTANCE);
-    const auto frontWall = FilterHitPoints(forwardHits);
+    const auto pose = _mapping->CurrentPose();
+    const auto closestPointOnLeft = ClosestPointOnLine(leftWall->Direction, leftWall->Point, pose.position);
+    const auto dstOnLeft = Vector2::Distance(closestPointOnLeft, pose.position);
 
-    if (!frontWall.has_value())
-        return;
+    const auto closestPointOnRight = ClosestPointOnLine(rightWall->Direction, rightWall->Point, pose.position);
+    const auto dstOnRight = Vector2::Distance(closestPointOnRight, pose.position);
 
-    _frontWall = frontWall;
+    constexpr auto wallDistance = 0.4f;
 
-    _leftWall = std::nullopt;
-    _rightWall = std::nullopt;
+    if (dstOnLeft > wallDistance)
+        _leftWall->Point = (closestPointOnLeft - pose.position).Normalized() * (wallDistance - dstOnRight) + pose.position;
+
+    if (dstOnRight > wallDistance)
+        _rightWall->Point = (closestPointOnRight - pose.position).Normalized() * (wallDistance - dstOnLeft) + pose.position;
+
+    if (Vector2::Dot(_leftWall->Direction, pose.forward) < 0.0f)
+        _leftWall->Direction = -_leftWall->Direction;
+
+    if (Vector2::Dot(_rightWall->Direction, pose.forward) < 0.0f)
+        _rightWall->Direction = -_rightWall->Direction;
 }
 
 void MazeEngine::StartDecision(const bool left, const bool forward, const bool right)
@@ -250,17 +220,17 @@ void MazeEngine::StartDecision(const bool left, const bool forward, const bool r
     switch (ChooseDirection(left, forward, right))
     {
         case TurnDirection::LEFT:
-            _targetRotation = pose.rotation + M_PI_2;
+            _targetRotation = static_cast<float>(pose.rotation + M_PI_2);
             std::cout << "Turning left" << std::endl;
             break;
 
         case TurnDirection::RIGHT:
-            _targetRotation = pose.rotation - M_PI_2;
+            _targetRotation = static_cast<float>(pose.rotation - M_PI_2);
                 std::cout << "Turning right" << std::endl;
             break;
 
         case TurnDirection::FORWARD:
-            _targetRotation = pose.rotation;
+            _targetRotation = static_cast<float>(pose.rotation);
             std::cout << "Going forward" << std::endl;
             _state = NavState::FOLLOW_CORRIDOR;
             return;
@@ -270,16 +240,17 @@ void MazeEngine::StartDecision(const bool left, const bool forward, const bool r
     _targetRotation = NormalizeAngle(_targetRotation);
 }
 
-void MazeEngine::ExecuteTurn()
+void MazeEngine::ExecuteTurnState()
 {
-    auto pose = _mapping->CurrentPose();
-
-    float error = NormalizeAngle(_targetRotation - pose.rotation);
+    const auto pose = _mapping->CurrentPose();
+    const float error = NormalizeAngle(_targetRotation - static_cast<float>(pose.rotation));
 
     if (std::abs(error) < 0.08f)
     {
-        _state = NavState::FOLLOW_CORRIDOR;
+        _state = NavState::RECENTER;
         _prevTurnError = 0;
+
+        CalculateWalls();
         return;
     }
 
@@ -295,30 +266,65 @@ void MazeEngine::ExecuteTurn()
     });
 }
 
+void MazeEngine::RecenterState()
+{
+    if (!_leftWall.has_value() || !_rightWall.has_value()) return;
+
+    const auto pose = _mapping->CurrentPose();
+
+    const auto leftDir = _leftWall->Direction.Normalized();
+    const auto rightDir = _rightWall->Direction.Normalized();
+
+    Vector2 corridorDir = (leftDir + rightDir).Normalized();
+
+    const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
+    const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
+
+    const auto center = (leftPoint + rightPoint) * 0.5f;
+
+    _heading = corridorDir;
+    _center = center;
+
+    const auto target = center + corridorDir;
+
+    const auto headingError = static_cast<float>(Vector2::SignedAngle(pose.forward, (target - pose.position).Normalized()));
+
+    if (std::abs(headingError) < 0.08f)
+    {
+        _state = NavState::FOLLOW_CORRIDOR;
+        _prevTurnError = 0;
+        return;
+    }
+
+    const auto headingDerivative = (headingError - _prevHeadingError) / _dt;
+    _prevHeadingError = headingError;
+
+    const float angular = TURN_P * headingError + TURN_D * headingDerivative;
+
+    _app.Events->Publish(MotorCommand {
+        0,
+        std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)
+    });
+}
+
 float MazeEngine::GetWallDistance(const TurnDirection side) const
 {
     const auto pose = _mapping->CurrentPose();
 
-    float offset = 0;
 
-    switch (side) {
-        case TurnDirection::FORWARD:
-            offset = M_PI_2;
-            break;
-        case TurnDirection::LEFT:
-            offset = M_PI;
-            break;
-        case TurnDirection::RIGHT:
-            offset = 0;
-            break;
+
+    const auto hits = RayArc(FOV, side, RAY_DISTANCE);
+
+    if (hits.empty())
+        return RAY_DISTANCE;
+
+    float totalDist = 0.0;
+    for (const auto& hit : hits)
+    {
+        totalDist += static_cast<float>(Vector2::Distance(pose.position, hit.hit));
     }
 
-    RayHit rayHit;
-    const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(pose.rotation + offset), rayHit, 5.0);
-
-    if (!hit) return 5.0;
-
-    return Vector2::Distance(pose.position, rayHit.hit);
+    return totalDist / static_cast<float>(hits.size());
 }
 
 std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side, const float dst) const
@@ -327,13 +333,13 @@ std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side
     float baseAngle = 0;
     switch (side) {
         case TurnDirection::FORWARD:
-            baseAngle = pose.rotation + M_PI_2;
+            baseAngle = static_cast<float>(pose.rotation + M_PI_2);
             break;
         case TurnDirection::LEFT:
-            baseAngle = pose.rotation + M_PI;
+            baseAngle = static_cast<float>(pose.rotation + M_PI);
             break;
         case TurnDirection::RIGHT:
-            baseAngle = pose.rotation;
+            baseAngle = static_cast<float>(pose.rotation);
             break;
     }
 
@@ -412,21 +418,19 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
     const Vector2 forward = pose.forward;
 
     std::optional<PcaFitter::FittedLine> bestLine;
-    float bestScore = -std::numeric_limits<float>::infinity();
+    auto bestScore = -std::numeric_limits<double>::infinity();
 
     for (const auto& line : lines)
     {
-        // Wall direction alignment
-        const float alignment =std::abs(Vector2::Dot(line.Direction.Normalized(), forward));
+        const auto alignment = std::abs(Vector2::Dot(line.Direction.Normalized(), forward));
 
-        // Distance from robot to line
         Vector2 toLine(
             line.Point.x - robotPos.x,
             line.Point.y - robotPos.y);
 
         Vector2 lineNormal = line.Normal;
 
-        const float distToLine = std::abs(Vector2::Dot(toLine, lineNormal));
+        const auto distToLine = std::abs(Vector2::Dot(toLine, lineNormal));
 
         // Reject very far walls
         if (distToLine > 3.0f)
@@ -436,8 +440,7 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
         if (alignment < 0.5f)
             continue;
 
-        // ---------- SCORE ----------
-        float score = 0.0f;
+        auto score = 0.0;
 
         // Prefer parallel walls
         score += alignment * 5.0f;
@@ -487,10 +490,10 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
 
-    if (aruCode.id >= 10)
-        _treasureCode = aruCode;
-    else
-        _exitCode = aruCode;
+    // if (aruCode.id >= 10)
+    //     _treasureCode = aruCode;
+    // else
+    //     _exitCode = aruCode;
 
     std::cout << "Code detected: " << aruCode.id << std::endl;
 }
@@ -499,7 +502,6 @@ void MazeEngine::PublishWalls() const
 {
     visualization_msgs::msg::MarkerArray markerArray;
 
-    // Create delete markers with offset IDs (0-2 for deletes, 10-12 for adds)
     auto createDeleteMarker = [](int id) {
         visualization_msgs::msg::Marker marker;
         marker.header.frame_id = "map";
@@ -509,10 +511,10 @@ void MazeEngine::PublishWalls() const
         return marker;
     };
 
-    // Add delete commands with IDs 10, 11, 12
-    markerArray.markers.push_back(createDeleteMarker(10)); // left wall
-    markerArray.markers.push_back(createDeleteMarker(11)); // right wall
-    markerArray.markers.push_back(createDeleteMarker(12)); // front wall
+    // Delete old markers with IDs 0, 1, 2
+    markerArray.markers.push_back(createDeleteMarker(0)); // left wall
+    markerArray.markers.push_back(createDeleteMarker(1)); // right wall
+    markerArray.markers.push_back(createDeleteMarker(2)); // front wall
 
     auto createMarker = [](const PcaFitter::FittedLine& line, int id, float r, float g, float b) {
         visualization_msgs::msg::Marker marker;
@@ -521,20 +523,18 @@ void MazeEngine::PublishWalls() const
         marker.id = id;
         marker.type = visualization_msgs::msg::Marker::ARROW;
         marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.scale.x = 0.1f;  // arrow shaft diameter
-        marker.scale.y = 0.15f; // arrow head width
-        marker.scale.z = 0.15f; // arrow head height
+        marker.scale.x = 0.1f;
+        marker.scale.y = 0.15f;
+        marker.scale.z = 0.15f;
         marker.color.a = 1.0f;
         marker.color.r = r;
         marker.color.g = g;
         marker.color.b = b;
 
-        // Start point
         geometry_msgs::msg::Point p1;
         p1.x = line.Point.x - line.Direction.x * 2.0f;
         p1.y = line.Point.y - line.Direction.y * 2.0f;
 
-        // End point (direction)
         geometry_msgs::msg::Point p2;
         p2.x = line.Point.x + line.Direction.x * 2.0f;
         p2.y = line.Point.y + line.Direction.y * 2.0f;
@@ -546,19 +546,65 @@ void MazeEngine::PublishWalls() const
     };
 
     if (_leftWall.has_value())
-    {
-        markerArray.markers.push_back(createMarker(_leftWall.value(), 0, 1.0f, 0.0f, 0.0f)); // Red
-    }
+        markerArray.markers.push_back(createMarker(_leftWall.value(), 3, 1.0f, 0.0f, 0.0f));
 
     if (_rightWall.has_value())
-    {
-        markerArray.markers.push_back(createMarker(_rightWall.value(), 1, 0.0f, 1.0f, 0.0f)); // Green
-    }
+        markerArray.markers.push_back(createMarker(_rightWall.value(), 4, 0.0f, 1.0f, 0.0f));
 
-    if (_frontWall.has_value())
-    {
-        markerArray.markers.push_back(createMarker(_frontWall.value(), 2, 0.0f, 0.0f, 1.0f)); // Blue
-    }
+    // if (_frontWall.has_value())
+    //     markerArray.markers.push_back(createMarker(_frontWall.value(), 5, 0.0f, 0.0f, 1.0f));
+
+    _publisher->publish(markerArray);
+}
+
+void MazeEngine::PublishHeading() const
+{
+    visualization_msgs::msg::MarkerArray markerArray;
+
+    // Delete previous marker
+    visualization_msgs::msg::Marker deleteMarker;
+    deleteMarker.header.frame_id = "map";
+    deleteMarker.ns = "maze_heading";
+    deleteMarker.id = 20;  // Use different ID for delete
+    deleteMarker.action = visualization_msgs::msg::Marker::DELETE;
+    markerArray.markers.push_back(deleteMarker);
+
+    // Create heading arrow marker
+    visualization_msgs::msg::Marker marker;
+    marker.header.frame_id = "map";
+    marker.ns = "maze_heading";
+    marker.id = 21;  // Use unique ID (different from walls 0-2)
+    marker.type = visualization_msgs::msg::Marker::ARROW;
+    marker.action = visualization_msgs::msg::Marker::ADD;
+    marker.scale.x = 0.1f;  // arrow shaft diameter
+    marker.scale.y = 0.15f; // arrow head width
+    marker.scale.z = 0.15f; // arrow head height
+    marker.color.a = 1.0f;
+    marker.color.r = 1.0f;  // White
+    marker.color.g = 1.0f;
+    marker.color.b = 1.0f;
+
+
+    const auto pose = _mapping->CurrentPose();
+
+    // Start point
+    geometry_msgs::msg::Point p1;
+    p1.x = pose.position.x; //_center.x;
+    p1.y = pose.position.y; //_center.y;
+    p1.z = 0.0f;
+
+    const auto target = _center + _heading;
+
+    // End point (direction)
+    geometry_msgs::msg::Point p2;
+    p2.x = pose.position.x + (target - pose.position).Normalized().x; //  _center.x + _heading.x;
+    p2.y = pose.position.y + (target - pose.position).Normalized().y; // _center.y + _heading.y;
+    p2.z = 0.0f;
+
+    marker.points.push_back(p1);
+    marker.points.push_back(p2);
+
+    markerArray.markers.push_back(marker);
 
     _publisher->publish(markerArray);
 }

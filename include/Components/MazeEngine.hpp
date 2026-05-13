@@ -11,7 +11,8 @@ namespace Manhattan::Core {
 enum class NavState {
     FOLLOW_CORRIDOR,
     APPROACH_INTERSECTION,
-    TURNING
+    TURNING,
+    RECENTER
 };
 
 enum class TurnDirection {
@@ -32,7 +33,10 @@ private:
     std::shared_ptr<MappingEngine> _mapping;
 
     std::chrono::steady_clock::time_point _lastUpdate;
-    float _dt;
+    float _dt{};
+
+    Vector2 _center;
+    Vector2 _heading;
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
@@ -42,7 +46,6 @@ private:
 
     float _prevError = 0;
     float _prevTurnError = 0;
-    float _prevCenterError = 0;
     float _prevHeadingError = 0;
 
     std::mutex _mutex;
@@ -53,7 +56,6 @@ private:
 
     std::optional<PcaFitter::FittedLine> _leftWall = std::nullopt;
     std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
-    std::optional<PcaFitter::FittedLine> _frontWall = std::nullopt;
 
     std::chrono::steady_clock::time_point _lastDecision;
 
@@ -67,7 +69,9 @@ private:
 
     void StartDecision(bool left, bool forward, bool right);
 
-    void ExecuteTurn();
+    void ExecuteTurnState();
+
+    void RecenterState();
 
     float GetWallDistance(TurnDirection side) const;
 
@@ -80,6 +84,8 @@ private:
     void OnAruCode(CodeDetectedEvent aruCode);
 
     void PublishWalls() const;
+
+    void PublishHeading() const;
 };
 
 } // namespace Manhattan::Core
