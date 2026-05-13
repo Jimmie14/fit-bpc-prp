@@ -18,7 +18,8 @@ enum class NavState {
 enum class TurnDirection {
     FORWARD,
     LEFT,
-    RIGHT
+    RIGHT,
+    BACK
 };
 
 class MazeEngine final : public RosEngine {

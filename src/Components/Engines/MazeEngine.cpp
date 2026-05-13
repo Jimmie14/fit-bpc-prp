@@ -239,6 +239,10 @@ void MazeEngine::StartDecision(const bool left, const bool forward, const bool r
             // std::cout << "Going forward" << std::endl;
             _state = NavState::FOLLOW_CORRIDOR;
             return;
+        case TurnDirection::BACK:
+            _targetRotation = static_cast<float>(pose.rotation - M_PI);
+            std::cout << "Turning back" << std::endl;
+            break;
     }
 
     _state = NavState::TURNING;
@@ -368,6 +372,9 @@ std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side
         case TurnDirection::RIGHT:
             baseAngle = static_cast<float>(pose.rotation);
             break;
+        case TurnDirection::BACK:
+            baseAngle = static_cast<float>(pose.rotation - M_PI_2);
+            break;
     }
 
     const auto rad = fov * M_PI / 180.0;
@@ -495,7 +502,7 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
         if (forward) return TurnDirection::FORWARD;
         if (right) return TurnDirection::RIGHT;
 
-        return TurnDirection::LEFT; // todo TurnDirection::BACK
+        return TurnDirection::BACK;
     }
 
     auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
