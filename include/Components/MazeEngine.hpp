@@ -33,8 +33,11 @@ private:
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
 
+    std::chrono::steady_clock::time_point _lastTurn;
     std::chrono::steady_clock::time_point _lastUpdate;
     float _dt{};
+
+    std::vector<Vector2> _testPoints;
 
     Vector2 _center;
     Vector2 _heading;
@@ -75,7 +78,7 @@ private:
 
     void RecenterState();
 
-    bool WallInDirection(TurnDirection side) const;
+    bool WallInDirection(TurnDirection side);
 
     std::vector<RayHit> RayArc(float fov, TurnDirection side, float dst) const;
 
