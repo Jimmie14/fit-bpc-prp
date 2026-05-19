@@ -1,7 +1,5 @@
 #pragma once
 
-#include "Math/Vector2.hpp"
-
 #include <cmath>
 #include <stdexcept>
 #include <vector>
@@ -11,20 +9,20 @@ class PcaFitter
 public:
     struct FittedLine
     {
-        Manhattan::Math::Vector2 Point;      // Mean of the data
-        Manhattan::Math::Vector2 Direction;  // Principal direction
-        Manhattan::Math::Vector2 Normal;     // Perpendicular to direction
+        Manhattan::math::Vector2 Point;      // Mean of the data
+        Manhattan::math::Vector2 Direction;  // Principal direction
+        Manhattan::math::Vector2 Normal;     // Perpendicular to direction
         float Variance;     // Variance along principal direction
         int PointCount;     // Number of fitted points
     };
 
-    static FittedLine FitLine(const std::vector<Manhattan::Math::Vector2>& points)
+    static FittedLine FitLine(const std::vector<Manhattan::math::Vector2>& points)
     {
         if (points.empty())
             throw std::runtime_error("Points list cannot be empty");
 
         // Calculate mean
-        Manhattan::Math::Vector2 mean(0.0f, 0.0f);
+        Manhattan::math::Vector2 mean(0.0f, 0.0f);
 
         for (const auto& point : points)
         {
@@ -42,7 +40,7 @@ public:
 
         for (const auto& point : points)
         {
-            Manhattan::Math::Vector2 diff(point.x - mean.x, point.y - mean.y);
+            Manhattan::math::Vector2 diff(point.x - mean.x, point.y - mean.y);
 
             cov00 += diff.x * diff.x;
             cov01 += diff.x * diff.y;
@@ -65,10 +63,10 @@ public:
         float lambda1 = trace * 0.5f + std::sqrt(discriminant);
 
         // Principal eigenvector
-        const Manhattan::Math::Vector2 direction = GetEigenvector(cov00, cov01, cov11, lambda1);
+        const Manhattan::math::Vector2 direction = GetEigenvector(cov00, cov01, cov11, lambda1);
 
         // Normal vector
-        const Manhattan::Math::Vector2 normal(-direction.y, direction.x);
+        const Manhattan::math::Vector2 normal(-direction.y, direction.x);
 
         FittedLine result;
         result.Point = mean;
@@ -81,7 +79,7 @@ public:
     }
 
 private:
-    static Manhattan::Math::Vector2 GetEigenvector(float a, float b, float d, float eigenvalue)
+    static Manhattan::math::Vector2 GetEigenvector(float a, float b, float d, float eigenvalue)
     {
         // For matrix:
         // [a b]
@@ -93,7 +91,7 @@ private:
         float length = std::sqrt(x * x + y * y);
 
         if (length > 0.0001f)
-            return Manhattan::Math::Vector2(x / length, y / length);
+            return Manhattan::math::Vector2(x / length, y / length);
 
         // Fallback
         x = eigenvalue - d;
@@ -102,9 +100,9 @@ private:
         length = std::sqrt(x * x + y * y);
 
         if (length > 0.0001f)
-            return Manhattan::Math::Vector2(x / length, y / length);
+            return Manhattan::math::Vector2(x / length, y / length);
 
         // Default fallback
-        return Manhattan::Math::Vector2(1.0f, 0.0f);
+        return Manhattan::math::Vector2(1.0f, 0.0f);
     }
 };

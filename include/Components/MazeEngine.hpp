@@ -1,12 +1,11 @@
 #pragma once
 
 #include "ArucoDetectionEngine.hpp"
-#include "Nav/Grid.hpp"
 #include "Nav/PcaFilter.hpp"
 #include "NavigatorEngine.hpp"
-#include "RosEngine.hpp"
+#include "Common/RosEngine.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 enum class NavState {
     FOLLOW_CORRIDOR,
@@ -76,7 +75,7 @@ private:
 
     void CalculateWalls();
 
-    void StartDecision(bool left, bool forward, bool right);
+    void PickDirection(bool left, bool forward, bool right);
 
     void ExecuteTurnState();
 
