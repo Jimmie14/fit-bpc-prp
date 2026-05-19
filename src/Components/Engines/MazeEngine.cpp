@@ -1,7 +1,10 @@
 #include "Components/MazeEngine.hpp"
 
+
 #include "Nav/PcaFilter.hpp"
+#include "Viz/Color.hpp"
 #include "Viz/Grid.hpp"
+#include "Viz/Marker.hpp"
 
 using namespace std;
 
@@ -72,8 +75,8 @@ void MazeEngine::OnEnable() {
     });
 
     _publisherTimer = create_wall_timer(100ms, [this] {
-        PublishWalls();
-        PublishHeading();
+        publishDebug();
+        //PublishHeading();
     });
 }
 
@@ -109,6 +112,8 @@ void MazeEngine::Update() {
 
 void MazeEngine::FollowCorridor()
 {
+    _rays = { };
+
     const bool openLeft = !WallInDirection(TurnDirection::LEFT); // leftDist > OPEN_THRESHOLD;
     const bool openRight = !WallInDirection(TurnDirection::RIGHT); // rightDist > OPEN_THRESHOLD;
     const bool openFront = !WallInDirection(TurnDirection::FORWARD); // frontDist > OPEN_THRESHOLD;
@@ -141,7 +146,7 @@ void MazeEngine::FollowCorridor()
 
         const auto center = (leftPoint + rightPoint) * 0.5f;
 
-        _heading = corridorDir;
+        _heading = corridorDir.normalized();
         _center = center;
 
         const auto target = center + corridorDir;
@@ -334,14 +339,18 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
     const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.7f;
+    auto offset = HALF_CORRIDOR_SIZE * 0.6f;
 
-    auto direction = pose.forward();
+    auto direction = _heading;
 
     switch (side) {
         case TurnDirection::FORWARD: {
             RayHit rayHit;
-            return _mapping->RayCast(pose.position, direction, rayHit, HALF_CORRIDOR_SIZE);
+
+            const auto hit = _mapping->RayCast(pose.position, direction, rayHit, HALF_CORRIDOR_SIZE);;
+
+            _rays.push_back({ pose.position, direction, hit });
+            return hit;
         }
         case TurnDirection::LEFT:
             direction = -Vector2::Perpendicular(direction);
@@ -357,29 +366,36 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
     auto perpendicularDir = Vector2::Perpendicular(direction);
 
     float frontDst = offset;
-    RayHit frontHit;
-    if (_mapping->RayCast(pose.position, perpendicularDir, frontHit, HALF_CORRIDOR_SIZE + 0.05f)) {
-        const auto dst = Vector2::distance(pose.position, frontHit.hit);
-        frontDst = static_cast<float>(dst - 0.2f);
+    if (RayHit rayHit; _mapping->RayCast(pose.position, perpendicularDir, rayHit, offset + 0.05f)) {
+        frontDst = static_cast<float>(Vector2::distance(pose.position, rayHit.hit) - 0.05);
     }
+
+    float backDst = offset;
+    if (RayHit rayHit; _mapping->RayCast(pose.position, -perpendicularDir, rayHit, offset + 0.05f)) {
+        backDst = static_cast<float>(Vector2::distance(pose.position, rayHit.hit) - 0.05);
+    }
+
 
     // dst to front + dst in back
-    auto stepSize = (frontDst + frontDst) / RAY_COUNT;
-    auto origin = pose.position + perpendicularDir * frontDst;
+    auto stepSize = (frontDst + backDst) / (RAY_COUNT - 1);
+    auto origin = pose.position - perpendicularDir * backDst;
 
-    if (side == TurnDirection::RIGHT) {
-        _testPoints = std::vector<Vector2>({});
+    bool hit = false;
+
+    for (auto i = 0; i < RAY_COUNT; i++) {
+
+        if (RayHit rayHit; _mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE + 0.05f)) {
+            hit = true;
+            _rays.push_back({ origin, direction, true });
+        }
+        else {
+            _rays.push_back({ origin, direction, false });
+        }
+
+        origin = origin + perpendicularDir * stepSize;
     }
 
-    for (auto i = 0; i < RAY_COUNT; ++i) {
-        RayHit rayHit;
-        if (_mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE + 0.05f))
-            return true;
-
-        origin = origin - perpendicularDir * stepSize;
-    }
-
-    return false;
+    return hit;
 }
 
 std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side, const float dst) const
@@ -576,104 +592,66 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
     std::cout << "Count " << _waypoints.size() << std::endl;
 }
 
-void MazeEngine::PublishWalls() const
+void MazeEngine::publishDebug() const
 {
-    visualization_msgs::msg::MarkerArray markerArray;
+    auto markers = viz::marker::MarkerArrayBuilder();
 
-    auto createDeleteMarker = [](int id) {
-        visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "map";
-        marker.ns = "maze_walls";
-        marker.id = id;
-        marker.action = visualization_msgs::msg::Marker::DELETE;
-        return marker;
-    };
+    markers.add(viz::marker::clear("map"));
 
-    // Delete old markers with IDs 0, 1, 2
-    markerArray.markers.push_back(createDeleteMarker(0)); // left wall
-    markerArray.markers.push_back(createDeleteMarker(1)); // right wall
-    markerArray.markers.push_back(createDeleteMarker(2)); // front wall
+    markers.color = viz::color::cyan;
+    if (_leftWall.has_value()) {
+        const auto p1 = _leftWall->Point - _leftWall->Direction * 2.0;
+        const auto p2 = _leftWall->Point + _leftWall->Direction * 2.0;
 
-    auto createMarker = [](const PcaFitter::FittedLine& line, int id, float r, float g, float b) {
-        visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "map";
-        marker.ns = "maze_walls";
-        marker.id = id;
-        marker.type = visualization_msgs::msg::Marker::ARROW;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.scale.x = 0.1f;
-        marker.scale.y = 0.15f;
-        marker.scale.z = 0.15f;
-        marker.color.a = 1.0f;
-        marker.color.r = r;
-        marker.color.g = g;
-        marker.color.b = b;
-
-        geometry_msgs::msg::Point p1;
-        p1.x = line.Point.x - line.Direction.x * 2.0f;
-        p1.y = line.Point.y - line.Direction.y * 2.0f;
-
-        geometry_msgs::msg::Point p2;
-        p2.x = line.Point.x + line.Direction.x * 2.0f;
-        p2.y = line.Point.y + line.Direction.y * 2.0f;
-
-        marker.points.push_back(p1);
-        marker.points.push_back(p2);
-
-        return marker;
-    };
-
-    if (_leftWall.has_value())
-        markerArray.markers.push_back(createMarker(_leftWall.value(), 3, 1.0f, 0.0f, 0.0f));
-
-    if (_rightWall.has_value())
-        markerArray.markers.push_back(createMarker(_rightWall.value(), 4, 0.0f, 1.0f, 0.0f));
-
-    // if (_frontWall.has_value())
-    //     markerArray.markers.push_back(createMarker(_frontWall.value(), 5, 0.0f, 0.0f, 1.0f));
-
-    _publisher->publish(markerArray);
-}
-
-void MazeEngine::PublishHeading() const
-{
-    if (_testPoints.empty())
-        return;
-
-    visualization_msgs::msg::MarkerArray markerArray;
-
-    // Delete old marker
-    visualization_msgs::msg::Marker deleteMarker;
-    deleteMarker.header.frame_id = "map";
-    deleteMarker.ns = "test_points";
-    deleteMarker.id = 0;
-    deleteMarker.action = visualization_msgs::msg::Marker::DELETE;
-    markerArray.markers.push_back(deleteMarker);
-
-    // Create sphere markers for each test point
-    for (size_t i = 0; i < _testPoints.size(); ++i)
-    {
-        visualization_msgs::msg::Marker marker;
-        marker.header.frame_id = "map";
-        marker.ns = "test_points";
-        marker.id = static_cast<int>(i + 1);
-        marker.type = visualization_msgs::msg::Marker::SPHERE;
-        marker.action = visualization_msgs::msg::Marker::ADD;
-        marker.pose.position.x = _testPoints[i].x;
-        marker.pose.position.y = _testPoints[i].y;
-        marker.pose.position.z = 0.0f;
-        marker.scale.x = 0.05f;
-        marker.scale.y = 0.05f;
-        marker.scale.z = 0.05f;
-        marker.color.a = 1.0f;
-        marker.color.r = 1.0f;
-        marker.color.g = 1.0f;
-        marker.color.b = 0.0f; // Yellow points
-
-        markerArray.markers.push_back(marker);
+        markers.add(viz::marker::path({ p1, p2 }, "map"));
     }
 
-    _publisher->publish(markerArray);
+    if (_rightWall.has_value()) {
+        const auto p1 = _rightWall->Point - _rightWall->Direction * 2.0;
+        const auto p2 = _rightWall->Point + _rightWall->Direction * 2.0;
+
+        markers.add(viz::marker::line(p1, p2, "map"));
+    }
+
+    for (auto& [origin, direction, hit] : _rays) {
+        markers.color = hit ? viz::color::red : viz::color::green;
+        markers.add(viz::marker::line(origin, origin + direction * HALF_CORRIDOR_SIZE, "map"));
+    }
+
+    _publisher->publish(markers.array);
 }
+
+// void MazeEngine::PublishHeading() const
+// {
+//     if (_testPoints.empty()) return;
+//
+//
+//     auto markers = viz::marker::MarkerArrayBuilder();
+//
+//     // Create sphere markers for each test point
+//     for (size_t i = 0; i < _testPoints.size(); ++i)
+//     {
+//         visualization_msgs::msg::Marker marker;
+//         marker.header.frame_id = "map";
+//         marker.ns = "test_points";
+//         marker.id = static_cast<int>(i + 1);
+//         marker.type = visualization_msgs::msg::Marker::SPHERE;
+//         marker.action = visualization_msgs::msg::Marker::ADD;
+//         marker.pose.position.x = _testPoints[i].x;
+//         marker.pose.position.y = _testPoints[i].y;
+//         marker.pose.position.z = 0.0f;
+//         marker.scale.x = 0.05f;
+//         marker.scale.y = 0.05f;
+//         marker.scale.z = 0.05f;
+//         marker.color.a = 1.0f;
+//         marker.color.r = 1.0f;
+//         marker.color.g = 1.0f;
+//         marker.color.b = 0.0f; // Yellow points
+//
+//         markerArray.markers.push_back(marker);
+//     }
+//
+//     _publisher->publish(markerArray);
+// }
 
 } // namespace Manhattan::Core

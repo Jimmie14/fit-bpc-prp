@@ -43,7 +43,7 @@ private:
     std::chrono::steady_clock::time_point _lastUpdate;
     float _dt{};
 
-    std::vector<Vector2> _testPoints;
+    std::vector<std::tuple<Vector2, Vector2, bool>> _rays;
 
     Vector2 _center;
     Vector2 _heading;
@@ -91,7 +91,7 @@ private:
 
     void OnAruCode(CodeDetectedEvent aruCode);
 
-    void PublishWalls() const;
+    void publishDebug() const;
 
     void PublishHeading() const;
 };

@@ -267,7 +267,7 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
     return marker;
 }
 
-inline visualization_msgs::msg::Marker path(const vector<math::Vector2>& points, const std::string& frame_id, double scale = 0.02)
+inline visualization_msgs::msg::Marker path(const vector<math::Vector2>& points, const std::string& frame_id, const double scale = 0.02)
 {
     visualization_msgs::msg::Marker marker;
 
@@ -297,6 +297,11 @@ inline visualization_msgs::msg::Marker path(const vector<math::Vector2>& points,
     return marker;
 }
 
+inline visualization_msgs::msg::Marker line(const math::Vector2& p1, const math::Vector2& p2, const std::string& frame_id, const double scale = 0.02)
+{
+    return path({ p1, p2 }, frame_id, scale);
+}
+
 inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a = 1.0f)
 {
     std_msgs::msg::ColorRGBA color;
@@ -313,6 +318,8 @@ inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a = 1.0f)
 class MarkerArrayBuilder {
 public:
     visualization_msgs::msg::MarkerArray array;
+    std_msgs::msg::ColorRGBA color;
+
 
     int GetNextMarkerId()
     {
@@ -321,6 +328,7 @@ public:
 
     void add(visualization_msgs::msg::Marker marker)
     {
+        marker.color = color;
         marker.id = _nextId++;
         array.markers.push_back(marker);
     }
