@@ -16,6 +16,7 @@
 #include "Components/MotorDriver.hpp"
 #include "Components/OdometryEngine.hpp"
 #include "Components/UserInputDriver.hpp"
+#include "Components/MazePathPlannerEngine.hpp"
 
 
 using namespace std;
@@ -32,9 +33,8 @@ int main(const int argc, char* argv[])
     app->addComponent<LidarDriver>()->Enable();
     app->addComponent<MotorDriver>()->Enable();
     app->addComponent<ButtonsDriver>()->Enable();
-    //
-    // app->addComponent<LineEngine>();
-    // app->addComponent<UserInputDriver>();
+
+    app->addComponent<UserInputDriver>();
     //
     app->addComponent<OdometryEngine>()->Enable();
     app->addComponent<MappingEngine>()->Enable();
@@ -46,6 +46,7 @@ int main(const int argc, char* argv[])
 
     app->addComponent<MazeGraphEngine>()->Enable();
     app->addComponent<ManualPathPlannerEngine>()->Enable();
+    app->addComponent<MazePathPlannerEngine>()->Enable();
 
     //app->addComponent<MotorCalibrationUnit>()->Enable();
     // app->addComponent<DebugUnit>()->Enable();
