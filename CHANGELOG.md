@@ -7,6 +7,10 @@
 ### 🐛 Bug Fixes
 
 - All bugs in maze graph engine
+
+### 🚜 Refactor
+
+- Major maze graph refactor
 ## [1.6.0] - 2026-05-11
 
 ### 🚀 Features
