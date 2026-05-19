@@ -1,9 +1,10 @@
 #pragma once
 
 #include "ArucoDetectionEngine.hpp"
+#include "Common/RosEngine.hpp"
+#include "Math/Vec3.hpp"
 #include "Nav/PcaFilter.hpp"
 #include "NavigatorEngine.hpp"
-#include "Common/RosEngine.hpp"
 
 namespace Manhattan::core {
 
@@ -45,8 +46,8 @@ private:
 
     std::vector<std::tuple<Vector2, Vector2, bool>> _rays;
 
-    Vector2 _center;
-    Vector2 _heading;
+    Vector2 _center = Vector2::zero();
+    Vector2 _heading = Vector2(vec3::Forward);
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;

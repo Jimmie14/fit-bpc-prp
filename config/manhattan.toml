@@ -14,7 +14,7 @@ topic = "/bpc_prp_robot/set_motor_speeds"
 delta_time = 0.01
 
 [motors.left]
-kp = 0.8
+kp = 0.7
 ki = 0.001
 kd = 0.0002
 
@@ -278,7 +278,7 @@ samples = [
 ]
 
 [motors.right]
-kp = 0.8
+kp = 0.7
 ki = 0.001
 kd = 0.0002
 

@@ -56,7 +56,9 @@ static Vector2 ClosestPointOnLine(Vector2 direction, Vector2 start, Vector2 targ
 }
 
 MazeEngine::MazeEngine(const App& app)
-    : RosEngine(app, "maze"), _headingPid(HEADING_P, 0.0f, HEADING_D), _turnPid(TURN_P, TURN_I, TURN_D)
+    : RosEngine(app, "maze")
+    , _headingPid(HEADING_P, 0.0f, HEADING_D)
+    , _turnPid(TURN_P, TURN_I, TURN_D)
 {
     _mapping = app.getComponent<MappingEngine>();
 
@@ -114,6 +116,7 @@ void MazeEngine::FollowCorridor()
 {
     _rays = { };
 
+    CalculateWalls();
     const bool openLeft = !WallInDirection(TurnDirection::LEFT); // leftDist > OPEN_THRESHOLD;
     const bool openRight = !WallInDirection(TurnDirection::RIGHT); // rightDist > OPEN_THRESHOLD;
     const bool openFront = !WallInDirection(TurnDirection::FORWARD); // frontDist > OPEN_THRESHOLD;
@@ -127,7 +130,6 @@ void MazeEngine::FollowCorridor()
 
     float angular = 0.0f;
 
-    CalculateWalls();
 
     const auto pose = _mapping->CurrentPose();
 
@@ -259,7 +261,7 @@ void MazeEngine::ExecuteTurnState()
     if (std::abs(error) < 0.08f)
     {
         std::cout << "Turn completed, next state: recenter" << std::endl;
-        _state = NavState::RECENTER;
+        _state = NavState::FOLLOW_CORRIDOR;
         _turnPid.reset();
 
         CalculateWalls();
@@ -318,17 +320,18 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
     const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.6f;
+    auto offset = HALF_CORRIDOR_SIZE * 0.5f;
 
+    auto center = _center;
     auto direction = _heading;
 
     switch (side) {
         case TurnDirection::FORWARD: {
             RayHit rayHit;
 
-            const auto hit = _mapping->RayCast(pose.position, direction, rayHit, HALF_CORRIDOR_SIZE);;
+            const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE);
 
-            _rays.push_back({ pose.position, direction, hit });
+            _rays.push_back({ center, direction, hit });
             return hit;
         }
         case TurnDirection::LEFT:
@@ -345,25 +348,25 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
     auto perpendicularDir = Vector2::Perpendicular(direction);
 
     float frontDst = offset;
-    if (RayHit rayHit; _mapping->RayCast(pose.position, perpendicularDir, rayHit, offset + 0.05f)) {
-        frontDst = static_cast<float>(Vector2::distance(pose.position, rayHit.hit) - 0.05);
+    if (RayHit rayHit; _mapping->RayCast(center, perpendicularDir, rayHit, offset + 0.05f)) {
+        frontDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.05);
     }
 
     float backDst = offset;
-    if (RayHit rayHit; _mapping->RayCast(pose.position, -perpendicularDir, rayHit, offset + 0.05f)) {
-        backDst = static_cast<float>(Vector2::distance(pose.position, rayHit.hit) - 0.05);
+    if (RayHit rayHit; _mapping->RayCast(center, -perpendicularDir, rayHit, offset + 0.05f)) {
+        backDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.05);
     }
 
 
     // dst to front + dst in back
     auto stepSize = (frontDst + backDst) / (RAY_COUNT - 1);
-    auto origin = pose.position - perpendicularDir * backDst;
+    auto origin = center - perpendicularDir * backDst;
 
     bool hit = false;
 
     for (auto i = 0; i < RAY_COUNT; i++) {
 
-        if (RayHit rayHit; _mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE + 0.05f)) {
+        if (RayHit rayHit; _mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE * 1.5f)) {
             hit = true;
             _rays.push_back({ origin, direction, true });
         }
