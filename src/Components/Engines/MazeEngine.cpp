@@ -24,15 +24,15 @@ constexpr int MIN_POINTS_PER_SEGMENT = 2;
 // Motor settings
 constexpr float NORMAL_SPEED = 0.25f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 4.0f;
+constexpr float TURN_ANGULAR = 1.5f;
 
 // PID tuning constants
 constexpr float HEADING_P = 0.7f;
 constexpr float HEADING_D = 0.05f;
 
-constexpr float TURN_P = 0.5f;
-constexpr float TURN_I = 0.05f;
-constexpr float TURN_D = 0.02f;
+constexpr float TURN_P = 2.0f;
+constexpr float TURN_I = 0.001f;
+constexpr float TURN_D = 0.01f;
 
 static float NormalizeAngle(float angle)
 {
@@ -53,7 +53,7 @@ static Vector2 ClosestPointOnLine(Vector2 direction, Vector2 start, Vector2 targ
 }
 
 MazeEngine::MazeEngine(const App& app)
-    : RosEngine(app, "maze")
+    : RosEngine(app, "maze"), _headingPid(HEADING_P, 0.0f, HEADING_D), _turnPid(TURN_P, TURN_I, TURN_D)
 {
     _mapping = app.getComponent<MappingEngine>();
 
@@ -90,7 +90,7 @@ void MazeEngine::Update() {
 
     switch (_state)
     {
-        case NavState::FOLLOW_CORRIDOR:
+    case NavState::FOLLOW_CORRIDOR:
             FollowCorridor();
             break;
 
@@ -113,15 +113,14 @@ void MazeEngine::FollowCorridor()
     const bool openRight = !WallInDirection(TurnDirection::RIGHT); // rightDist > OPEN_THRESHOLD;
     const bool openFront = !WallInDirection(TurnDirection::FORWARD); // frontDist > OPEN_THRESHOLD;
 
-    std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
+    // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
 
     PickDirection(openLeft, openFront, openRight);
 
     if (_state != NavState::FOLLOW_CORRIDOR)
         return;
 
-    float headingError = 0.0f;
-    float headingDerivative = 0.0f;
+    float angular = 0.0f;
 
     CalculateWalls();
 
@@ -145,10 +144,7 @@ void MazeEngine::FollowCorridor()
         _center = center;
 
         const auto target = center + corridorDir;
-
-        headingError = static_cast<float>(Vector2::signedAngle(pose.forward(), (target - pose.position).normalized()));
-        headingDerivative = (headingError - _prevHeadingError) / _dt;
-        _prevHeadingError = headingError;
+        angular = _headingPid.step(Vector2::signedAngle(pose.forward(), (target - pose.position).normalized()), _dt);
     }
 
     auto frontDist = 0.0;
@@ -159,9 +155,6 @@ void MazeEngine::FollowCorridor()
     frontDist /= RAY_COUNT;
 
     const float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
-    const float angular =
-        HEADING_P * headingError +
-        HEADING_D * headingDerivative;
 
     _app.events->Publish(MotorCommandEvent {
         Twist {
@@ -260,28 +253,21 @@ void MazeEngine::ExecuteTurnState()
 
     if (std::abs(error) < 0.08f)
     {
-        // std::cout << "Turn completed, next state: recenter" << std::endl;
+        std::cout << "Turn completed, next state: recenter" << std::endl;
         _state = NavState::RECENTER;
-        _prevTurnError = 0;
-        _turnIntegralError = 0;
+        _turnPid.reset();
 
         CalculateWalls();
         return;
     }
 
-    _turnIntegralError += error * _dt;
-    _turnIntegralError = std::clamp(_turnIntegralError, -0.5f, 0.5f);
-
-    float derivative = NormalizeAngle(error - _prevTurnError) / _dt;
-    _prevTurnError = error;
-
-    float angular = error * TURN_P + _turnIntegralError * TURN_I + derivative * TURN_D;
-    angular = std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR);
+    float angular = _turnPid.step(error, _dt);
 
     _app.events->Publish(MotorCommandEvent {
         Twist {
             TURN_SPEED,
-            angular}
+            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)
+        }
     });
 }
 
@@ -310,19 +296,12 @@ void MazeEngine::RecenterState()
     if (std::abs(headingError) < 0.08f)
     {
         _state = NavState::FOLLOW_CORRIDOR;
-        _prevTurnError = 0;
-        _turnIntegralError = 0;
+        _turnPid.reset();
 
         return;
     }
 
-    _turnIntegralError += headingError * _dt;
-    _turnIntegralError = std::clamp(_turnIntegralError, -0.5f, 0.5f);
-
-    const auto headingDerivative = (headingError - _prevHeadingError) / _dt;
-    _prevHeadingError = headingError;
-
-    const float angular = TURN_P * headingError + _turnIntegralError * TURN_I + TURN_D * headingDerivative;
+    const float angular = _turnPid.step(headingError, _dt);
 
     _app.events->Publish(MotorCommandEvent {
         Twist {

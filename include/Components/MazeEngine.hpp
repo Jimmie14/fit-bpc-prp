@@ -54,12 +54,13 @@ private:
 
     float _targetRotation = 0.f;
 
-    float _prevError = 0;
+    Pid _headingPid;
+    Pid _turnPid;
 
-    float _prevTurnError = 0;
-    float _turnIntegralError = 0;
-
-    float _prevHeadingError = 0;
+    // float _prevTurnError = 0;
+    // float _turnIntegralError = 0;
+    //
+    // float _prevHeadingError = 0;
 
     std::mutex _mutex;
     NavState _state = NavState::FOLLOW_CORRIDOR;
