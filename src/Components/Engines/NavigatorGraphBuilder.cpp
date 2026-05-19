@@ -1,8 +1,8 @@
-#include "NavigatorGraphBuilder.hpp"
+#include "Components/NavigatorGraphBuilder.hpp"
 
 #include <bitset>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 vector<bool> reduce2x2OR(const vector<bool>& grid, int w, int h)
 {
@@ -73,7 +73,7 @@ static int CountGroupedNeighbors(const std::vector<bool>& img, int x, int y, int
 NavigatorGraphBuilder::NavigatorGraphBuilder(const App& app)
     : RosEngine(app, "navigator_graph_builder")
 {
-    _mappingEngine = app.GetComponent<MappingEngine>();
+    _mappingEngine = app.getComponent<MappingEngine>();
     _markerPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/graph", 1);
     _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("nav/grid", 1);
 
@@ -91,7 +91,7 @@ void NavigatorGraphBuilder::BuildGraph()
     std::vector<bool> binary(w * h, false);
     for (int x = 0; x < w; x++) {
         for (int y = 0; y < h; y++) {
-            auto* cell = _mappingEngine->GetCell(Vector2Int(x, y));
+            auto* cell = _mappingEngine->GetCell(Vector2i(x, y));
             binary[y * w + x] = (cell != nullptr && !cell->IsOccupied() && !cell->IsUnknown());
         }
     }
@@ -105,7 +105,7 @@ void NavigatorGraphBuilder::BuildGraph()
     _graphNodes.clear();
     std::map<std::pair<int, int>, std::shared_ptr<NavigatorNode>> nodeDict;
 
-    std::vector<Vector2Int> dirs = {
+    std::vector<Vector2i> dirs = {
         { 0, 1 },
         { 1, 0 },
         { 0, -1 },
@@ -125,7 +125,7 @@ void NavigatorGraphBuilder::BuildGraph()
 
             if (neighbors != 2) {
                 auto node = std::make_shared<NavigatorNode>();
-                node->gridPosition = Vector2Int(x, y);
+                node->gridPosition = Vector2i(x, y);
                 node->worldPosition = _mappingEngine->GridToWorld(node->gridPosition);
                 _graphNodes.push_back(node);
                 nodeDict[{ x, y }] = node;
@@ -136,11 +136,11 @@ void NavigatorGraphBuilder::BuildGraph()
     // Build edges
     for (auto& node : _graphNodes) {
         for (const auto& d : dirs) {
-            Vector2Int current = node->gridPosition + d;
+            Vector2i current = node->gridPosition + d;
             if (!InBounds(current.x, current.y, w, h) || !skeleton[current.y * w + current.x])
                 continue;
 
-            Vector2Int prev = node->gridPosition;
+            Vector2i prev = node->gridPosition;
             std::vector<Vector2> path;
 
             auto visited = vector<bool>(w * h);
@@ -165,10 +165,10 @@ void NavigatorGraphBuilder::BuildGraph()
                     break;
                 }
 
-                Vector2Int next(0, 0);
+                Vector2i next(0, 0);
                 bool found = false;
                 for (const auto& nd : dirs) {
-                    Vector2Int cand = current + nd;
+                    Vector2i cand = current + nd;
                     if (cand.x == prev.x && cand.y == prev.y)
                         continue;
                     if (InBounds(cand.x, cand.y, w, h) && skeleton[cand.y * w + cand.x]) {

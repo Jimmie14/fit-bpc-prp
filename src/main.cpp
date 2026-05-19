@@ -1,20 +1,22 @@
 #include <rclcpp/rclcpp.hpp>
 
 #include "App.hpp"
-#include "ArucoDetectionEngine.hpp"
-#include "ButtonsDriver.hpp"
-#include "ExplorerEngine.hpp"
-#include "ImuDriver.hpp"
-#include "LidarDriver.hpp"
-#include "LineEngine.hpp"
-#include "MapThinningUnit.hpp"
-#include "MappingEngine.hpp"
-#include "MazeEngine.hpp"
-#include "MotorDriver.hpp"
-#include "NavigatorEngine.hpp"
-#include "NavigatorGraphBuilder.hpp"
-#include "OdometryEngine.hpp"
-#include "UserInputDriver.hpp"
+#include "Components/ArucoDetectionEngine.hpp"
+#include "Components/ButtonsDriver.hpp"
+#include "Components/DebugUnit.hpp"
+#include "Components/DwppNavigatorEngine.hpp"
+#include "Components/ImuDriver.hpp"
+#include "Components/LidarDriver.hpp"
+#include "Components/LineEngine.hpp"
+#include "Components/ManualPathPlannerEngine.hpp"
+#include "Components/MapThinningUnit.hpp"
+#include "Components/MappingEngine.hpp"
+#include "Components/MazeGraphEngine.hpp"
+#include "Components/MotorCalibrationUnit.hpp"
+#include "Components/MotorDriver.hpp"
+#include "Components/OdometryEngine.hpp"
+#include "Components/UserInputDriver.hpp"
+
 
 using namespace std;
 using namespace Manhattan;
@@ -23,38 +25,33 @@ int main(const int argc, char* argv[])
 {
     init(argc, argv);
 
-    const auto app = make_shared<Core::App>();
+    const auto app = make_shared<App>();
 
-    app->AddEngine<Core::OdometryEngine>();
 
-    app->AddDriver<Core::ImuDriver>()->Enable();
-    app->AddDriver<Core::LidarDriver>()->Enable();
-    app->AddDriver<Core::MotorDriver>()->Enable();
-    app->AddDriver<Core::ButtonsDriver>()->Enable();
+    // app->addComponent<ImuDriver>()->Enable();
+    app->addComponent<LidarDriver>()->Enable();
+    app->addComponent<MotorDriver>()->Enable();
+    app->addComponent<ButtonsDriver>()->Enable();
+    //
+    // app->addComponent<LineEngine>();
+    // app->addComponent<UserInputDriver>();
+    //
+    app->addComponent<OdometryEngine>()->Enable();
+    app->addComponent<MappingEngine>()->Enable();
+    //
+    app->addComponent<ArucoDetectionEngine>()->Enable();
+    app->addComponent<DwppNavigatorEngine>()->Enable();
 
-    app->AddEngine<Core::LineEngine>();
+    app->addComponent<MapThinningUnit>()->Enable();
 
-    app->AddDriver<Core::UserInputDriver>();
+    app->addComponent<MazeGraphEngine>()->Enable();
+    app->addComponent<ManualPathPlannerEngine>()->Enable();
 
-    app->AddEngine<Core::MappingEngine>();
+    //app->addComponent<MotorCalibrationUnit>()->Enable();
+    // app->addComponent<DebugUnit>()->Enable();
 
-    app->AddEngine<Core::ArucoDetectionEngine>()->Enable();
-    // app->AddEngine<Core::NavigatorEngine>();
+    app->run();
 
-    app->AddEngine<Core::MazeEngine>()->Enable();
-
-    // app->AddEngine<Core::NavigatorGraphBuilder>();
-    // app->AddEngine<Core::FollowerEngine>();//->Enable();
-
-    app->AddComponent<Core::MapThinningUnit>()->Enable();
-
-    // app->AddEngine<Core::ExplorerEngine>()->Enable();
-
-    // app->GetComponent<Core::ExplorerEngine>()->Enable();
-
-    app->Run();
-
-    // Shutdown ROS 2
     shutdown();
     return 0;
 }

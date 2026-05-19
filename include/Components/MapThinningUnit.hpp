@@ -1,14 +1,14 @@
 #pragma once
 
 #include "Nav/Grid.hpp"
-#include "RosUnit.hpp"
+#include "Common/RosUnit.hpp"
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>
 
 using namespace Manhattan::nav;
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 struct ThinnedMapEvent {
     Grid<bool> grid;

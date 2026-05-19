@@ -1,6 +1,5 @@
-#include "NavigatorEngine.hpp"
-
-#include "OdometryEngine.hpp"
+#include "Components/NavigatorEngine.hpp"
+#include "Components/OdometryEngine.hpp"
 
 using namespace std;
 
@@ -32,15 +31,14 @@ static double MoveTowards(const double current, const double target, const doubl
     return current + (delta > 0 ? maxDelta : -maxDelta);
 }
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 NavigatorEngine::NavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
     , _lastTime(std::chrono::steady_clock::now())
-    , _kinematics(app.GetComponent<OdometryEngine>()->GetKinematics())
     , _angularPid(angularKp, angularKi, angularKd)
 {
-    _motor = app.GetComponent<MotorDriver>();
-    _slam = app.GetComponent<MappingEngine>();
+    _motor = app.getComponent<MotorDriver>();
+    _slam = app.getComponent<MappingEngine>();
 
     _pathPublisher = create_publisher<nav_msgs::msg::Path>("nav/desired_path", 1);
     _rayCastPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("nav/ray_cast", 1);
@@ -48,14 +46,14 @@ NavigatorEngine::NavigatorEngine(const App& app)
     _timer = create_wall_timer(10ms,
         [this] { Update(); });
 
-    _app.Events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
+    _app.events->Subscribe<MappingEngineStateChangeEvent>([this](const MappingEngineStateChangeEvent& event) {
         this->OnMappingEngineStateChange(event);
     });
 }
 
 void NavigatorEngine::SetPath(const std::vector<Vector2>& path)
 {
-    _path.Initialize(path);
+    _path.init(path);
 }
 
 void NavigatorEngine::PublishPath() const
@@ -71,7 +69,7 @@ void NavigatorEngine::PublishPath() const
         return;
 
     constexpr int samples = 500;
-    const double totalLength = _path.GetTotalLength();
+    const double totalLength = _path.getTotalLength();
 
     for (int i = 0; i <= samples; i++) {
         const double distance = (static_cast<double>(i) / samples) * totalLength;
@@ -177,7 +175,7 @@ void NavigatorEngine::SetDestination(GridCell* destination)
 
 void NavigatorEngine::ClearPath()
 {
-    _path.Initialize({});
+    _path.init({});
 }
 
 bool NavigatorEngine::IsInDestination() const
@@ -185,16 +183,16 @@ bool NavigatorEngine::IsInDestination() const
     if (!_path.HasPath()) return true;
 
     const auto pose = _slam->CurrentPose();
-    const auto end = _path.GetPointAtDistance(_path.GetTotalLength());
+    const auto end = _path.GetPointAtDistance(_path.getTotalLength());
 
-    return Vector2::Distance(pose.position, end) <= destinationDistance;
+    return Vector2::distance(pose.position, end) <= destinationDistance;
 }
 
 vector<RayHit> NavigatorEngine::RayCastAround(const Pose& pose) const
 {
     vector<RayHit> hits;
 
-    auto angle = pose.rotation + M_PI * 0.5f;
+    auto angle = pose.theta;
     constexpr auto angleStep = M_PI * 2 / rayCount;
 
     for (auto i = 0; i < rayCount; i++) {
@@ -241,7 +239,7 @@ void NavigatorEngine::PublishRayCast(const vector<RayHit>& hits, const Pose& pos
         marker.points.push_back(start);
         marker.points.push_back(end);
 
-        auto isClose = Vector2::Distance(pose.position, rayHit.hit) < avoidanceDistance;
+        auto isClose = Vector2::distance(pose.position, rayHit.hit) < avoidanceDistance;
 
         marker.color.r = isClose ? 1.0 : 0.0;
         marker.color.g = 0.0;
@@ -285,7 +283,7 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
 {
     Vector2 avoidance(0, 0);
     for (const auto& rayHit : rayHits) {
-        const auto dist = Vector2::Distance(pose.position, rayHit.hit);
+        const auto dist = Vector2::distance(pose.position, rayHit.hit);
         if (dist >= avoidanceDistance) continue;
 
         const auto proximity = 1.0 - dist / avoidanceDistance;
@@ -293,12 +291,12 @@ Vector2 NavigatorEngine::GetDirection(const vector<RayHit>& rayHits, const Pose&
         avoidance = avoidance + rayHit.normal * force;
     }
 
-    return (desiredDirection + avoidance).Normalized();
+    return (desiredDirection + avoidance).normalized();
 }
 
 double NavigatorEngine::GetLinearVelocity(const Pose& pose, const double t, const double delta) const
 {
-    const auto d = Vector2::Dot(pose.forward, (_path.GetPointAtDistance(t * _path.GetTotalLength()) - pose.position).Normalized());
+    const auto d = Vector2::dot(pose.forward(), (_path.GetPointAtDistance(t * _path.getTotalLength()) - pose.position).normalized());
     const auto difference = d * d * d;
 
     const auto targetSpeed = maxLinearSpeed * clamp(difference, 0.0, 1.0) * abs(difference);
@@ -312,10 +310,10 @@ double NavigatorEngine::ClosestDistance(const std::vector<RayHit>& rayHits, cons
     double closest = std::numeric_limits<double>::max();
 
     for (const auto& rayHit : rayHits) {
-        const auto dot = Vector2::Dot(pose.forward, (rayHit.hit - pose.position).Normalized());
+        const auto dot = Vector2::dot(pose.forward(), (rayHit.hit - pose.position).normalized());
         if (dot <= 0) continue;
 
-        const auto dist = Vector2::Distance(pose.position, rayHit.hit);
+        const auto dist = Vector2::distance(pose.position, rayHit.hit);
         if (dist < closest)
             closest = dist;
     }
@@ -332,33 +330,32 @@ void NavigatorEngine::Update()
     _lastTime = now;
 
     if (!_path.HasPath()) {
-        _app.Events->Publish(MotorCommand { 0, 0 });
+        _app.events->Publish(MotorCommandEvent { Twist::zero() });
         return;
     }
 
     PublishPath();
 
     auto pose = _slam->CurrentPose();
-    auto result = _path.FindClosestPoint(pose.position);
+    auto result = _path.findClosestPoint(pose.position);
 
-    if (_path.GetTotalLength() <= 0)
+    if (_path.getTotalLength() <= 0)
         return;
 
-    const auto t = std::clamp((result.DistanceAlongPath + aimDistance) / _path.GetTotalLength(), 0.0, 1.0);
+    const auto t = std::clamp((result.distanceAlongPath + aimDistance) / _path.getTotalLength(), 0.0, 1.0);
 
-    const auto aimPoint = _path.GetPointAtDistance(t * _path.GetTotalLength());
+    const auto aimPoint = _path.GetPointAtDistance(t * _path.getTotalLength());
     const auto rayHits = RayCastAround(pose);
-    const auto desiredDirection = GetDirection(rayHits, pose, (aimPoint - pose.position).Normalized());
+    const auto desiredDirection = GetDirection(rayHits, pose, (aimPoint - pose.position).normalized());
 
     PublishRayCast(rayHits, pose, desiredDirection);
 
     _currentLinearVelocity = GetLinearVelocity(pose, t, deltaTime);
-    std::cout << "NavigatorEngine: Linear velocity: " << _currentLinearVelocity << std::endl;
 
-    const auto angleToTarget = Vector2::SignedAngle(pose.forward, desiredDirection);
+    const auto angleToTarget = Vector2::signedAngle(pose.forward(), desiredDirection);
     _currentAngularVelocity = clamp(_angularPid.step(angleToTarget, deltaTime), -maxAngularSpeed, maxAngularSpeed);
 
-    _app.Events->Publish(MotorCommand { _currentLinearVelocity, _currentAngularVelocity });
+    _app.events->Publish(MotorCommandEvent { Twist(_currentLinearVelocity, _currentAngularVelocity) });
 }
 
 void NavigatorEngine::OnMappingEngineStateChange(MappingEngineStateChangeEvent event)

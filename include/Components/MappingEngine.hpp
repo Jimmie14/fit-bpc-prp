@@ -8,12 +8,12 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
-#include "../Math/PoseMatcher.hpp"
-#include "../Math/Vector2.hpp"
+#include "Math/PoseMatcher.hpp"
+#include "Math/Vector2.hpp"
 #include "App.hpp"
 #include "OccupancyGrid.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 enum class MappingEngineState {
     Initializing,
     Stable,
@@ -53,17 +53,15 @@ class MappingEngine final : public RosEngine {
 public:
     explicit MappingEngine(const App& app);
     GridCell* GetCell(const Vector2& position);
-    GridCell* GetCell(Vector2Int position);
-    Vector2 GridToWorld(const Vector2Int& position) const;
-    Vector2Int WorldToGrid(const Vector2& position) const;
+    GridCell* GetCell(Vector2i position);
+    Vector2 GridToWorld(const Vector2i& position) const;
+    Vector2i WorldToGrid(const Vector2& position) const;
     std::vector<GridCell*> GetNeighbors(const GridCell* cell);
     bool RayCast(const Vector2& worldPosition, const Vector2& direction, RayHit& rayHit, double maxDistance = 100);
 
     [[nodiscard]] Pose CurrentPose() const
     {
-        const auto pose = _stablePose + _odomPoseDelta;
-
-        return _reverse ? Pose(pose.position, pose.rotation + M_PI) : pose;
+        return _stablePose + _odomPoseDelta;
     }
 
     [[nodiscard]] double GetCellSize() const
@@ -77,6 +75,7 @@ public:
 private:
     Subscription<nav_msgs::msg::Odometry>::SharedPtr _odometrySubscription;
 
+    TimerBase::SharedPtr _poseUpdateTimer;
     TimerBase::SharedPtr _publishTimer;
     TimerBase::SharedPtr _costUpdateTimer;
 
@@ -84,6 +83,7 @@ private:
     Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _hypoPublisher;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
+    Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
     Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
 
@@ -91,11 +91,14 @@ private:
     PoseMatcher _poseMatcher;
 
     Pose _lastOdomPose;
-    Pose _odomPoseDelta = Pose::Zero();
+    Pose _odomPoseDelta = Pose::zero();
 
-    Pose _lastStoredPose = Pose::Identity();
-    Pose _stablePose = Pose::Identity();
+    Pose _stablePose = Pose::zero();
+
+    Twist _twist = Twist::zero();
+
     bool _reverse = false;
+
 
     PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;
@@ -125,8 +128,11 @@ private:
 
     void MapScan(const std::vector<Vector2>& points);
 
+    void PublishStablePose() const;
+
     void Publish();
 
+    void PublishScan() const;
     void PublishPose();
     void PublishGrid();
     void PublishGridMap();

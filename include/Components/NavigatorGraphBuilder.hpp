@@ -8,7 +8,7 @@
 #include "MappingEngine.hpp"
 #include "Math/Vector2.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 
 struct NavigatorNode;
 
@@ -19,7 +19,7 @@ struct Edge {
 };
 
 struct NavigatorNode {
-    Vector2Int gridPosition;
+    Vector2i gridPosition;
     Vector2 worldPosition;
     std::vector<std::shared_ptr<Edge>> connections;
 };

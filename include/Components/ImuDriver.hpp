@@ -1,14 +1,15 @@
 #pragma once
 
-#include "RosDeviceDriver.hpp"
+#include "Common/RosDeviceDriver.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <sensor_msgs/msg/imu.hpp>
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 class ImuDriver final : public RosDeviceDriver {
 public:
     explicit ImuDriver(const App& app);
 
+protected:
     void OnEnable() override;
 
     void OnDisable() override;

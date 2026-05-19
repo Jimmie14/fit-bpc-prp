@@ -6,7 +6,7 @@
 
 #include "App.hpp"
 
-namespace Manhattan::Core {
+namespace Manhattan::core {
 TcpServer::TcpServer(int port)
     : _serverSocket(-1)
     , _port(port)

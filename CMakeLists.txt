@@ -2,7 +2,7 @@
 # Root CMake file
 cmake_minimum_required(VERSION 3.22)
 project(project
-        VERSION 1.5.1
+        VERSION 1.6.0
         DESCRIPTION "" # todo: add description
         LANGUAGES CXX)
 
@@ -26,6 +26,17 @@ find_package(geometry_msgs REQUIRED)
 find_package(grid_map_msgs REQUIRED)
 find_package(grid_map_ros REQUIRED)
 find_package(OpenCV REQUIRED)
+
+
+include(FetchContent)
+
+FetchContent_Declare(
+    tomlplusplus
+    GIT_REPOSITORY https://github.com/marzer/tomlplusplus.git
+    GIT_TAG        v3.4.0
+)
+
+FetchContent_MakeAvailable(tomlplusplus)
 
 # Setup ament package
 ament_package()

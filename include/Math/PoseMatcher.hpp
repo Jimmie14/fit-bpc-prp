@@ -2,9 +2,11 @@
 
 #include "OccupancyGrid.hpp"
 #include "Pose.hpp"
-#include <iostream>
 
-namespace Manhattan::Core {
+namespace Manhattan::math {
+
+using namespace Manhattan::core;
+
 struct PoseMatchResult {
     Pose pose { Vector2 {}, 0.0 };
     double confidence { 0.0 };
@@ -27,7 +29,7 @@ public:
     [[nodiscard]] PoseMatchResult Match(const std::vector<Vector2>& scanPoints, const Pose& estimatedPose) const
     {
         auto pos = estimatedPose.position;
-        auto rot = estimatedPose.rotation;
+        auto rot = estimatedPose.theta;
 
         auto totalError = 0.0;
         auto knownCount = 0;
