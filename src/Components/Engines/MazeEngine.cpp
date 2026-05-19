@@ -121,13 +121,13 @@ void MazeEngine::FollowCorridor()
 
     // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
 
-    const bool tJunction = openLeft && openRight && !openFront;
-    const bool xJunction = openLeft && openRight && openFront;
-
-    const bool cornerLeft = openLeft && !openRight && !openFront;
-    const bool cornerRight = openRight && !openLeft && !openLeft;
-
-    const bool deadEnd = !openLeft && !openRight && !openFront;
+    // const bool tJunction = openLeft && openRight && !openFront;
+    // const bool xJunction = openLeft && openRight && openFront;
+    //
+    // const bool cornerLeft = openLeft && !openRight && !openFront;
+    // const bool cornerRight = openRight && !openLeft && !openLeft;
+    //
+    // const bool deadEnd = !openLeft && !openRight && !openFront;
 
     // if (tJunction || cornerLeft || cornerRight || xJunction || deadEnd)
     // {
@@ -275,6 +275,7 @@ void MazeEngine::ExecuteTurnState()
 
     if (std::abs(error) < 0.08f)
     {
+        // std::cout << "Turn completed, next state: recenter" << std::endl;
         _state = NavState::RECENTER;
         _prevTurnError = 0;
         _turnIntegralError = 0;
@@ -318,7 +319,6 @@ void MazeEngine::RecenterState()
     _center = center;
 
     const auto target = center + corridorDir;
-
     const auto headingError = static_cast<float>(Vector2::SignedAngle(pose.forward, (target - pose.position).Normalized()));
 
     if (std::abs(headingError) < 0.08f)
@@ -386,7 +386,7 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
 
     for (auto i = 0; i < RAY_COUNT; ++i) {
         RayHit rayHit;
-        if (_mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE))
+        if (_mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE + 0.05f))
             return true;
 
         origin = origin - perpendicularDir * stepSize;
@@ -539,13 +539,14 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
     const bool corner = cornerLeft && cornerRight;
     const bool onlyFront = forward && !left && !right;
 
-    if ((_treasureCode.has_value() || _exitCode.has_value()) && (!corner && !onlyFront)) {
-        auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
-        std::cout << "Code: " << aruCode.id << std::endl;
+    if (!_waypoints.empty() && !corner && !onlyFront) {
+        const auto waypoint = _waypoints.front();
+
+        auto aruCode = waypoint.treasureCode.has_value() ? waypoint.treasureCode.value() : waypoint.exitCode.value();
+        std::cout << "Apply code: " << aruCode.id << std::endl;
 
         _lastTurn = std::chrono::steady_clock::now();
-        _treasureCode = std::nullopt;
-        _exitCode = std::nullopt;
+       _waypoints.erase(_waypoints.begin());
 
         switch (aruCode.id % 10)
         {
@@ -567,13 +568,25 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
+    return;
 
-    if (aruCode.id >= 10)
-        _treasureCode = aruCode;
+    // std::cout << "AruCode detected: " << aruCode.id << std::endl;
+    if (aruCode.id >= 10) {
+        _waypoints.push_back({std::nullopt, aruCode});
+        std::cout << "Count " << _waypoints.size() << std::endl;
+        return;
+    }
+
+    if (_waypoints.empty())
+        _waypoints.push_back({std::nullopt, std::nullopt});
+
+    auto& waypoint = _waypoints.back();
+    if (waypoint.treasureCode.has_value())
+        _waypoints.push_back({aruCode, std::nullopt});
     else
-        _exitCode = aruCode;
+        waypoint.exitCode = aruCode;
 
-    std::cout << "Code detected: " << aruCode.id << std::endl;
+    std::cout << "Count " << _waypoints.size() << std::endl;
 }
 
 void MazeEngine::PublishWalls() const

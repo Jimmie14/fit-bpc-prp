@@ -30,8 +30,15 @@ public:
     void OnDisable() override;
 
 private:
+    struct WayPoint {
+        std::optional<CodeDetectedEvent> exitCode = std::nullopt;
+        std::optional<CodeDetectedEvent> treasureCode = std::nullopt;
+    };
+
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
+
+    std::vector<WayPoint> _waypoints;
 
     std::chrono::steady_clock::time_point _lastTurn;
     std::chrono::steady_clock::time_point _lastUpdate;
@@ -57,9 +64,6 @@ private:
 
     std::mutex _mutex;
     NavState _state = NavState::FOLLOW_CORRIDOR;
-
-    std::optional<CodeDetectedEvent> _exitCode = std::nullopt;
-    std::optional<CodeDetectedEvent> _treasureCode = std::nullopt;
 
     std::optional<PcaFitter::FittedLine> _leftWall = std::nullopt;
     std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
