@@ -63,6 +63,7 @@ MazeEngine::MazeEngine(const App& app)
     _mapping = app.getComponent<MappingEngine>();
 
     _publisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze_walls", 1);
+    //_ledPublisher = create_publisher<std_msgs::msg::UInt8MultiArray>("/bpc_prp_robot/rgb_leds", 1);
 
     _app.events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
         OnAruCode(event);
@@ -303,7 +304,7 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
 
             const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE * 0.9);
 
-            _rays.push_back({ center, direction, hit });
+            _rays.emplace_back(center, direction, hit);
             return hit;
         }
         case TurnDirection::LEFT:
@@ -515,7 +516,7 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 {
     const bool cornerLeft = left && !right && !forward;
     const bool cornerRight = right && !left && !forward;
-    const bool corner = cornerLeft && cornerRight;
+    const bool corner = cornerLeft || cornerRight;
     const bool onlyFront = forward && !left && !right;
 
     if (!_waypoints.empty() && !corner && !onlyFront) {
