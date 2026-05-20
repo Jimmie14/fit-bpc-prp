@@ -85,7 +85,7 @@ private:
 
     void RecenterState();
 
-    bool WallInDirection(TurnDirection side);
+    bool DirectionIsFree(TurnDirection side);
 
     float GetHeadingError();
 
