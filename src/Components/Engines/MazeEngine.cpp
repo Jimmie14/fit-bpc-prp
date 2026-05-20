@@ -33,7 +33,7 @@ constexpr float TURN_ANGULAR = 1.5f;
 constexpr float HEADING_P = 1.5f;
 constexpr float HEADING_D = 0.05f;
 
-constexpr float TURN_P = 3.0f;
+constexpr float TURN_P = 3.5f;
 constexpr float TURN_I = 0.001f;
 constexpr float TURN_D = 0.01f;
 
@@ -130,29 +130,11 @@ void MazeEngine::FollowCorridor()
         return;
 
     float angular = 0.0f;
-
-
     const auto pose = _mapping->CurrentPose();
 
     if (_leftWall.has_value() && _rightWall.has_value()) {
-        auto leftDir  = _leftWall->Direction.normalized();
-        auto rightDir = _rightWall->Direction.normalized();
-
-        if (Vector2::dot(leftDir, rightDir) < 0.0f)
-            rightDir = -rightDir;
-
-        const Vector2 corridorDir = (leftDir + rightDir).normalized() * 0.35;
-
-        const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
-        const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
-
-        const auto center = (leftPoint + rightPoint) * 0.5f;
-
-        _heading = corridorDir.normalized();
-        _center = center;
-
-        const auto target = center + corridorDir;
-        angular = _headingPid.step(Vector2::signedAngle(pose.forward(), (target - pose.position).normalized()), _dt);
+        const auto targetAngle = GetHeadingError();
+        angular = _headingPid.step(targetAngle, _dt);
     }
 
     auto frontDist = 0.0;
@@ -181,7 +163,9 @@ bool MazeEngine::CalculateWalls()
     const auto leftWall = FilterHitPoints(leftHits);
     const auto rightWall = FilterHitPoints(rightHits);
 
-    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.95) return false;
+    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.995) return false;
+
+    // std::cout << std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) << std::endl;
 
     _leftWall = leftWall;
     _rightWall = rightWall;
@@ -262,17 +246,20 @@ void MazeEngine::ExecuteTurnState()
 
     _lastTurn = std::chrono::steady_clock::now();;
 
-    if (std::abs(error) < 0.08f)
+    if (std::abs(error) < 0.01f)
     {
-        // _state = CalculateWalls() ? NavState::RECENTER : NavState::FOLLOW_CORRIDOR;
+        // if (CalculateWalls()) {
+        //     _state = NavState::RECENTER;
+        //     _targetRotation = NormalizeAngle(_targetRotation + GetHeadingError());
+        // }
+        // else
         _state = NavState::FOLLOW_CORRIDOR;
-        _turnPid.reset();
 
+        _turnPid.reset();
         return;
     }
 
-    float angular = _turnPid.step(error, _dt);
-
+    const float angular = _turnPid.step(error, _dt);
     _app.events->Publish(MotorCommandEvent {
         Twist {
             TURN_SPEED,
@@ -283,32 +270,10 @@ void MazeEngine::ExecuteTurnState()
 
 void MazeEngine::RecenterState()
 {
-    if (!_leftWall.has_value() || !_rightWall.has_value()) {
-        _state = NavState::FOLLOW_CORRIDOR;
-        return;
-    }
-
-    std::cout << "Recentering" << std::endl;
-
     const auto pose = _mapping->CurrentPose();
+    const float error = NormalizeAngle(_targetRotation - static_cast<float>(pose.theta));
 
-    const auto leftDir = _leftWall->Direction.normalized();
-    const auto rightDir = _rightWall->Direction.normalized();
-
-    Vector2 corridorDir = (leftDir + rightDir).normalized();
-
-    const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
-    const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
-
-    const auto center = (leftPoint + rightPoint) * 0.5f;
-
-    _heading = corridorDir;
-    _center = center;
-
-    const auto target = center + corridorDir;
-    const auto headingError = static_cast<float>(Vector2::signedAngle(pose.forward(), (target - pose.position).normalized()));
-
-    if (std::abs(headingError) < 0.08f)
+    if (std::abs(error) < 0.08f)
     {
         _state = NavState::FOLLOW_CORRIDOR;
         _turnPid.reset();
@@ -316,11 +281,10 @@ void MazeEngine::RecenterState()
         return;
     }
 
-    const float angular = _turnPid.step(headingError, _dt);
-
+    const float angular = _turnPid.step(error, _dt);
     _app.events->Publish(MotorCommandEvent {
         Twist {
-            0,
+            TURN_SPEED,
             std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)}
     });
 }
@@ -337,7 +301,7 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
         case TurnDirection::FORWARD: {
             RayHit rayHit;
 
-            const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE);
+            const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE * 0.9);
 
             _rays.push_back({ center, direction, hit });
             return hit;
@@ -362,7 +326,7 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
 
     float backDst = offset;
     if (RayHit rayHit; _mapping->RayCast(center, -perpendicularDir, rayHit, offset + 0.05f)) {
-        backDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.05);
+        backDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.1);
     }
 
 
@@ -386,6 +350,28 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
     }
 
     return hit;
+}
+float MazeEngine::GetHeadingError()
+{
+    const auto pose = _mapping->CurrentPose();
+    auto leftDir  = _leftWall->Direction.normalized();
+    auto rightDir = _rightWall->Direction.normalized();
+
+    if (Vector2::dot(leftDir, rightDir) < 0.0f)
+        rightDir = -rightDir;
+
+    const Vector2 corridorDir = (leftDir + rightDir).normalized();
+
+    const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
+    const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
+
+    const auto center = (leftPoint + rightPoint) * 0.5f;
+
+    _heading = corridorDir.normalized();
+    _center = center;
+
+    const auto target = center + corridorDir * 0.3;
+    return Vector2::signedAngle(pose.forward(), (target - pose.position).normalized());
 }
 
 std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side, const float dst) const
@@ -539,10 +525,11 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
         std::lock_guard lock(_mutex);
         const auto waypoint = _waypoints.front();
         auto aruCode = waypoint.treasureCode.has_value() ? waypoint.treasureCode.value() : waypoint.exitCode.value();
+        if (!waypoint.treasureCode.has_value()) std::cout << "Does not have treasure code" << std::endl;
 
         _lastTurn = std::chrono::steady_clock::now();
        _waypoints.erase(_waypoints.begin());
-        std::cout << "Waypoint reached, remaining: " << _waypoints.size() << std::endl;
+        // std::cout << "Waypoint reached, remaining: " << _waypoints.size() << std::endl;
 
         switch (aruCode.id % 10)
         {

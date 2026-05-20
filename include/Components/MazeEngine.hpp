@@ -86,6 +86,8 @@ private:
 
     bool WallInDirection(TurnDirection side);
 
+    float GetHeadingError();
+
     std::vector<RayHit> RayArc(float fov, TurnDirection side, float dst) const;
 
     std::optional<PcaFitter::FittedLine> FilterHitPoints(const std::vector<RayHit>& hits) const;
