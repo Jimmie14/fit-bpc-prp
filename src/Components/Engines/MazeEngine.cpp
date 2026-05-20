@@ -27,10 +27,10 @@ constexpr int MIN_POINTS_PER_SEGMENT = 2;
 // Motor settings
 constexpr float NORMAL_SPEED = 0.3f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 1.5f;
+constexpr float TURN_ANGULAR = 0.8f;
 
 // PID tuning constants
-constexpr float HEADING_P = 1.5f;
+constexpr float HEADING_P = 2.5f;
 constexpr float HEADING_D = 0.05f;
 
 constexpr float TURN_P = 3.5f;
@@ -145,7 +145,7 @@ void MazeEngine::FollowCorridor()
     frontDist /= RAY_COUNT;
 
     float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
-    if (frontDist < 0.15f) speed = 0.0f;
+    if (frontDist < 0.2f) speed = 0.0f;
 
     _app.events->Publish(MotorCommandEvent {
         Twist {
@@ -550,6 +550,7 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 
 void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
+    return;
     std::lock_guard lock(_mutex);
 
     std::cout << "AruCode detected: " << aruCode.id << std::endl;
@@ -606,38 +607,5 @@ void MazeEngine::publishDebug() const
 
     _publisher->publish(markers.array);
 }
-
-// void MazeEngine::PublishHeading() const
-// {
-//     if (_testPoints.empty()) return;
-//
-//
-//     auto markers = viz::marker::MarkerArrayBuilder();
-//
-//     // Create sphere markers for each test point
-//     for (size_t i = 0; i < _testPoints.size(); ++i)
-//     {
-//         visualization_msgs::msg::Marker marker;
-//         marker.header.frame_id = "map";
-//         marker.ns = "test_points";
-//         marker.id = static_cast<int>(i + 1);
-//         marker.type = visualization_msgs::msg::Marker::SPHERE;
-//         marker.action = visualization_msgs::msg::Marker::ADD;
-//         marker.pose.position.x = _testPoints[i].x;
-//         marker.pose.position.y = _testPoints[i].y;
-//         marker.pose.position.z = 0.0f;
-//         marker.scale.x = 0.05f;
-//         marker.scale.y = 0.05f;
-//         marker.scale.z = 0.05f;
-//         marker.color.a = 1.0f;
-//         marker.color.r = 1.0f;
-//         marker.color.g = 1.0f;
-//         marker.color.b = 0.0f; // Yellow points
-//
-//         markerArray.markers.push_back(marker);
-//     }
-//
-//     _publisher->publish(markerArray);
-// }
 
 } // namespace Manhattan::Core
