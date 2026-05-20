@@ -25,15 +25,15 @@ constexpr float FOV = 20.0f;
 constexpr int MIN_POINTS_PER_SEGMENT = 2;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.25f;
+constexpr float NORMAL_SPEED = 0.3f;
 constexpr float TURN_SPEED = 0.0f;
 constexpr float TURN_ANGULAR = 1.5f;
 
 // PID tuning constants
-constexpr float HEADING_P = 0.7f;
+constexpr float HEADING_P = 1.5f;
 constexpr float HEADING_D = 0.05f;
 
-constexpr float TURN_P = 2.0f;
+constexpr float TURN_P = 3.0f;
 constexpr float TURN_I = 0.001f;
 constexpr float TURN_D = 0.01f;
 
@@ -117,9 +117,10 @@ void MazeEngine::FollowCorridor()
     _rays = { };
 
     CalculateWalls();
-    const bool openLeft = !WallInDirection(TurnDirection::LEFT); // leftDist > OPEN_THRESHOLD;
-    const bool openRight = !WallInDirection(TurnDirection::RIGHT); // rightDist > OPEN_THRESHOLD;
-    const bool openFront = !WallInDirection(TurnDirection::FORWARD); // frontDist > OPEN_THRESHOLD;
+
+    const bool openLeft = !WallInDirection(TurnDirection::LEFT);
+    const bool openRight = !WallInDirection(TurnDirection::RIGHT);
+    const bool openFront = !WallInDirection(TurnDirection::FORWARD);
 
     // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
 
@@ -140,7 +141,7 @@ void MazeEngine::FollowCorridor()
         if (Vector2::dot(leftDir, rightDir) < 0.0f)
             rightDir = -rightDir;
 
-        const Vector2 corridorDir = (leftDir + rightDir).normalized() * 0.3;
+        const Vector2 corridorDir = (leftDir + rightDir).normalized() * 0.35;
 
         const auto leftPoint = ClosestPointOnLine(leftDir, _leftWall->Point, pose.position);
         const auto rightPoint = ClosestPointOnLine(rightDir, _rightWall->Point, pose.position);
@@ -161,7 +162,8 @@ void MazeEngine::FollowCorridor()
     }
     frontDist /= RAY_COUNT;
 
-    const float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
+    float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
+    if (frontDist < 0.15f) speed = 0.0f;
 
     _app.events->Publish(MotorCommandEvent {
         Twist {
@@ -171,7 +173,7 @@ void MazeEngine::FollowCorridor()
     });
 }
 
-void MazeEngine::CalculateWalls()
+bool MazeEngine::CalculateWalls()
 {
     const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
     const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
@@ -179,7 +181,7 @@ void MazeEngine::CalculateWalls()
     const auto leftWall = FilterHitPoints(leftHits);
     const auto rightWall = FilterHitPoints(rightHits);
 
-    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.95) return;
+    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.95) return false;
 
     _leftWall = leftWall;
     _rightWall = rightWall;
@@ -206,7 +208,7 @@ void MazeEngine::CalculateWalls()
         _leftWall->Point = (closestPointOnLeft - pose.position).normalized() * (wallDistance * 0.5f) + pose.position;
         _rightWall->Point = (closestPointOnRight - pose.position).normalized() * (wallDistance * 0.5f) + pose.position;
 
-        return;
+        return true;
     }
 
     if (dstOnLeft > wallDistance)
@@ -214,6 +216,8 @@ void MazeEngine::CalculateWalls()
 
     if (dstOnRight > wallDistance)
         _rightWall->Point = (closestPointOnRight - pose.position).normalized() * (wallDistance - dstOnLeft) + pose.position;
+
+    return true;
 }
 
 void MazeEngine::PickDirection(const bool left, const bool forward, const bool right)
@@ -228,12 +232,12 @@ void MazeEngine::PickDirection(const bool left, const bool forward, const bool r
     {
         case TurnDirection::LEFT:
             _targetRotation = static_cast<float>(pose.theta + M_PI_2);
-            std::cout << "Turning left" << std::endl;
+            // std::cout << "Turning left" << std::endl;
             break;
 
         case TurnDirection::RIGHT:
             _targetRotation = static_cast<float>(pose.theta - M_PI_2);
-            std::cout << "Turning right" << std::endl;
+            // std::cout << "Turning right" << std::endl;
             break;
 
         case TurnDirection::FORWARD:
@@ -243,7 +247,7 @@ void MazeEngine::PickDirection(const bool left, const bool forward, const bool r
             return;
         case TurnDirection::BACK:
             _targetRotation = static_cast<float>(pose.theta - M_PI);
-            std::cout << "Turning back" << std::endl;
+            // std::cout << "Turning back" << std::endl;
             break;
     }
 
@@ -260,11 +264,10 @@ void MazeEngine::ExecuteTurnState()
 
     if (std::abs(error) < 0.08f)
     {
-        std::cout << "Turn completed, next state: recenter" << std::endl;
+        // _state = CalculateWalls() ? NavState::RECENTER : NavState::FOLLOW_CORRIDOR;
         _state = NavState::FOLLOW_CORRIDOR;
         _turnPid.reset();
 
-        CalculateWalls();
         return;
     }
 
@@ -280,7 +283,12 @@ void MazeEngine::ExecuteTurnState()
 
 void MazeEngine::RecenterState()
 {
-    if (!_leftWall.has_value() || !_rightWall.has_value()) return;
+    if (!_leftWall.has_value() || !_rightWall.has_value()) {
+        _state = NavState::FOLLOW_CORRIDOR;
+        return;
+    }
+
+    std::cout << "Recentering" << std::endl;
 
     const auto pose = _mapping->CurrentPose();
 
@@ -319,7 +327,7 @@ void MazeEngine::RecenterState()
 
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
-    const auto pose = _mapping->CurrentPose();
+    // const auto pose = _mapping->CurrentPose();
     auto offset = HALF_CORRIDOR_SIZE * 0.5f;
 
     auto center = _center;
@@ -525,13 +533,16 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
     const bool onlyFront = forward && !left && !right;
 
     if (!_waypoints.empty() && !corner && !onlyFront) {
-        const auto waypoint = _waypoints.front();
+    // if ((_exitCode.has_value() || _treasureCode.has_value()) && !corner && !onlyFront) {
+        // auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
 
+        std::lock_guard lock(_mutex);
+        const auto waypoint = _waypoints.front();
         auto aruCode = waypoint.treasureCode.has_value() ? waypoint.treasureCode.value() : waypoint.exitCode.value();
-        std::cout << "Apply code: " << aruCode.id << std::endl;
 
         _lastTurn = std::chrono::steady_clock::now();
        _waypoints.erase(_waypoints.begin());
+        std::cout << "Waypoint reached, remaining: " << _waypoints.size() << std::endl;
 
         switch (aruCode.id % 10)
         {
@@ -543,9 +554,9 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
         }
     }
 
-    if (left) return TurnDirection::LEFT;
-    if (forward) return TurnDirection::FORWARD;
     if (right) return TurnDirection::RIGHT;
+    if (forward) return TurnDirection::FORWARD;
+    if (left) return TurnDirection::LEFT;
 
     return TurnDirection::BACK;
 }
@@ -553,23 +564,29 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
-    return;
 
-    // std::cout << "AruCode detected: " << aruCode.id << std::endl;
-    if (aruCode.id >= 10) {
-        _waypoints.push_back({std::nullopt, aruCode});
-        std::cout << "Count " << _waypoints.size() << std::endl;
-        return;
-    }
+    std::cout << "AruCode detected: " << aruCode.id << std::endl;
+
+    // if (aruCode.id >= 10)
+    //     _treasureCode = aruCode;
+    // else
+    //     _exitCode = aruCode;
 
     if (_waypoints.empty())
         _waypoints.push_back({std::nullopt, std::nullopt});
 
     auto& waypoint = _waypoints.back();
-    if (waypoint.treasureCode.has_value())
-        _waypoints.push_back({aruCode, std::nullopt});
-    else
-        waypoint.exitCode = aruCode;
+    if (aruCode.id >= 10) {
+        if (waypoint.treasureCode.has_value() && waypoint.treasureCode->id != aruCode.id)
+            _waypoints.push_back({std::nullopt, aruCode});
+        else
+            waypoint.treasureCode = aruCode;
+    } else {
+        if (waypoint.exitCode.has_value() && waypoint.exitCode->id != aruCode.id)
+            _waypoints.push_back({aruCode, std::nullopt});
+        else
+            waypoint.exitCode = aruCode;
+    }
 
     std::cout << "Count " << _waypoints.size() << std::endl;
 }

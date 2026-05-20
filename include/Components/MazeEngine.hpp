@@ -10,7 +10,6 @@ namespace Manhattan::core {
 
 enum class NavState {
     FOLLOW_CORRIDOR,
-    APPROACH_INTERSECTION,
     TURNING,
     RECENTER
 };
@@ -39,6 +38,8 @@ private:
     std::shared_ptr<MappingEngine> _mapping;
 
     std::vector<WayPoint> _waypoints;
+    // std::optional<CodeDetectedEvent> _exitCode = std::nullopt;
+    // std::optional<CodeDetectedEvent> _treasureCode = std::nullopt;
 
     std::chrono::steady_clock::time_point _lastTurn;
     std::chrono::steady_clock::time_point _lastUpdate;
@@ -75,7 +76,7 @@ private:
 
     void FollowCorridor();
 
-    void CalculateWalls();
+    bool CalculateWalls();
 
     void PickDirection(bool left, bool forward, bool right);
 
@@ -94,8 +95,6 @@ private:
     void OnAruCode(CodeDetectedEvent aruCode);
 
     void publishDebug() const;
-
-    void PublishHeading() const;
 };
 
 } // namespace Manhattan::Core
