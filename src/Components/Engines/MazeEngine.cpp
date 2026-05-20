@@ -294,7 +294,7 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
     // const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.4f; // todo revie
+    auto offset = HALF_CORRIDOR_SIZE * 0.4f; // todo review
 
     auto center = _center;
     auto direction = _heading;
