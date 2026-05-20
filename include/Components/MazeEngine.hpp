@@ -71,6 +71,7 @@ private:
     std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
 
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _publisher;
+    Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _ledPublisher;
 
     void Update();
 
@@ -97,6 +98,7 @@ private:
     void OnAruCode(CodeDetectedEvent aruCode);
 
     void publishDebug() const;
+    void publishLeds() const;
 };
 
 } // namespace Manhattan::Core

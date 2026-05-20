@@ -34,7 +34,7 @@ constexpr float HEADING_P = 2.5f;
 constexpr float HEADING_D = 0.05f;
 
 constexpr float TURN_P = 3.5f;
-constexpr float TURN_I = 0.001f;
+constexpr float TURN_I = 0.005f;
 constexpr float TURN_D = 0.01f;
 
 static float NormalizeAngle(float angle)
@@ -63,7 +63,7 @@ MazeEngine::MazeEngine(const App& app)
     _mapping = app.getComponent<MappingEngine>();
 
     _publisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze_walls", 1);
-    //_ledPublisher = create_publisher<std_msgs::msg::UInt8MultiArray>("/bpc_prp_robot/rgb_leds", 1);
+    _ledPublisher = create_publisher<std_msgs::msg::UInt8MultiArray>("/bpc_prp_robot/rgb_leds", 1);
 
     _app.events->Subscribe<CodeDetectedEvent>([this](const CodeDetectedEvent& event) {
         OnAruCode(event);
@@ -79,6 +79,7 @@ void MazeEngine::OnEnable() {
 
     _publisherTimer = create_wall_timer(100ms, [this] {
         publishDebug();
+        publishLeds();
         //PublishHeading();
     });
 }
@@ -293,7 +294,7 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
     // const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.5f;
+    auto offset = HALF_CORRIDOR_SIZE * 0.3f;
 
     auto center = _center;
     auto direction = _heading;
@@ -526,7 +527,6 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
         std::lock_guard lock(_mutex);
         const auto waypoint = _waypoints.front();
         auto aruCode = waypoint.treasureCode.has_value() ? waypoint.treasureCode.value() : waypoint.exitCode.value();
-        if (!waypoint.treasureCode.has_value()) std::cout << "Does not have treasure code" << std::endl;
 
         _lastTurn = std::chrono::steady_clock::now();
        _waypoints.erase(_waypoints.begin());
@@ -534,10 +534,9 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 
         switch (aruCode.id % 10)
         {
-            case 0: return TurnDirection::FORWARD;
-            case 1: return TurnDirection::LEFT;
-            case 2: return TurnDirection::RIGHT;
-
+            case 0: return forward ? TurnDirection::FORWARD : TurnDirection::BACK;
+            case 1: return left ? TurnDirection::LEFT : TurnDirection::RIGHT;
+            case 2: return right ? TurnDirection::RIGHT : TurnDirection::LEFT;
             default: return TurnDirection::LEFT;
         }
     }
@@ -554,11 +553,6 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
     std::lock_guard lock(_mutex);
 
     std::cout << "AruCode detected: " << aruCode.id << std::endl;
-
-    // if (aruCode.id >= 10)
-    //     _treasureCode = aruCode;
-    // else
-    //     _exitCode = aruCode;
 
     if (_waypoints.empty())
         _waypoints.push_back({std::nullopt, std::nullopt});
@@ -606,6 +600,70 @@ void MazeEngine::publishDebug() const
     }
 
     _publisher->publish(markers.array);
+}
+
+void MazeEngine::publishLeds() const
+{
+    std_msgs::msg::UInt8MultiArray msg;
+    msg.data.resize(12);
+
+    if (_waypoints.empty()) {
+        _ledPublisher->publish(msg);
+        return;
+    }
+
+    auto waypoint = _waypoints.front();
+
+    // 0 - back
+    // 1 - right
+    // 2 - left
+    // 3 - front
+
+
+    if (waypoint.treasureCode.has_value()) {
+        switch (waypoint.treasureCode->id % 10) {
+        case 0:
+            msg.data[3 * 3 + 1] = 255;
+            break;
+        case 1:
+            msg.data[2 * 3 + 1] = 255;
+            break;
+        case 2:
+            msg.data[1 * 3 + 1] = 255;
+            break;
+        default:
+            break;
+        }
+
+        _ledPublisher->publish(msg);
+        return;
+    }
+
+    if (!waypoint.exitCode.has_value()) {
+        _ledPublisher->publish(msg);
+    }
+
+    switch (waypoint.treasureCode->id) {
+    case 0:
+        msg.data[3 * 3 + 1] = 255;
+        msg.data[3 * 3 + 2] = 255;
+        msg.data[3 * 3 + 3] = 255;
+        break;
+    case 1:
+        msg.data[2 * 3 + 1] = 255;
+        msg.data[2 * 3 + 2] = 255;
+        msg.data[2 * 3 + 3] = 255;
+        break;
+    case 2:
+        msg.data[1 * 3 + 1] = 255;
+        msg.data[1 * 3 + 2] = 255;
+        msg.data[1 * 3 + 3] = 255;
+        break;
+    default:
+        break;
+    }
+
+    _ledPublisher->publish(msg);
 }
 
 } // namespace Manhattan::Core
