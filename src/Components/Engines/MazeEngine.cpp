@@ -25,12 +25,12 @@ constexpr float FOV = 20.0f;
 constexpr int MIN_POINTS_PER_SEGMENT = 4;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.3f;
+constexpr float NORMAL_SPEED = 0.35f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 0.8f;
+constexpr float TURN_ANGULAR = 1.5f;
 
 // PID tuning constants
-constexpr float HEADING_P = 2.5f;
+constexpr float HEADING_P = 4.0f;
 constexpr float HEADING_D = 0.05f;
 
 constexpr float TURN_P = 3.5f;
@@ -124,7 +124,7 @@ void MazeEngine::FollowCorridor()
     const bool openRight = !WallInDirection(TurnDirection::RIGHT);
     const bool openFront = !WallInDirection(TurnDirection::FORWARD);
 
-    // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
+    std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
 
     PickDirection(openLeft, openFront, openRight);
 
@@ -147,7 +147,7 @@ void MazeEngine::FollowCorridor()
     frontDist /= RAY_COUNT;
 
     float speed = std::clamp(static_cast<float>(frontDist) / CORRIDOR_SIZE, 0.0f, 1.0f);
-    if (frontDist < 0.2f) speed = 0.0f;
+    if (frontDist < 0.1f) speed = 0.0f;
 
     _app.events->Publish(MotorCommandEvent {
         Twist {
@@ -294,7 +294,7 @@ void MazeEngine::RecenterState()
 bool MazeEngine::WallInDirection(const TurnDirection side)
 {
     // const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.3f;
+    auto offset = HALF_CORRIDOR_SIZE * 0.4f; // todo revie
 
     auto center = _center;
     auto direction = _heading;
@@ -323,32 +323,30 @@ bool MazeEngine::WallInDirection(const TurnDirection side)
 
     float frontDst = offset;
     if (RayHit rayHit; _mapping->RayCast(center, perpendicularDir, rayHit, offset + 0.05f)) {
-        frontDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.05);
+        frontDst = static_cast<float>(Vector2::distance(center, rayHit.hit));
     }
 
     float backDst = offset;
     if (RayHit rayHit; _mapping->RayCast(center, -perpendicularDir, rayHit, offset + 0.05f)) {
-        backDst = static_cast<float>(Vector2::distance(center, rayHit.hit) - 0.1);
+        backDst = static_cast<float>(Vector2::distance(center, rayHit.hit));
     }
 
 
     // dst to front + dst in back
-    auto stepSize = (frontDst + backDst) / (RAY_COUNT - 1);
+    auto stepSize = (frontDst + backDst) / (RAY_COUNT * 2 - 1);
     auto origin = center - perpendicularDir * backDst;
 
     bool hit = false;
 
-    for (auto i = 0; i < RAY_COUNT; i++) {
-
-        if (RayHit rayHit; _mapping->RayCast(origin, direction, rayHit, HALF_CORRIDOR_SIZE * 1.5f)) {
+    for (auto i = 1; i < RAY_COUNT * 2 - 1; i++) {
+        const auto point = origin + perpendicularDir * stepSize * i;
+        if (RayHit rayHit; _mapping->RayCast(point, direction, rayHit, CORRIDOR_SIZE)) {
             hit = true;
-            _rays.push_back({ origin, direction, true });
+            _rays.push_back({ point, direction, true });
         }
         else {
-            _rays.push_back({ origin, direction, false });
+            _rays.push_back({ point, direction, false });
         }
-
-        origin = origin + perpendicularDir * stepSize;
     }
 
     return hit;
