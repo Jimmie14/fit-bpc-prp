@@ -22,7 +22,7 @@ constexpr float RAY_DISTANCE = 5.0f;
 constexpr float FOV = 20.0f;
 
 // walls filtering
-constexpr int MIN_POINTS_PER_SEGMENT = 2;
+constexpr int MIN_POINTS_PER_SEGMENT = 4;
 
 // Motor settings
 constexpr float NORMAL_SPEED = 0.3f;
@@ -550,7 +550,6 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 
 void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
-    return;
     std::lock_guard lock(_mutex);
 
     std::cout << "AruCode detected: " << aruCode.id << std::endl;

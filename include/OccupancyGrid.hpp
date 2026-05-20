@@ -161,7 +161,9 @@ public:
         if (!InBounds(cell.x, cell.y))
             return;
 
-        _grid[GetIndex(cell.x, cell.y)].Add(LogOddsFree);
+        const double attenuation = 1.0 / (1.0 + dst * 0.05);
+
+        _grid[GetIndex(cell.x, cell.y)].Add(LogOddsFree * attenuation);
     }
 
     void SetOccupied(const Vector2i cell)
