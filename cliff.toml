@@ -45,6 +45,9 @@ filter_unconventional = true
 require_conventional = false
 # Split commits on newlines, treating each line as an individual commit.
 split_commits = false
+
+tag_pattern = "v[0-9].*"
+
 # An array of regex based parsers to modify commit messages prior to further processing.
 commit_preprocessors = [
     # Replace issue numbers with link templates to be updated in `changelog.postprocessors`.
