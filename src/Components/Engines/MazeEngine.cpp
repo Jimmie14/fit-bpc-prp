@@ -59,6 +59,7 @@ MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze")
     , _headingPid(HEADING_P, 0.0f, HEADING_D)
     , _turnPid(TURN_P, TURN_I, TURN_D)
+    , _previous_corridor_dir(1, 0)
 {
     _mapping = app.getComponent<MappingEngine>();
 
@@ -157,22 +158,27 @@ bool MazeEngine::CalculateWalls()
     const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
     const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
 
-    const auto leftWall = FilterHitPoints(leftHits);
-    const auto rightWall = FilterHitPoints(rightHits);
+    auto leftWall = FilterHitPoints(leftHits);
+    auto rightWall = FilterHitPoints(rightHits);
 
-    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.995) return false;
-
-    // std::cout << std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) << std::endl;
-
-    _leftWall = leftWall;
-    _rightWall = rightWall;
+    if (!leftWall.has_value() || !rightWall.has_value()) return false;
+    if (std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.995) return false;
 
     const auto pose = _mapping->CurrentPose();
-    if (Vector2::dot(_leftWall->Direction, pose.forward()) < 0.0f)
-        _leftWall->Direction = -_leftWall->Direction;
+    if (Vector2::dot(leftWall->Direction, pose.forward()) < 0.0f)
+        leftWall->Direction = -leftWall->Direction;
 
-    if (Vector2::dot(_rightWall->Direction, pose.forward()) < 0.0f)
-        _rightWall->Direction = -_rightWall->Direction;
+    if (Vector2::dot(rightWall->Direction, pose.forward()) < 0.0f)
+        rightWall->Direction = -rightWall->Direction;
+
+    const auto dir = (leftWall->Direction + rightWall->Direction).normalized();
+    const auto dot = abs(Vector2::dot(dir, _previous_corridor_dir));
+    // std::cout << dot << std::endl;
+    if (dot < 0.7) return false;
+
+    // _previous_corridor_dir = dir;
+    _leftWall = leftWall;
+    _rightWall = rightWall;
 
     const auto closestPointOnLeft = ClosestPointOnLine(leftWall->Direction, leftWall->Point, pose.position);
     const auto dstOnLeft = Vector2::distance(closestPointOnLeft, pose.position);
@@ -248,6 +254,7 @@ void MazeEngine::PickDirection()
             break;
     }
 
+    _previous_corridor_dir = Vector2::FromAngle(_targetRotation);
     _state = NavState::TURNING;
     _targetRotation = NormalizeAngle(_targetRotation);
 }

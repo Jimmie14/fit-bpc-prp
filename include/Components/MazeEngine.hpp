@@ -49,6 +49,8 @@ private:
     bool _previous_right;
     bool _previous_front;
 
+    Vector2 _previous_corridor_dir;
+
     std::vector<std::tuple<Vector2, Vector2, bool>> _rays;
 
     Vector2 _center = Vector2::zero();
