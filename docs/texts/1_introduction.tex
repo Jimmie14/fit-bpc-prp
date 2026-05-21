@@ -1,0 +1,15 @@
+\section{Introduction}
+
+Autonomous mobile robotics requires tight integration of perception, state estimation, and
+planning. The \textit{BPC-PRP} course at Brno University of Technology addresses this
+progressively: students first implement sensor-based \textit{line following} before tackling
+autonomous \textit{maze navigation}.
+
+The maze is an $8{\times}8$ grid of $40\,\text{cm}{\times}40\,\text{cm}$ cells. The robot
+starts at the center and must find the exit, collecting ArUco-marked treasures (worth a 30\,s
+time bonus) along the way. No external positioning is available; the robot relies entirely on a
+360° LiDAR and wheel encoders.
+
+This paper describes the SLAM pipeline (occupancy grid, Gauss-Newton scan matching, MCL), two
+navigation strategies (corridor-based reactive driving and DWPP), and key real-world challenges
+encountered during deployment.

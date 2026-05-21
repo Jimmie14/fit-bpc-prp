@@ -43,6 +43,11 @@ format() {
     echo "Formatting complete."
 }
 
+docs() {
+    ./docs/build.sh
+    cp ./docs/main.pdf ./paper.pdf
+}
+
 # Ensure a subcommand is provided
 if [ $# -lt 1 ]; then
   usage

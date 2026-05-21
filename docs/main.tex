@@ -1,0 +1,60 @@
+\documentclass[conference]{IEEEtran}
+\IEEEoverridecommandlockouts
+
+\usepackage{amsmath,amssymb,amsfonts}
+\usepackage{algorithmic}
+\usepackage{graphicx}
+\usepackage{textcomp}
+\usepackage{xcolor}
+\usepackage{biblatex}
+\addbibresource{refs.bib}
+
+\def\BibTeX{{\rm B\kern-.05em{\sc i\kern-.025em b}\kern-.08em
+    T\kern-.1667em\lower.7ex\hbox{E}\kern-.125emX}}
+    
+\begin{document}
+
+\title{BPC-PRP Project Manhattan}
+
+\author{\IEEEauthorblockN{1\textsuperscript{st} Matúš Pitoňák}
+\IEEEauthorblockA{\textit{Faculty of Information Technology} \\
+\textit{Brno University of Technology}\\
+Brno, Czech Republic \\
+xpitonm00@vutbr.cz}
+\and
+\IEEEauthorblockN{2\textsuperscript{nd} Samuel Poul}
+\IEEEauthorblockA{\textit{Faculty of Information Technology} \\
+\textit{Brno University of Technology}\\
+Brno, Czech Republic \\
+xpoulsa00@vutbr.cz}
+}
+
+\maketitle
+
+\begin{abstract}
+This paper presents an autonomous maze-navigation system for a differential-drive mobile robot
+equipped with a 360° LiDAR, wheel encoders, and an RGB camera for ArUco marker detection.
+The SLAM pipeline combines an occupancy grid with Gauss-Newton scan matching and Monte Carlo
+localization (MCL). A PCA-guided corridor follower with junction detection handles maze
+traversal, while a Dynamic Window Pure Pursuit (DWPP) navigator was developed for general
+navigation. The robot escaped the $8{\times}8$ cell evaluation maze with a best time of ~30\,s
+including ArUco treasure collection.
+\end{abstract}
+
+\begin{IEEEkeywords}
+Robotics, BPC-PRP, ROS2, OpenCV, LiDAR, SLAM, DWPP
+\end{IEEEkeywords}
+
+
+\input{texts/1_introduction.tex}
+\input{texts/2_method.tex}
+\input{texts/3_conclusion.tex}
+
+
+\section*{Acknowledgment}
+The authors thank the BPC-PRP course staff at FIT BUT for providing the robot hardware, maze
+environment, and technical guidance.
+
+\printbibliography
+
+\end{document}

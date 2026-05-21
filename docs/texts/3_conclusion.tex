@@ -1,0 +1,21 @@
+\section{Results}
+
+The robot successfully escaped the $8{\times}8$ maze in all final runs, achieving a best time
+of ${\approx}30\,\text{s}$ including ArUco treasure collection and ${\approx}50\,\text{s}$ in
+standard runs. Localization was stable at $v \leq 0.4\,\text{m/s} \;\land\; \omega \leq 2\,\text{rad/s}$; higher speeds exposed the
+5\,Hz LiDAR limitation, occasionally triggering the Lost recovery.
+
+Key findings: (1) LiDAR data itself is not inherently limiting, but requires careful transformation of 
+scan points using odometry (encoder-based, with potential future fusion with IMU, which was previously 
+abandoned due to tuning complexity); (2) the more critical issue is scan inconsistency at higher linear and 
+especially angular speeds, where a single LiDAR sweep becomes geometrically distorted, degrading state 
+estimation and control performance. This may be partially fixed by correcting scans using estimated 
+motion/acceleration derived from odometry; (3) ROS2 latency introduces additional challenges for real-time 
+control loops.
+
+\section{Conclusion}
+
+Project Manhattan is a complete ROS2 autonomous maze-navigation system featuring Gauss-Newton
+scan matching, MCL, PCA-guided corridor navigation, and DWPP. The robot reliably solved the
+maze task under real-world conditions.
+
