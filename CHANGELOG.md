@@ -1,5 +1,9 @@
 ## [unreleased]
 
+### 📚 Documentation
+
+- *(README)* Add evaluation tags section
+
 ### ⚙️ Miscellaneous Tasks
 
 - Cliff configure to ignore non version commits
