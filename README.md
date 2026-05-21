@@ -8,7 +8,10 @@ A school project for controlling robot demonstrating autonomous navigation capab
 
 ## Table Of Contents
 - [🚀 Quick Start](#-quick-start)
+- [🏗️ Architecture Overview](#-architecture-overview)
+- [📚 Documentation](#-documentation)
 - [📋 Code Conventions](#-code-conventions)
+- [📝 Changelog](#-changelog)
 - [📄 License](#-license)
 
 ## 🚀 Quick Start
@@ -41,7 +44,7 @@ git clone <project-url> project
 # Run project in headless mode
 # this will only run dependencies - it is useful
 # for debugging or just run it once and use play/debug in CLion
-./dev.sh --headless
+./dev.sh run --headless
 ```
 
 ### CLion Setup
@@ -64,6 +67,48 @@ To automatically format all code files according to project run
 ```bash
 ./dev.sh format
 ```
+
+## 🏗️ Architecture Overview
+
+The software is built on **ROS2 Humble** and organized as an event-driven modular system:
+
+- **`App`** — top-level owner of all components; wires them together at startup.
+- **`EventBus`** — typed publish/subscribe bus for zero-coupling inter-component messaging.
+- **`ConfigManager`** — hot-reloads TOML configuration files (`config/manhattan.toml`) at runtime.
+- **Drivers** — thin ROS wrappers around hardware: LiDAR, IMU, motors, buttons, user input.
+- **Engines** — stateful processing pipelines: odometry, SLAM mapping, maze navigation, DWPP planner, ArUco detection.
+- **Units** — stateless utility workers: map thinning, motor calibration, debug visualization.
+
+### Key subsystems
+| Subsystem                | Description                                                                                                        |
+|--------------------------|--------------------------------------------------------------------------------------------------------------------|
+| Kinematics & Odometry    | Differential drive model; encoder ticks → 2D pose $(x, y, \theta)$; PID wheel controllers                          |
+| Occupancy Grid SLAM      | 200×200 grid at 5 cm resolution; Bresenham ray-casting; Gauss-Newton scan matching                                 |
+| Monte Carlo Localization | Hypothesis pool to resolve symmetric corridor ambiguity; 4-state machine (Initializing → Stable → Degraded → Lost) |
+| Maze Navigation          | Corridor-following with PCA wall fitting + PD heading controller; junction detection                               |
+| DWPP Planner             | Dynamic Window Pure Pursuit for open-space navigation                                                              |
+
+## 📚 Documentation
+
+A research paper describing the system architecture, SLAM pipeline, and navigation strategies is located in `docs/`.
+Compiled PDF output is available as `paper.pdf` in the project root.
+
+### Building the paper
+Requires `pdflatex` and `biber`. Run:
+```bash
+./dev.sh docs
+```
+This compiles the LaTeX source and copies the output to `paper.pdf` in the project root.
+
+The paper covers:
+- Sensor-based line following
+- Occupancy grid mapping and scan matching
+- Monte Carlo Localization
+- Corridor-based maze navigation and DWPP
+
+## 📝 Changelog
+
+See [CHANGELOG.md](CHANGELOG.md) for the full version history and release notes.
 
 ## 📄 License
 
