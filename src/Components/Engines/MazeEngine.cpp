@@ -119,9 +119,7 @@ void MazeEngine::FollowCorridor()
 {
     _rays = { };
 
-    // todo turn based evaluation vs continous
-    // if (!_leftWall.has_value() || !_rightWall.has_value())
-        CalculateWalls();
+    CalculateWalls();
 
     PickDirection();
     if (_state != NavState::FOLLOW_CORRIDOR)
@@ -173,10 +171,8 @@ bool MazeEngine::CalculateWalls()
 
     const auto dir = (leftWall->Direction + rightWall->Direction).normalized();
     const auto dot = abs(Vector2::dot(dir, _previous_corridor_dir));
-    // std::cout << dot << std::endl;
     if (dot < 0.7) return false;
 
-    // _previous_corridor_dir = dir;
     _leftWall = leftWall;
     _rightWall = rightWall;
 
@@ -269,10 +265,6 @@ void MazeEngine::ExecuteTurnState()
     if (std::abs(error) < 0.01f)
     {
         _state = NavState::FOLLOW_CORRIDOR;
-        // _leftWall = std::nullopt;
-        // _rightWall = std::nullopt;
-        // CalculateWalls(); // todo turn based evaluation vs continous
-
         _turnPid.reset();
         return;
     }
