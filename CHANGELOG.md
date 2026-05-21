@@ -2,16 +2,41 @@
 
 ### 🚀 Features
 
-- Minor dwpp score function enhancements
 - Minor maze graph enhancements
+## [1.7.0] - 2026-05-21
+
+### 🚀 Features
+
+- Minor dwpp score function enhancements
+- Pid regulators class
+- Add debug marker to m\aze engine
+- Add stable version of maze engine
+- Arucodes
+- Heading dir calculation
+- Add more stable version of map and walls
+- Led visualization of aruco direction(stable version)
+- Minor fixes
+- Change free corridor detection
+- Corridor stabilization
 
 ### 🐛 Bug Fixes
 
 - All bugs in maze graph engine
+- Adjust PID tuning constants and motor speed thresholds
+- Stable version for MazeEngine
+- Adjust PID tuning constants and motor speed thresholds
+- Adjust PID tuning constants and motor speed thresholds
+- Robot escape maze
 
 ### 🚜 Refactor
 
 - Major maze graph refactor
+- Removed todo
+
+### ⚙️ Miscellaneous Tasks
+
+- Merged main
+- Adjusted parameters
 ## [1.6.0] - 2026-05-11
 
 ### 🚀 Features
@@ -21,6 +46,16 @@
 - Enhance navigation with reverse speed and distance calculations
 - Add reverse mode
 - Add stable version of navigator and explorer
+- Implement maze navigation logic with wall detection and decision-making
+- Implemented PcaFilter
+- Improved line handling
+- Moving in corridor
+- Better wall detection
+- Add integral part
+- Turn back
+- Correct decision
+- Aru code detection
+- Aru code stack
 - Add correct odometry linear and angular velocity detection
 - Add pid regulator for each motor
 - Minor dwpp cost function adjustments
@@ -39,6 +74,7 @@
 ### ⚙️ Miscellaneous Tasks
 
 - Removed unused constants
+- Delta time
 - Bump version to 1.6.0
 ## [1.5.1] - 2026-05-06
 
