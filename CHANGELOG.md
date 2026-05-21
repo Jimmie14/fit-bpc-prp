@@ -3,6 +3,10 @@
 ### 🚀 Features
 
 - Minor maze graph enhancements
+
+### 🎨 Styling
+
+- Run clang-format
 ## [1.7.0] - 2026-05-21
 
 ### 🚀 Features
