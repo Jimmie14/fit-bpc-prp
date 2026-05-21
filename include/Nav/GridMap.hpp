@@ -55,10 +55,9 @@ public:
 
     [[nodiscard]] std::pair<int, int> worldToCoord(const Vector3& position) const
     {
-        return std::pair(
-            std::floor(position.x() / _resolution + static_cast<float>(_width) * 0.5f),
-            std::floor(position.y() / _resolution + static_cast<float>(_height) * 0.5f)
-        );
+        int x = std::floor(position.x() / _resolution + static_cast<float>(_width) * 0.5f);
+        int y = std::floor(position.y() / _resolution + static_cast<float>(_height) * 0.5f);
+        return std::pair<int, int>(x, y);
     }
 
     [[nodiscard]] Vector3 worldToLocal(const Vector3& position) const

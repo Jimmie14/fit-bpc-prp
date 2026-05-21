@@ -1,11 +1,25 @@
 #pragma once
 
-#include "Nav/Grid.hpp"
-#include "NavigatorEngine.hpp"
-#include "NavigatorGraphBuilder.hpp"
+#include "ArucoDetectionEngine.hpp"
 #include "Common/RosEngine.hpp"
+#include "Math/Vec3.hpp"
+#include "Nav/PcaFilter.hpp"
+#include "NavigatorEngine.hpp"
 
 namespace Manhattan::core {
+
+enum class NavState {
+    FOLLOW_CORRIDOR,
+    TURNING,
+    RECENTER
+};
+
+enum class TurnDirection {
+    FORWARD,
+    LEFT,
+    RIGHT,
+    BACK
+};
 
 class MazeEngine final : public RosEngine {
 public:
@@ -15,87 +29,82 @@ public:
     void OnDisable() override;
 
 private:
-    enum class Direction {
-        Left,
-        Right,
-        Forward,
-        Back
-    };
-
     struct WayPoint {
-        struct Connection {
-            shared_ptr<WayPoint> target;
-            std::vector<Vector2> path;
-        };
-
-        bool visited;
-        Vector2 position;
-        std::vector<Connection> connected;
-
-        [[nodiscard]] std::shared_ptr<WayPoint> GetInDirection(const Direction dir, const Vector2& forward) const
-        {
-            // for (auto point : connected) {
-            //     const auto dirToWaypoint = (point.target->position - position).Normalized();
-            //     const auto dot = Vector2::Dot(dirToWaypoint, forward);
-            //     const auto perpDot = dirToWaypoint.x * forward.y - dirToWaypoint.y * forward.x;
-            //
-            //
-            //     // switch (dir) {
-            //     //     case Direction::Left:
-            //     //         if (perpDot > 0.5)
-            //     //             return point;
-            //     //         break;
-            //     //     case Direction::Right:
-            //     //         if (perpDot < -0.5)
-            //     //             return point;
-            //     //         break;
-            //     //     case Direction::Forward:
-            //     //         if (dot > 0.5)
-            //     //             return point;
-            //     //         break;
-            //     //     case Direction::Back:
-            //     //         if (dot < -0.5)
-            //     //             return point;
-            //     //         break;
-            //     // }
-            // }
-
-            return nullptr;
-        }
+        std::optional<CodeDetectedEvent> exitCode = std::nullopt;
+        std::optional<CodeDetectedEvent> treasureCode = std::nullopt;
     };
-
-    void Update();
-
-    Subscription<geometry_msgs::msg::PoseStamped>::SharedPtr _poseSubscription;
-    Subscription<nav_msgs::msg::OccupancyGrid>::SharedPtr _mapSubscription;
-
-    void OnPose(const geometry_msgs::msg::PoseStamped::SharedPtr& msg) const;
-    void OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& msg);
-
-    void PublishCurrenThGraph() const;
-
-    std::shared_ptr<WayPoint> NextJunction(const std::shared_ptr<WayPoint>& current);
-
-    std::optional<Vector2i> ClosestOnThinnedMap(const Vector2& position);
-
-    std::vector<Vector2i> GetValidNeighbors(const Vector2i& cell);
-
-    bool IsWaypoint(const Vector2i& cell);
-    std::shared_ptr<WayPoint> WalkUntilWaypoint(Vector2i prev, Vector2i current);
-
-    std::shared_ptr<WayPoint> Init();
-
-    nav::Grid<bool> _thinned_map;
 
     std::shared_ptr<NavigatorEngine> _navigator;
     std::shared_ptr<MappingEngine> _mapping;
 
-    std::shared_ptr<WayPoint> _currentWayPoint = nullptr;
+    std::vector<WayPoint> _waypoints;
+    // std::optional<CodeDetectedEvent> _exitCode = std::nullopt;
+    // std::optional<CodeDetectedEvent> _treasureCode = std::nullopt;
+
+    std::chrono::steady_clock::time_point _lastTurn;
+    std::chrono::steady_clock::time_point _lastUpdate;
+    float _dt{};
+
+    bool _previous_left;
+    bool _previous_right;
+    bool _previous_front;
+
+    Vector2 _previous_corridor_dir;
+
+    std::vector<std::tuple<Vector2, Vector2, bool>> _rays;
+
+    Vector2 _center = Vector2::zero();
+    Vector2 _heading = Vector2(vec3::Forward);
 
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _initialTimer;
+    TimerBase::SharedPtr _publisherTimer;
 
-    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _graphPublisher;
+    float _targetRotation = 0.f;
+
+    Pid _headingPid;
+    Pid _turnPid;
+
+    // float _prevTurnError = 0;
+    // float _turnIntegralError = 0;
+    //
+    // float _prevHeadingError = 0;
+
+    std::mutex _mutex;
+    NavState _state = NavState::FOLLOW_CORRIDOR;
+
+    std::optional<PcaFitter::FittedLine> _leftWall = std::nullopt;
+    std::optional<PcaFitter::FittedLine> _rightWall = std::nullopt;
+
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _publisher;
+    Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _ledPublisher;
+
+    void Update();
+
+    void FollowCorridor();
+
+    bool CalculateWalls();
+
+    void PickDirection();
+
+    void ExecuteTurnState();
+
+    void RecenterState();
+
+    bool DirectionIsFree(TurnDirection side, float frontDstOverride = 0.0f);
+
+    float GetHeadingError();
+
+    std::vector<RayHit> RayArc(float fov, TurnDirection side, float dst) const;
+
+    std::optional<PcaFitter::FittedLine> FilterHitPoints(const std::vector<RayHit>& hits) const;
+
+    TurnDirection ChooseDirection(bool left, bool forward, bool right);
+
+    void OnAruCode(CodeDetectedEvent aruCode);
+
+    void publishDebug() const;
+    void publishLeds() const;
 };
 
 } // namespace Manhattan::Core

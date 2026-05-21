@@ -84,7 +84,7 @@ struct Pose {
         return Vector2(std::cos(theta), std::sin(theta));
     }
 
-    [[nodiscard]] Pose Normalized() const
+    [[nodiscard]] Pose normalized() const
     {
         auto angle = fmod(theta, 2.0 * M_PI);
         if (angle < 0) angle += 2.0 * M_PI;
@@ -92,7 +92,21 @@ struct Pose {
         return Pose(position, angle);
     }
 
-    void TransformPointsInplace(std::vector<Vector2>& points) const
+    void transformPointsInplace(std::vector<Vector2>& points) const
+    {
+        const auto c = std::cos(theta);
+        const auto s = std::sin(theta);
+
+        for (auto& p : points) {
+            const auto x = p.x;
+            const auto y = p.y;
+
+            p.x = position.x + x * c - y * s;
+            p.y = position.y + x * s + y * c;
+        }
+    }
+
+    [[nodiscard]] std::vector<Vector2> transformPoints(const std::vector<Vector2>& points) const
     {
         const auto c = std::cos(theta);
         const auto s = std::sin(theta);
@@ -104,18 +118,19 @@ struct Pose {
             const auto x = p.x;
             const auto y = p.y;
 
-            p.x = position.x + x * c - y * s;
-            p.y = position.y + x * s + y * c;
+            auto tx = position.x + x * c - y * s;
+            auto ty = position.y + x * s + y * c;
+
+            result.emplace_back(tx, ty);
         }
+
+        return result;
     }
 
-    void InverseTransformPointsInplace(std::vector<Vector2>& points) const
+    void inverseTransformPointsInplace(std::vector<Vector2>& points) const
     {
         const auto c = std::cos(theta);
         const auto s = std::sin(theta);
-
-        std::vector<Vector2> result;
-        result.reserve(points.size());
 
         for (auto& p : points) {
             const auto dx = p.x - position.x;
