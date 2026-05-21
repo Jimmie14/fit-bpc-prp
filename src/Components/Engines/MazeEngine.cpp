@@ -25,9 +25,9 @@ constexpr float FOV = 20.0f;
 constexpr int MIN_POINTS_PER_SEGMENT = 4;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.35f;
+constexpr float NORMAL_SPEED = 0.4f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 1.0f;
+constexpr float TURN_ANGULAR = 2.0f;
 
 // PID tuning constants
 constexpr float HEADING_P = 4.0f;
