@@ -4,6 +4,11 @@
 
 - Minor maze graph enhancements
 
+### 📚 Documentation
+
+- Add latex IEEE paper documentation
+- Add paper
+
 ### 🎨 Styling
 
 - Run clang-format
