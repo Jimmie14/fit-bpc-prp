@@ -17,7 +17,7 @@ constexpr auto rotationResolution = M_PI * 0.25;
 
 const float maxInvalidError = 0.4f;
 const float poseChangeThreshold = 0.10f;
-const float stablePoseError = 0.08f;
+const float stablePoseError = 0.05f;
 
 namespace Manhattan::core {
 
