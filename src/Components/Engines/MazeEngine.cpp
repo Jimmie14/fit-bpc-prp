@@ -27,7 +27,7 @@ constexpr int MIN_POINTS_PER_SEGMENT = 4;
 // Motor settings
 constexpr float NORMAL_SPEED = 0.35f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 1.5f;
+constexpr float TURN_ANGULAR = 1.0f;
 
 // PID tuning constants
 constexpr float HEADING_P = 4.0f;
@@ -118,16 +118,11 @@ void MazeEngine::FollowCorridor()
 {
     _rays = { };
 
-    CalculateWalls();
+    // todo turn based evaluation vs continous
+    // if (!_leftWall.has_value() || !_rightWall.has_value())
+        CalculateWalls();
 
-    const bool openLeft = DirectionIsFree(TurnDirection::LEFT);
-    const bool openRight = DirectionIsFree(TurnDirection::RIGHT);
-    const bool openFront = DirectionIsFree(TurnDirection::FORWARD);
-
-    std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
-
-    PickDirection(openLeft, openFront, openRight);
-
+    PickDirection();
     if (_state != NavState::FOLLOW_CORRIDOR)
         return;
 
@@ -206,15 +201,31 @@ bool MazeEngine::CalculateWalls()
     return true;
 }
 
-void MazeEngine::PickDirection(const bool left, const bool forward, const bool right)
+void MazeEngine::PickDirection()
 {
+    const bool openLeft = DirectionIsFree(TurnDirection::LEFT);
+    const bool openRight = DirectionIsFree(TurnDirection::RIGHT);
+    const bool openFront = DirectionIsFree(TurnDirection::FORWARD, openLeft || openRight ? HALF_CORRIDOR_SIZE * 1.5 : HALF_CORRIDOR_SIZE * 0.9);
+
+    if (!(openLeft == _previous_left && openRight == _previous_right && openFront == _previous_front)) {
+        _previous_left = openLeft;
+        _previous_right = openRight;
+        _previous_front = openFront;
+        return;
+    }
+    _previous_left = openLeft;
+    _previous_right = openRight;
+    _previous_front = openFront;
+
+    // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
+    // return;
     const auto now = std::chrono::steady_clock::now();
     if (now - _lastTurn < 2s)
         return;
 
     const auto pose = _mapping->CurrentPose();
 
-    switch (ChooseDirection(left, forward, right))
+    switch (ChooseDirection(openLeft, openFront, openRight))
     {
         case TurnDirection::LEFT:
             _targetRotation = static_cast<float>(pose.theta + M_PI_2);
@@ -250,12 +261,10 @@ void MazeEngine::ExecuteTurnState()
 
     if (std::abs(error) < 0.01f)
     {
-        // if (CalculateWalls()) {
-        //     _state = NavState::RECENTER;
-        //     _targetRotation = NormalizeAngle(_targetRotation + GetHeadingError());
-        // }
-        // else
         _state = NavState::FOLLOW_CORRIDOR;
+        // _leftWall = std::nullopt;
+        // _rightWall = std::nullopt;
+        // CalculateWalls(); // todo turn based evaluation vs continous
 
         _turnPid.reset();
         return;
@@ -291,7 +300,7 @@ void MazeEngine::RecenterState()
     });
 }
 
-bool MazeEngine::DirectionIsFree(const TurnDirection side)
+bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverride)
 {
     // const auto pose = _mapping->CurrentPose();
     auto offset = HALF_CORRIDOR_SIZE * 0.9f;
@@ -303,7 +312,7 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side)
         case TurnDirection::FORWARD: {
             RayHit rayHit;
 
-            const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE * 0.9);
+            const auto hit = _mapping->RayCast(center, direction, rayHit, frontDstOverride);
 
             _rays.emplace_back(center, direction, hit);
             return !hit;
@@ -349,9 +358,10 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side)
         }
     }
 
-    // 20% of hits allowed
+    // 25% of hits allowed
     return static_cast<float>(hitCount) <= (RAY_COUNT * 2.0 - 2 * indexOffset) * 0.25f;
 }
+
 float MazeEngine::GetHeadingError()
 {
     const auto pose = _mapping->CurrentPose();
@@ -518,10 +528,10 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
     const bool cornerRight = right && !left && !forward;
     const bool corner = cornerLeft || cornerRight;
     const bool onlyFront = forward && !left && !right;
+    const bool deadEnd = !forward && !left && !right;
 
-    if (!_waypoints.empty() && !corner && !onlyFront) {
-    // if ((_exitCode.has_value() || _treasureCode.has_value()) && !corner && !onlyFront) {
-        // auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
+    if (!_waypoints.empty() && !corner && !onlyFront && !deadEnd) {
+        std::cout << "Aru? Front: " << forward << " Left: " << left << " Right: " << right << std::endl;
 
         std::lock_guard lock(_mutex);
         const auto waypoint = _waypoints.front();
@@ -529,7 +539,6 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 
         _lastTurn = std::chrono::steady_clock::now();
        _waypoints.erase(_waypoints.begin());
-        // std::cout << "Waypoint reached, remaining: " << _waypoints.size() << std::endl;
 
         switch (aruCode.id % 10)
         {
@@ -551,7 +560,7 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
 
-    std::cout << "AruCode detected: " << aruCode.id << std::endl;
+    // std::cout << "AruCode detected: " << aruCode.id << std::endl;
 
     if (_waypoints.empty())
         _waypoints.push_back({std::nullopt, std::nullopt});
@@ -569,7 +578,7 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
             waypoint.exitCode = aruCode;
     }
 
-    std::cout << "Count " << _waypoints.size() << std::endl;
+    // std::cout << "Count " << _waypoints.size() << std::endl;
 }
 
 void MazeEngine::publishDebug() const
