@@ -17,7 +17,7 @@ constexpr auto rotationResolution = M_PI * 0.25;
 
 const float maxInvalidError = 0.4f;
 const float poseChangeThreshold = 0.10f;
-const float stablePoseError = 0.05f;
+const float stablePoseError = 0.1f;
 
 namespace Manhattan::core {
 
@@ -275,7 +275,7 @@ void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
     size_t write = 0;
 
     for (size_t read = 0; read < hypotheses.size(); read++) {
-        const auto p = hypotheses[read].pose.Normalized();
+        const auto p = hypotheses[read].pose.normalized();
 
         const auto key = std::tuple<int, int, int>(static_cast<int>(std::round(p.position.x / gridResolution)),
             static_cast<int>(std::round(p.position.y / gridResolution)),
@@ -412,8 +412,22 @@ void MappingEngine::RecalculateDistanceField()
 
 PoseMatchResult MappingEngine::MatchPose(const Pose& pose) const
 {
-    auto result = _poseMatcher.Match(_lastScan, pose);
-    result.error = GetDistanceFieldError(pose);
+    auto best = PoseMatchResult(pose, maxInvalidError);
+
+    for (auto i = 0; i < 16; i++) {
+        const auto correction = (static_cast<double>(i) / 15.0) * 2 * M_PI;
+
+        auto newPose = pose;
+        newPose.theta += correction;
+        newPose = newPose.normalized();
+
+        auto result = PoseMatchResult(newPose, GetDistanceFieldError(newPose));
+
+        best = PoseMatchResult::Best(best, result);
+    }
+
+    auto result = _poseMatcher.Match(_lastScan, best.pose);
+    result.error = GetDistanceFieldError(result.pose);
 
     return result;
 }
@@ -426,6 +440,7 @@ double MappingEngine::GetDistanceFieldError(const Pose& pose) const
         const auto pos = _grid.WorldToGrid(point);
         if (!_grid.InBounds(pos.x, pos.y)) {
             error += 200.0 * 200.0 * _distanceField.resolution();
+            continue;
         }
 
         error += _distanceField[pos];
@@ -453,7 +468,7 @@ void MappingEngine::Publish()
 void MappingEngine::PublishStablePose() const
 {
     _app.events->Publish(RobotPoseEvent {
-        .pose = _stablePose.Normalized(),
+        .pose = _stablePose.normalized(),
         .twist = _twist
     });
 }

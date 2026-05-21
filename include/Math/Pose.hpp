@@ -84,7 +84,7 @@ struct Pose {
         return Vector2(std::cos(theta), std::sin(theta));
     }
 
-    [[nodiscard]] Pose Normalized() const
+    [[nodiscard]] Pose normalized() const
     {
         auto angle = fmod(theta, 2.0 * M_PI);
         if (angle < 0) angle += 2.0 * M_PI;
