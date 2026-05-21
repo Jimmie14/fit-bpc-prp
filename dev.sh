@@ -44,7 +44,9 @@ format() {
 }
 
 docs() {
-    ./docs/build.sh
+    cd ./docs
+    ./build.sh
+    cd ../
     cp ./docs/main.pdf ./paper.pdf
 }
 
@@ -63,6 +65,9 @@ case "$SUBCOMMAND" in
     ;;
   format)
     format "$@"
+    ;;
+  docs)
+    docs "$@"
     ;;
   *)
     usage
