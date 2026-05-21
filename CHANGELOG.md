@@ -1,4 +1,4 @@
-## [unreleased]
+## [1.7.0] - 2026-05-21
 
 ### 🚀 Features
 
@@ -8,11 +8,12 @@
 
 - Add latex IEEE paper documentation
 - Add paper
+- Update README
 
 ### 🎨 Styling
 
 - Run clang-format
-## [1.7.0] - 2026-05-21
+## [eval-maze-1] - 2026-05-21
 
 ### 🚀 Features
 
