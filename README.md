@@ -11,6 +11,7 @@ A school project for controlling robot demonstrating autonomous navigation capab
 - [🏗️ Architecture Overview](#-architecture-overview)
 - [📚 Documentation](#-documentation)
 - [📋 Code Conventions](#-code-conventions)
+- [🏷️ Evaluation Tags](#-evaluation-tags)
 - [📝 Changelog](#-changelog)
 - [📄 License](#-license)
 
@@ -106,12 +107,25 @@ The paper covers:
 - Monte Carlo Localization
 - Corridor-based maze navigation and DWPP
 
+## 🏷️ Evaluation Tags
+
+Special git tags mark the robot states used during graded evaluation runs:
+
+| Tag                      | Description                                                                                                          |
+|--------------------------|----------------------------------------------------------------------------------------------------------------------|
+| `eval-line-follow-1`     | **Last (successful) line follower attempt** — 3 tracks, last track repeated twice; this tag marks the successful run |
+| `eval-corridor-follow-1` | First corridor following attempt                                                                                     |
+| `eval-corridor-follow-2` | **Second (final) corridor following attempt**                                                                        |
+| `eval-maze-1`            | **Last successful maze explorer attempt** — was actually the second attempt; no earlier version was preserved        |
+
+> For evaluation purposes, the relevant tags are **`eval-line-follow-1`**, **`eval-corridor-follow-2`**, and **`eval-maze-1`**.
+
 ## 📝 Changelog
 
 See [CHANGELOG.md](CHANGELOG.md) for the full version history and release notes.
 
 ## 📄 License
 
-This project is licensed under the [MIT LIcense](LICENSE).
+This project is licensed under the [MIT License](LICENSE).
 
 © 2025 xpitonm00, xpoulsa00.
