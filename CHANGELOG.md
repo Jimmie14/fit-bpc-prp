@@ -1,19 +1,9 @@
+## [unreleased]
+
+### ⚙️ Miscellaneous Tasks
+
+- Cliff configure to ignore non version commits
 ## [1.7.0] - 2026-05-21
-
-### 🚀 Features
-
-- Minor maze graph enhancements
-
-### 📚 Documentation
-
-- Add latex IEEE paper documentation
-- Add paper
-- Update README
-
-### 🎨 Styling
-
-- Run clang-format
-## [eval-maze-1] - 2026-05-21
 
 ### 🚀 Features
 
@@ -28,6 +18,7 @@
 - Minor fixes
 - Change free corridor detection
 - Corridor stabilization
+- Minor maze graph enhancements
 
 ### 🐛 Bug Fixes
 
@@ -42,6 +33,16 @@
 
 - Major maze graph refactor
 - Removed todo
+
+### 📚 Documentation
+
+- Add latex IEEE paper documentation
+- Add paper
+- Update README
+
+### 🎨 Styling
+
+- Run clang-format
 
 ### ⚙️ Miscellaneous Tasks
 
