@@ -25,9 +25,9 @@ constexpr float FOV = 20.0f;
 constexpr int MIN_POINTS_PER_SEGMENT = 4;
 
 // Motor settings
-constexpr float NORMAL_SPEED = 0.35f;
+constexpr float NORMAL_SPEED = 0.4f;
 constexpr float TURN_SPEED = 0.0f;
-constexpr float TURN_ANGULAR = 1.5f;
+constexpr float TURN_ANGULAR = 2.0f;
 
 // PID tuning constants
 constexpr float HEADING_P = 4.0f;
@@ -59,6 +59,7 @@ MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze")
     , _headingPid(HEADING_P, 0.0f, HEADING_D)
     , _turnPid(TURN_P, TURN_I, TURN_D)
+    , _previous_corridor_dir(1, 0)
 {
     _mapping = app.getComponent<MappingEngine>();
 
@@ -120,14 +121,7 @@ void MazeEngine::FollowCorridor()
 
     CalculateWalls();
 
-    const bool openLeft = DirectionIsFree(TurnDirection::LEFT);
-    const bool openRight = DirectionIsFree(TurnDirection::RIGHT);
-    const bool openFront = DirectionIsFree(TurnDirection::FORWARD);
-
-    std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
-
-    PickDirection(openLeft, openFront, openRight);
-
+    PickDirection();
     if (_state != NavState::FOLLOW_CORRIDOR)
         return;
 
@@ -162,22 +156,25 @@ bool MazeEngine::CalculateWalls()
     const auto leftHits = RayArc(FOV, TurnDirection::LEFT, RAY_DISTANCE);
     const auto rightHits = RayArc(FOV, TurnDirection::RIGHT, RAY_DISTANCE);
 
-    const auto leftWall = FilterHitPoints(leftHits);
-    const auto rightWall = FilterHitPoints(rightHits);
+    auto leftWall = FilterHitPoints(leftHits);
+    auto rightWall = FilterHitPoints(rightHits);
 
-    if (!leftWall.has_value() || !rightWall.has_value() || std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.995) return false;
+    if (!leftWall.has_value() || !rightWall.has_value()) return false;
+    if (std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) < 0.995) return false;
 
-    // std::cout << std::abs(Vector2::dot(leftWall.value().Direction, rightWall.value().Direction)) << std::endl;
+    const auto pose = _mapping->CurrentPose();
+    if (Vector2::dot(leftWall->Direction, pose.forward()) < 0.0f)
+        leftWall->Direction = -leftWall->Direction;
+
+    if (Vector2::dot(rightWall->Direction, pose.forward()) < 0.0f)
+        rightWall->Direction = -rightWall->Direction;
+
+    const auto dir = (leftWall->Direction + rightWall->Direction).normalized();
+    const auto dot = abs(Vector2::dot(dir, _previous_corridor_dir));
+    if (dot < 0.7) return false;
 
     _leftWall = leftWall;
     _rightWall = rightWall;
-
-    const auto pose = _mapping->CurrentPose();
-    if (Vector2::dot(_leftWall->Direction, pose.forward()) < 0.0f)
-        _leftWall->Direction = -_leftWall->Direction;
-
-    if (Vector2::dot(_rightWall->Direction, pose.forward()) < 0.0f)
-        _rightWall->Direction = -_rightWall->Direction;
 
     const auto closestPointOnLeft = ClosestPointOnLine(leftWall->Direction, leftWall->Point, pose.position);
     const auto dstOnLeft = Vector2::distance(closestPointOnLeft, pose.position);
@@ -206,15 +203,31 @@ bool MazeEngine::CalculateWalls()
     return true;
 }
 
-void MazeEngine::PickDirection(const bool left, const bool forward, const bool right)
+void MazeEngine::PickDirection()
 {
+    const bool openLeft = DirectionIsFree(TurnDirection::LEFT);
+    const bool openRight = DirectionIsFree(TurnDirection::RIGHT);
+    const bool openFront = DirectionIsFree(TurnDirection::FORWARD, openLeft || openRight ? HALF_CORRIDOR_SIZE * 1.5 : HALF_CORRIDOR_SIZE * 0.9);
+
+    if (!(openLeft == _previous_left && openRight == _previous_right && openFront == _previous_front)) {
+        _previous_left = openLeft;
+        _previous_right = openRight;
+        _previous_front = openFront;
+        return;
+    }
+    _previous_left = openLeft;
+    _previous_right = openRight;
+    _previous_front = openFront;
+
+    // std::cout << "Front: " << openFront << " Left: " << openLeft << " Right: " << openRight << std::endl;
+    // return;
     const auto now = std::chrono::steady_clock::now();
     if (now - _lastTurn < 2s)
         return;
 
     const auto pose = _mapping->CurrentPose();
 
-    switch (ChooseDirection(left, forward, right))
+    switch (ChooseDirection(openLeft, openFront, openRight))
     {
         case TurnDirection::LEFT:
             _targetRotation = static_cast<float>(pose.theta + M_PI_2);
@@ -237,6 +250,7 @@ void MazeEngine::PickDirection(const bool left, const bool forward, const bool r
             break;
     }
 
+    _previous_corridor_dir = Vector2::FromAngle(_targetRotation);
     _state = NavState::TURNING;
     _targetRotation = NormalizeAngle(_targetRotation);
 }
@@ -250,13 +264,7 @@ void MazeEngine::ExecuteTurnState()
 
     if (std::abs(error) < 0.01f)
     {
-        // if (CalculateWalls()) {
-        //     _state = NavState::RECENTER;
-        //     _targetRotation = NormalizeAngle(_targetRotation + GetHeadingError());
-        // }
-        // else
         _state = NavState::FOLLOW_CORRIDOR;
-
         _turnPid.reset();
         return;
     }
@@ -291,10 +299,10 @@ void MazeEngine::RecenterState()
     });
 }
 
-bool MazeEngine::DirectionIsFree(const TurnDirection side)
+bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverride)
 {
     // const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.9f;
+    auto offset = HALF_CORRIDOR_SIZE * 1.1f;
 
     auto center = _center;
     auto direction = _heading;
@@ -303,7 +311,7 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side)
         case TurnDirection::FORWARD: {
             RayHit rayHit;
 
-            const auto hit = _mapping->RayCast(center, direction, rayHit, HALF_CORRIDOR_SIZE * 0.9);
+            const auto hit = _mapping->RayCast(center, direction, rayHit, frontDstOverride);
 
             _rays.emplace_back(center, direction, hit);
             return !hit;
@@ -335,23 +343,32 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side)
     auto stepSize = (frontDst + backDst) / (RAY_COUNT * 2 - 1);
     auto origin = center - perpendicularDir * backDst;
 
-    int hitCount = 0;
-    int indexOffset = 2;
+    bool hasFirstHit = false;
+    int firstHit = -1;
+    int lastHit = -1;
 
-    for (auto i = indexOffset; i < RAY_COUNT * 2 - indexOffset; i++) {
+    for (auto i = 0; i < RAY_COUNT * 2; i++) {
         const auto point = origin + perpendicularDir * stepSize * i;
+
         if (RayHit rayHit; _mapping->RayCast(point, direction, rayHit, CORRIDOR_SIZE)) {
-            hitCount++;
+            if (!hasFirstHit)
+                firstHit = i;
+            else if (lastHit < 0)
+                lastHit = i;
+
             _rays.push_back({ point, direction, true });
         }
         else {
+            if (firstHit >= 0)
+                hasFirstHit = true;
+
             _rays.push_back({ point, direction, false });
         }
     }
 
-    // 20% of hits allowed
-    return static_cast<float>(hitCount) <= (RAY_COUNT * 2.0 - 2 * indexOffset) * 0.25f;
+    return firstHit >= 0 && lastHit >= 0;
 }
+
 float MazeEngine::GetHeadingError()
 {
     const auto pose = _mapping->CurrentPose();
@@ -518,10 +535,10 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
     const bool cornerRight = right && !left && !forward;
     const bool corner = cornerLeft || cornerRight;
     const bool onlyFront = forward && !left && !right;
+    const bool deadEnd = !forward && !left && !right;
 
-    if (!_waypoints.empty() && !corner && !onlyFront) {
-    // if ((_exitCode.has_value() || _treasureCode.has_value()) && !corner && !onlyFront) {
-        // auto aruCode = _treasureCode.has_value() ? _treasureCode.value() : _exitCode.value();
+    if (!_waypoints.empty() && !corner && !onlyFront && !deadEnd) {
+        std::cout << "Aru? Front: " << forward << " Left: " << left << " Right: " << right << std::endl;
 
         std::lock_guard lock(_mutex);
         const auto waypoint = _waypoints.front();
@@ -529,7 +546,6 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
 
         _lastTurn = std::chrono::steady_clock::now();
        _waypoints.erase(_waypoints.begin());
-        // std::cout << "Waypoint reached, remaining: " << _waypoints.size() << std::endl;
 
         switch (aruCode.id % 10)
         {
@@ -551,7 +567,7 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
 
-    std::cout << "AruCode detected: " << aruCode.id << std::endl;
+    // std::cout << "AruCode detected: " << aruCode.id << std::endl;
 
     if (_waypoints.empty())
         _waypoints.push_back({std::nullopt, std::nullopt});
@@ -569,7 +585,7 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
             waypoint.exitCode = aruCode;
     }
 
-    std::cout << "Count " << _waypoints.size() << std::endl;
+    // std::cout << "Count " << _waypoints.size() << std::endl;
 }
 
 void MazeEngine::publishDebug() const

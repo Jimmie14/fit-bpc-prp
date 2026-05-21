@@ -45,6 +45,12 @@ private:
     std::chrono::steady_clock::time_point _lastUpdate;
     float _dt{};
 
+    bool _previous_left;
+    bool _previous_right;
+    bool _previous_front;
+
+    Vector2 _previous_corridor_dir;
+
     std::vector<std::tuple<Vector2, Vector2, bool>> _rays;
 
     Vector2 _center = Vector2::zero();
@@ -79,13 +85,13 @@ private:
 
     bool CalculateWalls();
 
-    void PickDirection(bool left, bool forward, bool right);
+    void PickDirection();
 
     void ExecuteTurnState();
 
     void RecenterState();
 
-    bool DirectionIsFree(TurnDirection side);
+    bool DirectionIsFree(TurnDirection side, float frontDstOverride = 0.0f);
 
     float GetHeadingError();
 
