@@ -1,7 +1,7 @@
 #include "Components/MappingEngine.hpp"
-#include "Messages/RobotMode.hpp"
 #include "Components/LidarDriver.hpp"
 #include "Messages/Nav.hpp"
+#include "Messages/RobotMode.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
@@ -207,15 +207,14 @@ void MappingEngine::ChangeState(const MappingEngineState newState)
 
     _app.events->Publish(MappingEngineStateChangeEvent {
         .oldState = oldState,
-        .newState = newState
-    });
+        .newState = newState });
 
     if (newState == MappingEngineState::Lost) {
-        _app.events->Publish(RobotEnvironmentChangeEvent { });
+        _app.events->Publish(RobotEnvironmentChangeEvent {});
     }
 
     if (oldState == MappingEngineState::Lost && newState == MappingEngineState::Stable) {
-        _app.events->Publish(RobotEnvironmentChangeEvent { });
+        _app.events->Publish(RobotEnvironmentChangeEvent {});
     }
 }
 
@@ -331,8 +330,7 @@ void MappingEngine::PublishStablePose() const
 {
     _app.events->Publish(RobotPoseEvent {
         .pose = _stablePose.Normalized(),
-        .twist = _twist
-    });
+        .twist = _twist });
 }
 
 void MappingEngine::Publish()
@@ -345,8 +343,6 @@ void MappingEngine::Publish()
     PublishGrid();
     // PublishGridMap();
     // PublishScan();
-
-
 }
 
 void MappingEngine::PublishScan() const

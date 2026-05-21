@@ -19,14 +19,12 @@ struct Vector2i {
         : x(x)
         , y(y)
     {
-
     }
 
     Vector2i(const std::pair<int, int>& point)
         : x(point.first)
         , y(point.second)
     {
-
     }
 
     Vector2i operator+(const Vector2i& other) const
@@ -177,8 +175,7 @@ struct Vector2 {
     {
         return Vector2(
             std::clamp(value.x, min.x, max.x),
-            std::clamp(value.y, min.y, max.y)
-        );
+            std::clamp(value.y, min.y, max.y));
     }
 
     static Vector2 lerp(const Vector2& a, const Vector2& b, double t)

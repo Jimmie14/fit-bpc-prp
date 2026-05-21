@@ -5,7 +5,8 @@
 #include "Messages/Nav.hpp"
 
 namespace Manhattan::core {
-ManualPathPlannerEngine::ManualPathPlannerEngine(const App& app) : RosEngine(app, "manual_path_planner")
+ManualPathPlannerEngine::ManualPathPlannerEngine(const App& app)
+    : RosEngine(app, "manual_path_planner")
 {
     app.events->Subscribe<messages::MazeGraphPublishEvent>([this](const auto& msg) {
         std::lock_guard guard(_lock);
@@ -31,16 +32,14 @@ ManualPathPlannerEngine::ManualPathPlannerEngine(const App& app) : RosEngine(app
 void ManualPathPlannerEngine::OnEnable()
 {
     _pointSubscription = this->create_subscription<geometry_msgs::msg::PointStamped>(
-        "/clicked_point", 2, [this](const geometry_msgs::msg::PointStamped::SharedPtr msg)
-        {
+        "/clicked_point", 2, [this](const geometry_msgs::msg::PointStamped::SharedPtr msg) {
             if (msg->header.frame_id != "map") return;
             if (_map.empty()) return;
 
             const Vector2i coord = _map.worldToCoord(Vector3(msg->point.x, msg->point.y, 0));
 
             _target = _graph.findClosestPosition(coord, 20);
-        }
-    );
+        });
 }
 
 void ManualPathPlannerEngine::OnDisable()

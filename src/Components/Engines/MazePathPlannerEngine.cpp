@@ -85,7 +85,6 @@ void MazePathPlannerEngine::planPath()
     std::cout << "last     : " << _lastNodeId << std::endl;
     std::cout << "current  : " << _currentNodeId << std::endl;
     std::cout << "next     : " << _nextNodeId << std::endl;
-
 }
 
 }

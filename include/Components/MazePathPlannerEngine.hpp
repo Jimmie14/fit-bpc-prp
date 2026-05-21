@@ -15,13 +15,12 @@ protected:
     void OnDisable() override;
 
 private:
-
     TimerBase::SharedPtr _timer;
 
     mutex _lock;
 
     math::Pose _pose;
-    nav::GridMap _map{};
+    nav::GridMap _map {};
     nav::MazeGraph _graph;
     std::optional<nav::GraphPosition> _target;
 
@@ -34,4 +33,3 @@ private:
     void planPath();
 };
 }
-

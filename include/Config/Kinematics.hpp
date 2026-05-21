@@ -21,7 +21,7 @@ struct WheelGeometry : Configurable {
     void configure(const Config& config) override
     {
         radius = config["radius"].value<double>();
-        pulsesPerRotation =  config["pulses_per_rotation"].value<int32_t>();
+        pulsesPerRotation = config["pulses_per_rotation"].value<int32_t>();
     }
 };
 

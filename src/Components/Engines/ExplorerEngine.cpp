@@ -45,9 +45,8 @@ void ExplorerEngine::OnEnable()
     });
 
     _publishTimer = create_wall_timer(1s, [this] {
-       Publish();
+        Publish();
     });
-
 }
 
 void ExplorerEngine::OnDisable()
@@ -64,7 +63,7 @@ static bool Walkable(const bool value)
     return value;
 }
 
-ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirection, const Vector2i startCell)
+ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3& inDirection, const Vector2i startCell)
 {
     vector<Vector3> path;
 
@@ -75,15 +74,14 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
     auto dirs = Vector2i::EightDirections();
 
     ranges::sort(dirs, [&](const auto& a, const auto& b) {
-       const auto va = Vector2(a).toTf2().normalized();
-       const auto vb = Vector2(b).toTf2().normalized();
+        const auto va = Vector2(a).toTf2().normalized();
+        const auto vb = Vector2(b).toTf2().normalized();
 
-       const auto da = va.dot(dirNorm);
-       const auto db = vb.dot(dirNorm);
+        const auto da = va.dot(dirNorm);
+        const auto db = vb.dot(dirNorm);
 
-       return da > db;
-   });
-
+        return da > db;
+    });
 
     visited.insert(startCell);
     auto next = std::optional(startCell);
@@ -130,7 +128,7 @@ ExplorerEngine::ExplorerResult ExplorerEngine::Explore(const Vector3 &inDirectio
 
     const auto target = frontier;
 
-    return ExplorerResult{ target, path };
+    return ExplorerResult { target, path };
 }
 
 std::optional<Vector2i> ExplorerEngine::PickFollowingDirection(const Vector2i& current, const vector<Vector2i>& ways, const Vector3& forward, const Vector3& preferred) const
@@ -161,7 +159,6 @@ std::pair<std::vector<Vector2i>, std::set<Vector2i>> ExplorerEngine::GetCrossroa
 {
     std::vector<Vector2i> ways;
     std::vector<Vector2i> newWays;
-
 
     ways.push_back(start);
 
@@ -226,7 +223,8 @@ std::optional<Vector2i> ExplorerEngine::ClosestOnThinnedMap(const Vector3& pos) 
     visited.insert(intPos);
 
     while (!q.empty()) {
-        auto cell = q.front(); q.pop();
+        auto cell = q.front();
+        q.pop();
 
         for (auto direction : Vector2i::EightDirections()) {
             const auto neighbour = cell + direction;
@@ -277,8 +275,7 @@ Vector3 ExplorerEngine::GetPreferredDirection() const
         // }
 
         angle = getAngleFromId(_treasureCode->id);
-    }
-    else if (_exitCode.has_value()) {
+    } else if (_exitCode.has_value()) {
         angle = getAngleFromId(_exitCode->id);
     }
 
@@ -292,19 +289,22 @@ static optional<CodeDetectedEvent> GetCodeFromTressure(const optional<CodeDetect
 
     switch (treasure->id) {
     case 10: // straight
-        if (exit->id == 0) return std::nullopt;;
+        if (exit->id == 0) return std::nullopt;
+        ;
         if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 2 });
         if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 1 });
         break;
     case 11: // left
         if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
-        if (exit->id == 1) return std::nullopt;;
+        if (exit->id == 1) return std::nullopt;
+        ;
         if (exit->id == 2) return make_optional(CodeDetectedEvent { .id = 0 });
         break;
     case 12: // right
         if (exit->id == 0) return make_optional(CodeDetectedEvent { .id = 2 });
         if (exit->id == 1) return make_optional(CodeDetectedEvent { .id = 0 });
-        if (exit->id == 2) return std::nullopt;;
+        if (exit->id == 2) return std::nullopt;
+        ;
         break;
     }
 
@@ -325,8 +325,7 @@ void ExplorerEngine::Update()
         _currentTarget = ClosestOnThinnedMap(pose.position.toTf2());
         if (!_currentTarget.has_value()) break;
 
-
-        const auto [ways, visited] = GetCrossroadWays({ }, _currentTarget.value());
+        const auto [ways, visited] = GetCrossroadWays({}, _currentTarget.value());
         if (ways.size() == 1) {
             if (atDeadEnd == false) {
                 atDeadEnd = true;
@@ -337,7 +336,6 @@ void ExplorerEngine::Update()
         } else {
             atDeadEnd = false;
         }
-
 
         if (ways.size() <= 2) {
             _junctionEnterDirection = pose.forward().toTf2();
@@ -366,7 +364,6 @@ void ExplorerEngine::Update()
             _currentTarget = PickFollowingDirection(_currentTarget.value(), ways, _junctionEnterDirection, preferred);
             _inJunction = true;
         }
-
 
         const auto result = Explore(_junctionEnterDirection, _currentTarget.value());
 
@@ -416,10 +413,12 @@ void ExplorerEngine::OnAruCode(CodeDetectedEvent aruCode)
 {
     std::lock_guard lock(_mutex);
 
-    if (aruCode.id >= 10) _treasureCode = aruCode;
-    else _exitCode = aruCode;
+    if (aruCode.id >= 10)
+        _treasureCode = aruCode;
+    else
+        _exitCode = aruCode;
 
-     std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward().x << " " << aruCode.pose.forward().y << std::endl;
+    std::cout << "Aruco code detected with id: " << aruCode.id << " with direction: " << aruCode.pose.forward().x << " " << aruCode.pose.forward().y << std::endl;
 }
 
 } // namespace Manhattan::Core

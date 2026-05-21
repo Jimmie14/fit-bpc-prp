@@ -73,8 +73,8 @@ public:
         void operator++() { ++index; }
     };
 
-    [[nodiscard]] Iterator begin() const { return {this, 0}; }
-    [[nodiscard]] Iterator end() const { return {this, size()}; }
+    [[nodiscard]] Iterator begin() const { return { this, 0 }; }
+    [[nodiscard]] Iterator end() const { return { this, size() }; }
 
 private:
     toml::table _root;

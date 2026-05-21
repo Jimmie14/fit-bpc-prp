@@ -1,9 +1,9 @@
 #pragma once
 
+#include "Common/RosDeviceDriver.hpp"
 #include "LineEngine.hpp"
 #include "Networking/TcpServer.h"
 #include "OdometryEngine.hpp"
-#include "Common/RosDeviceDriver.hpp"
 
 namespace Manhattan::core {
 class UserInputDriver final : public RosDeviceDriver {

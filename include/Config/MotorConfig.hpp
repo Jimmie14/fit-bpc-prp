@@ -60,14 +60,12 @@ struct MotorControllerConfig : Configurable {
     }
 };
 
-
 struct MotorDriverConfig : Configurable {
     std::string topic;
     double deltaTime;
 
     MotorControllerConfig left;
     MotorControllerConfig right;
-
 
     void configure(const Config& config) override
     {
@@ -78,7 +76,5 @@ struct MotorDriverConfig : Configurable {
         right.configure(config["right"]);
     }
 };
-
-
 
 }

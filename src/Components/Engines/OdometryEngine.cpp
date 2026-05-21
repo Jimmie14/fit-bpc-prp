@@ -7,11 +7,10 @@ using namespace rclcpp;
 
 namespace Manhattan::core {
 
-
 OdometryEngine::OdometryEngine(const App& app)
     : RosEngine(app, "odometry")
-    , _kinematics({ })
-    , _odometry({ })
+    , _kinematics({})
+    , _odometry({})
 {
     _app.config->watch<OdometryConfig>("odometry", [this](const OdometryConfig& config) {
         _config = config;
@@ -69,10 +68,8 @@ void OdometryEngine::OnEncoders(const std_msgs::msg::UInt32MultiArray::SharedPtr
     _prevLeft = rawLeft;
     _prevRight = rawRight;
 
-
     const auto linearStep = _kinematics.ticksToLinear(dTicksLeft, dTicksRight);
     _pose = _odometry.integrate(_pose, linearStep);
-
 
     auto twist = _kinematics.forward(_kinematics.linearToAngular(linearStep));
 

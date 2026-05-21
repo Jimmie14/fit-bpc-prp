@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Nav/Grid.hpp"
 #include "Common/RosUnit.hpp"
+#include "Nav/Grid.hpp"
 
 #include <nav_msgs/msg/occupancy_grid.hpp>
 #include <rclcpp/rclcpp.hpp>

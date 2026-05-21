@@ -2,11 +2,11 @@
 
 #include "Nav.hpp"
 
+#include "Math/Pose.hpp"
 #include <geometry_msgs/msg/point.hpp>
 #include <rclcpp/rclcpp.hpp>
 #include <tf2/LinearMath/Vector3.hpp>
 #include <visualization_msgs/msg/marker.hpp>
-#include "Math/Pose.hpp"
 
 namespace Manhattan::viz::marker {
 
@@ -23,7 +23,6 @@ inline visualization_msgs::msg::Marker clear(const std::string& frame_id)
 
     return marker;
 }
-
 
 inline visualization_msgs::msg::Marker direction(
     const tf2::Vector3& start,
@@ -129,11 +128,10 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
     marker.color.b = 1.0f;
     marker.color.a = 1.0f;
 
-    constexpr double linear_scale  = 0.5;
+    constexpr double linear_scale = 0.5;
     constexpr double angular_scale = 0.4;
 
-    auto make_point = [](double x, double y)
-    {
+    auto make_point = [](double x, double y) {
         geometry_msgs::msg::Point p;
         p.x = x;
         p.y = y;
@@ -150,8 +148,7 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
 
     const double linear_mag = std::abs(twist.linear);
 
-    if (linear_mag > 1e-3)
-    {
+    if (linear_mag > 1e-3) {
         const double dir = (twist.linear >= 0.0) ? 1.0 : -1.0;
 
         const double len = linear_mag * linear_scale;
@@ -167,14 +164,13 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
         marker.points.push_back(make_point(ex, ey));
 
         // Arrow head only if strong enough
-        if (linear_mag > 0.15)
-        {
-            const double head_len   = std::min(0.25, len * 0.35);
+        if (linear_mag > 0.15) {
+            const double head_len = std::min(0.25, len * 0.35);
             const double head_width = head_len * 0.6;
 
             // perpendicular
             const double nx = -fy;
-            const double ny =  fx;
+            const double ny = fx;
 
             const double bx = ex - fx * head_len * dir;
             const double by = ey - fy * head_len * dir;
@@ -201,28 +197,21 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
 
     const double angular_mag = std::abs(twist.angular);
 
-    if (angular_mag > 1e-3)
-    {
+    if (angular_mag > 1e-3) {
         const double sign = (twist.angular >= 0.0) ? 1.0 : -1.0;
 
         // Radius grows with angular velocity
         const double radius = 0.25 + angular_mag * angular_scale;
 
         // Arc angle also grows slightly
-        const double arc_angle =
-            std::min(M_PI * 1.7, angular_mag * 1.2 + M_PI * 0.4);
+        const double arc_angle = std::min(M_PI * 1.7, angular_mag * 1.2 + M_PI * 0.4);
 
         constexpr int segments = 24;
 
-        for (int i = 0; i < segments; ++i)
-        {
-            const double t0 =
-                pose.theta + sign * (-arc_angle * 0.5 +
-                arc_angle * (double(i) / segments));
+        for (int i = 0; i < segments; ++i) {
+            const double t0 = pose.theta + sign * (-arc_angle * 0.5 + arc_angle * (double(i) / segments));
 
-            const double t1 =
-                pose.theta + sign * (-arc_angle * 0.5 +
-                arc_angle * (double(i + 1) / segments));
+            const double t1 = pose.theta + sign * (-arc_angle * 0.5 + arc_angle * (double(i + 1) / segments));
 
             const double x0 = px + std::cos(t0) * radius;
             const double y0 = py + std::sin(t0) * radius;
@@ -235,27 +224,22 @@ inline visualization_msgs::msg::Marker twist(const math::Pose& pose, const math:
         }
 
         // Arc arrow head
-        const double end_theta =
-            pose.theta + sign * (arc_angle * 0.5);
+        const double end_theta = pose.theta + sign * (arc_angle * 0.5);
 
         const double ex = px + std::cos(end_theta) * radius;
         const double ey = py + std::sin(end_theta) * radius;
 
         // tangent direction
         const double tx = -std::sin(end_theta) * sign;
-        const double ty =  std::cos(end_theta) * sign;
+        const double ty = std::cos(end_theta) * sign;
 
         const double head_len = 0.12;
 
-        const double left_x =
-            ex - tx * head_len + (-ty) * head_len * 0.6;
-        const double left_y =
-            ey - ty * head_len + ( tx) * head_len * 0.6;
+        const double left_x = ex - tx * head_len + (-ty) * head_len * 0.6;
+        const double left_y = ey - ty * head_len + (tx)*head_len * 0.6;
 
-        const double right_x =
-            ex - tx * head_len - (-ty) * head_len * 0.6;
-        const double right_y =
-            ey - ty * head_len - ( tx) * head_len * 0.6;
+        const double right_x = ex - tx * head_len - (-ty) * head_len * 0.6;
+        const double right_y = ey - ty * head_len - (tx)*head_len * 0.6;
 
         marker.points.push_back(make_point(ex, ey));
         marker.points.push_back(make_point(left_x, left_y));
@@ -288,8 +272,7 @@ inline visualization_msgs::msg::Marker path(const vector<math::Vector2>& points,
 
     marker.points.reserve(points.size() * 2);
 
-    for (size_t i = 0; i + 1 < points.size(); ++i)
-    {
+    for (size_t i = 0; i + 1 < points.size(); ++i) {
         marker.points.push_back(toPoint(points[i].toTf2()));
         marker.points.push_back(toPoint(points[i + 1].toTf2()));
     }
@@ -314,12 +297,10 @@ inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a = 1.0f)
     return color;
 }
 
-
 class MarkerArrayBuilder {
 public:
     visualization_msgs::msg::MarkerArray array;
     std_msgs::msg::ColorRGBA color;
-
 
     int GetNextMarkerId()
     {
@@ -333,10 +314,8 @@ public:
         array.markers.push_back(marker);
     }
 
-
 private:
     int _nextId = 0;
-
 };
 
 } // namespace viz

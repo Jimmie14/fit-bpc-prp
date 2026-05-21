@@ -15,7 +15,6 @@ App::App()
 {
     _executor->add_node(config);
 
-
     _tcpServer = make_shared<TcpServer>(12345);
 }
 

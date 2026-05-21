@@ -19,19 +19,15 @@ public:
         , _height(height)
         , _resolution(resolution)
     {
-
     }
 
-
-    template<typename T>
+    template <typename T>
     explicit GridMap(const Grid<T>& grid)
         : _width(grid.width())
         , _height(grid.height())
         , _resolution(grid.resolution())
     {
-
     }
-
 
     [[nodiscard]] bool empty() const
     {
@@ -99,4 +95,3 @@ private:
     float _resolution;
 };
 }
-

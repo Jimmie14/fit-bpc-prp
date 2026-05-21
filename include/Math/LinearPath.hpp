@@ -47,7 +47,7 @@ public:
     [[nodiscard]] Vector2 GetPointAtDistance(double distance) const
     {
         if (!HasPath())
-            return Vector2 {0, 0};
+            return Vector2 { 0, 0 };
 
         distance = std::max(0.0, std::min(_totalLength, distance));
 

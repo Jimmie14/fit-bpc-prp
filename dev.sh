@@ -31,7 +31,15 @@ run() {
 
 format() {
     # Find all C/C++ source/header files and format them
-    find . \( -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' \) -exec clang-format -i -style=file {} +
+    find . \( -path './src/*' -o -path './include/*' \) \( -name '*.cpp' -o -name '*.hpp' -o -name '*.c' -o -name '*.h' \) -print0 |
+    while IFS= read -r -d '' file; do
+        echo "Formatting $file"
+        clang-format -i -style=file "$file" || {
+            echo "Failed on $file"
+            return 1
+        }
+    done
+
     echo "Formatting complete."
 }
 

@@ -1,10 +1,10 @@
 #pragma once
 
 #include "ArucoDetectionEngine.hpp"
+#include "Common/RosEngine.hpp"
 #include "MappingEngine.hpp"
 #include "Nav/GridMap.hpp"
 #include "NavigatorEngine.hpp"
-#include "Common/RosEngine.hpp"
 #include "Viz/Grid.hpp"
 
 #include <memory>
@@ -64,7 +64,7 @@ private:
     TimerBase::SharedPtr _timer;
     TimerBase::SharedPtr _publishTimer;
 
-    ExplorerResult Explore(const Vector3 &inDirection, Vector2i startCell);
+    ExplorerResult Explore(const Vector3& inDirection, Vector2i startCell);
 
     std::optional<Vector2i> PickFollowingDirection(const Vector2i& current, const vector<Vector2i>& ways, const Vector3& forward, const Vector3& preferred) const;
 

@@ -8,9 +8,9 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "App.hpp"
 #include "Math/PoseMatcher.hpp"
 #include "Math/Vector2.hpp"
-#include "App.hpp"
 #include "OccupancyGrid.hpp"
 
 namespace Manhattan::core {
@@ -98,7 +98,6 @@ private:
     Twist _twist = Twist::zero();
 
     bool _reverse = false;
-
 
     PoseMatchResult _activeHypothesis;
     std::vector<PoseMatchResult> _hypotheses;

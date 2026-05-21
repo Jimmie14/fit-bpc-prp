@@ -47,7 +47,7 @@ private:
 
     Pose _lastPose;
     GridMap _map;
-    vector<Code> _codes = { };
+    vector<Code> _codes = {};
 
     cv::Mat _cameraMatrix;
     cv::Mat _distanceCoefficients;
@@ -62,8 +62,5 @@ private:
     void UpdateOrCreateCode(const int id, const std::pair<int, int>& position, const float rotation);
 
     void Publish() const;
-
-
-
 };
 }

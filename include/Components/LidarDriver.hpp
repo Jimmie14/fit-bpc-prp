@@ -2,8 +2,8 @@
 
 #include <sensor_msgs/msg/laser_scan.hpp>
 
-#include "Math/Vector2.hpp"
 #include "Common/RosDeviceDriver.hpp"
+#include "Math/Vector2.hpp"
 
 namespace Manhattan::core {
 

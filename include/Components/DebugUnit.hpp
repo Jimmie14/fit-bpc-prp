@@ -7,15 +7,16 @@
 
 namespace Manhattan::core {
 
-class DebugUnit : public RosUnit
-{
+class DebugUnit : public RosUnit {
 public:
-    explicit DebugUnit(const App& app) : RosUnit(app, "debug")
+    explicit DebugUnit(const App& app)
+        : RosUnit(app, "debug")
     {
         app.events->Subscribe<messages::RobotPoseEvent>([&](const auto& event) {
             std::cout << "twist  : " << event.twist << std::endl;
         });
     }
+
 protected:
     void OnEnable() override
     {
@@ -24,13 +25,9 @@ protected:
 
     void OnDisable() override
     {
-
     }
 
 private:
-
-
 };
 
 }
-

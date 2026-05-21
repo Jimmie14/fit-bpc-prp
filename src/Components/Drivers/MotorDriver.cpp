@@ -1,8 +1,8 @@
 #include "Components/MotorDriver.hpp"
 
-#include "Messages/RobotMode.hpp"
 #include "App.hpp"
 #include "Components/OdometryEngine.hpp"
+#include "Messages/RobotMode.hpp"
 #include "Pid.hpp"
 
 using namespace std;
@@ -16,7 +16,6 @@ MotorController::MotorController(const config::MotorControllerConfig& config)
     , _pid(config.kp, config.ki, config.kd)
     , _calibrationSolver(config.calibration)
 {
-
 }
 
 double MotorController::step(const double desired, const double dt)
@@ -50,8 +49,8 @@ double MotorController::saturate(const double& value) const
 
 MotorDriver::MotorDriver(const App& app)
     : RosDeviceDriver(app, "motor")
-    , _left({ })
-    , _right({ })
+    , _left({})
+    , _right({})
 {
     _app.config->watch<MotorDriverConfig>("motors", [this](const MotorDriverConfig& config) {
         _config = config;

@@ -18,7 +18,6 @@
 #include "Components/OdometryEngine.hpp"
 #include "Components/UserInputDriver.hpp"
 
-
 using namespace std;
 using namespace Manhattan;
 
@@ -27,7 +26,6 @@ int main(const int argc, char* argv[])
     init(argc, argv);
 
     const auto app = make_shared<App>();
-
 
     // app->addComponent<ImuDriver>()->Enable();
     app->addComponent<LidarDriver>()->Enable();
@@ -49,8 +47,8 @@ int main(const int argc, char* argv[])
     // app->addComponent<MazeGraphEngine>()->Enable();
     // app->addComponent<ManualPathPlannerEngine>()->Enable();
 
-    //app->addComponent<MotorCalibrationUnit>()->Enable();
-    // app->addComponent<DebugUnit>()->Enable();
+    // app->addComponent<MotorCalibrationUnit>()->Enable();
+    //  app->addComponent<DebugUnit>()->Enable();
 
     app->run();
 

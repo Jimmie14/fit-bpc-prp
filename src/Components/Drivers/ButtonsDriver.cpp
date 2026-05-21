@@ -8,7 +8,6 @@
 
 constexpr auto buttonsTopic = "/bpc_prp_robot/buttons";
 
-
 namespace Manhattan::core {
 
 ButtonsDriver::ButtonsDriver(const App& app)
@@ -32,21 +31,21 @@ void ButtonsDriver::OnButtons(const std_msgs::msg::UInt8& msg)
 {
     const auto index = static_cast<int>(msg.data);
     if (index == 0) {
-        _app.events->Publish(RobotResetEvent { });
+        _app.events->Publish(RobotResetEvent {});
     }
 
     if (index == 1) {
         const auto oldMode = _mode;
         _mode.reverse = !_mode.reverse;
 
-        _app.events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode});
+        _app.events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode });
     }
 
     if (index == 2) {
         const auto oldMode = _mode;
         _mode.motorOff = !_mode.motorOff;
 
-        _app.events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode});
+        _app.events->Publish(RobotModeChangeEvent { .oldMode = oldMode, .newMode = _mode });
     }
 }
 

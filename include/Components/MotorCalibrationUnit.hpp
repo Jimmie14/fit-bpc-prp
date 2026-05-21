@@ -1,11 +1,11 @@
 #pragma once
 
 #include "Common/RosUnit.hpp"
-#include "std_msgs/msg/u_int8_multi_array.hpp"
-#include "std_msgs/msg/u_int32_multi_array.hpp"
-#include "Kinematics/Kinematics.hpp"
-#include "Config/OdometryConfig.hpp"
 #include "Config/MotorConfig.hpp"
+#include "Config/OdometryConfig.hpp"
+#include "Kinematics/Kinematics.hpp"
+#include "std_msgs/msg/u_int32_multi_array.hpp"
+#include "std_msgs/msg/u_int8_multi_array.hpp"
 
 #include <std_msgs/msg/u_int8.hpp>
 

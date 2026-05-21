@@ -28,7 +28,6 @@ struct GraphPosition {
         , costToStart(costToStart)
         , costToEnd(costToEnd)
     {
-
     }
 
     NodeId from = 0;
@@ -40,7 +39,6 @@ struct GraphPosition {
     int costToEnd = 0;
 };
 
-
 class Node {
 public:
     Node() = default;
@@ -49,7 +47,6 @@ public:
         : _id(id)
         , _cell(cell)
     {
-
     }
 
     Attributes attributes;
@@ -64,7 +61,6 @@ private:
 
 class Edge {
 public:
-
     Edge() = default;
 
     Edge(const NodeId from, const NodeId to, const vector<Vector2i>& path)
@@ -72,7 +68,6 @@ public:
         , _to(to)
         , _path(path)
     {
-
     }
 
     Attributes attributes;
@@ -170,7 +165,7 @@ public:
 
     void connect(NodeId from, NodeId to, const vector<Vector2i>& path)
     {
-        _edges[{from, to}] = Edge(from, to, path);
+        _edges[{ from, to }] = Edge(from, to, path);
         _toEdges[from].push_back(to);
         _toEdges[to].push_back(from);
     }
@@ -201,7 +196,6 @@ public:
         if (neighbours.empty()) return nullopt;
 
         if (neighbours.size() == 1) return neighbours.front();
-
 
         // todo: finish implementation
         // const auto p1 = getEdge(from, current).path().
@@ -268,10 +262,9 @@ public:
             int cost;
         };
 
-        auto makeCandidate = [&](NodeId a, NodeId b, const int baseCost) -> Candidate
-        {
+        auto makeCandidate = [&](NodeId a, NodeId b, const int baseCost) -> Candidate {
             auto p = calculatePath(a, b);
-            if (!p.has_value()) return {a, b, std::nullopt, INT_MAX};
+            if (!p.has_value()) return { a, b, std::nullopt, INT_MAX };
 
             const int cost = baseCost + static_cast<int>(p.value().size());
 
@@ -280,15 +273,14 @@ public:
 
         vector<Candidate> candidates;
 
-        candidates.push_back(makeCandidate(start.from, end.from,start.costToStart + end.costToStart));
+        candidates.push_back(makeCandidate(start.from, end.from, start.costToStart + end.costToStart));
         candidates.push_back(makeCandidate(start.from, end.to, start.costToStart + end.costToEnd));
         candidates.push_back(makeCandidate(start.to, end.from, start.costToEnd + end.costToStart));
         candidates.push_back(makeCandidate(start.to, end.to, start.costToEnd + end.costToEnd));
 
         const Candidate* best = nullptr;
 
-        for (const auto& c : candidates)
-        {
+        for (const auto& c : candidates) {
             if (!c.path.has_value()) continue;
 
             if (!best || c.cost < best->cost) best = &c;
@@ -301,11 +293,9 @@ public:
         auto startPath = getPathTo(start, best->from);
         path.insert(path.begin(), startPath.begin(), startPath.end());
 
-
         auto endPath = getPathTo(end, best->to);
         ranges::reverse(endPath);
         path.insert(path.end(), endPath.begin(), endPath.end());
-
 
         return path;
     }
@@ -315,7 +305,8 @@ public:
         std::priority_queue<
             std::pair<int, NodeId>,
             std::vector<std::pair<int, NodeId>>,
-            std::greater<>> open;
+            std::greater<>>
+            open;
 
         unordered_map<NodeId, NodeId> previous;
 
@@ -324,7 +315,8 @@ public:
         while (true) {
             if (open.empty()) return nullopt;
 
-            const auto [cost, current] = open.top(); open.pop();
+            const auto [cost, current] = open.top();
+            open.pop();
 
             if (current == end) break;
 
@@ -345,7 +337,7 @@ public:
 
         vector<Vector2i> path;
 
-        for (auto current = end; current != start; ) {
+        for (auto current = end; current != start;) {
             auto next = previous[current];
 
             const auto& edge = getEdge(current, next);
@@ -424,8 +416,5 @@ private:
         return result;
     }
 };
-
-
-
 
 }

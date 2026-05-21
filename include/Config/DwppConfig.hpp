@@ -2,8 +2,7 @@
 
 #include "Configurable.hpp"
 
-namespace Manhattan::config
-{
+namespace Manhattan::config {
 struct DwppConfig : Configurable {
     double deltaTime;
     double lookaheadDistance;

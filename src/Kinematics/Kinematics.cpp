@@ -69,7 +69,6 @@ WheelAngularVelocity DifferentialDriveKinematics::linearToAngular(const WheelLin
 DifferentialDriveOdometry::DifferentialDriveOdometry(const DifferentialDriveGeometry& geometry)
     : _wheelBase(geometry.wheelBase)
 {
-
 }
 
 Pose DifferentialDriveOdometry::integrate(Pose pose, const WheelLinearVelocity& delta) const

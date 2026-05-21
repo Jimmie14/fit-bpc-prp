@@ -14,10 +14,9 @@ struct WheelAngularVelocity {
     WheelAngularVelocity() = default;
 
     WheelAngularVelocity(const double left, const double right)
-    : left(left)
-    , right(right)
+        : left(left)
+        , right(right)
     {
-
     }
 };
 
@@ -31,7 +30,6 @@ struct WheelLinearVelocity {
         : left(left)
         , right(right)
     {
-
     }
 };
 

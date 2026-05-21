@@ -16,7 +16,6 @@ static inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a 
     return color;
 }
 
-
 const std_msgs::msg::ColorRGBA white = color(1.0f, 1.0f, 1.0f);
 
 const std_msgs::msg::ColorRGBA red = color(1.0f, 0.0f, 0.0f);
@@ -25,10 +24,6 @@ const std_msgs::msg::ColorRGBA green = color(0.0f, 1.0f, 0.0f);
 
 const std_msgs::msg::ColorRGBA blue = color(0.0f, 0.0f, 1.0f);
 
-
-
 const std_msgs::msg::ColorRGBA cyan = color(0.0f, 1.0f, 1.0f);
 
-
 }
-

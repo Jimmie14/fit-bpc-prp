@@ -32,5 +32,4 @@ inline geometry_msgs::msg::Pose toPose(const tf2::Vector3& position, const float
     return pose;
 }
 
-
 }

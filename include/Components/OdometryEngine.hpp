@@ -35,7 +35,6 @@ private:
 
     void publishOdometry() const;
 
-
     DifferentialDriveKinematics _kinematics;
     DifferentialDriveOdometry _odometry;
 

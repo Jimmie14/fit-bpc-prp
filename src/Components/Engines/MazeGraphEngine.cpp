@@ -3,8 +3,8 @@
 #include "App.hpp"
 #include "Components/MapThinningUnit.hpp"
 #include "Math/Vec3.hpp"
-#include "Viz/Marker.hpp"
 #include "Messages/Nav.hpp"
+#include "Viz/Marker.hpp"
 
 #include <queue>
 
@@ -129,7 +129,8 @@ static int getCommonPathLength(const vector<Vector2i>& path1, const vector<Vecto
     return length;
 }
 
-static void filterSimilarPaths(vector<vector<Vector2i>>& ways) {
+static void filterSimilarPaths(vector<vector<Vector2i>>& ways)
+{
     vector removed(ways.size(), false);
 
     for (auto i = 0; i < ways.size(); i++) {
@@ -216,7 +217,7 @@ vector<vector<Vector2i>> MazeGraphEngine::followPath(set<Vector2i>& visited, vec
         if (endPath != ways.end()) {
             path.insert(path.end(), endPath->begin(), endPath->end());
             visited.insert(endPath->begin(), endPath->end());
-            return { };
+            return {};
         }
 
         const auto foundCrossroad = ranges::any_of(ways, [](const auto& w) { return w.size() > 5; });
@@ -233,7 +234,7 @@ vector<vector<Vector2i>> MazeGraphEngine::followPath(set<Vector2i>& visited, vec
 
     path.insert(path.end(), end);
 
-    return { };
+    return {};
 }
 
 vector<Vector2i> MazeGraphEngine::pathToClosestNode(const Vector2i& start, const int radius)
@@ -253,7 +254,6 @@ vector<Vector2i> MazeGraphEngine::pathToClosestNode(const Vector2i& start, const
 
                 if (_graph.containsNode(frontier)) return way;
 
-
                 visited.insert(neighbour);
 
                 auto newWay = way;
@@ -270,7 +270,7 @@ vector<Vector2i> MazeGraphEngine::pathToClosestNode(const Vector2i& start, const
         if (isOnePathTooLong) break;
     }
 
-    return { };
+    return {};
 }
 
 static void clearVisitedAround(const Grid<bool>& skeleton, set<Vector2i>& visited, const Vector2i& start, const int radius)
@@ -294,7 +294,6 @@ static void clearVisitedAround(const Grid<bool>& skeleton, set<Vector2i>& visite
         nextFrontiers.clear();
     }
 }
-
 
 Vector2i MazeGraphEngine::findStartCandidate() const
 {
@@ -348,7 +347,8 @@ void MazeGraphEngine::update()
     queue.push({ startNodeId, { start } });
 
     while (!queue.empty()) {
-        auto [startNode, path] = queue.front(); queue.pop();
+        auto [startNode, path] = queue.front();
+        queue.pop();
 
         auto ways = followPath(visited, path);
         if (path.size() <= 2) continue;
@@ -402,7 +402,6 @@ void MazeGraphEngine::publish() const
 
         markers.add(viz::marker::path(worldPath, "map"));
     }
-
 
     _debugPublisher->publish(markers.array);
 }

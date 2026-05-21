@@ -1,10 +1,10 @@
 #pragma once
 
-#include "Math/LinearPath.hpp"
-#include "Kinematics/Kinematics.hpp"
-#include "Math/Pose.hpp"
 #include "Common/RosEngine.hpp"
 #include "Config/DwppConfig.hpp"
+#include "Kinematics/Kinematics.hpp"
+#include "Math/LinearPath.hpp"
+#include "Math/Pose.hpp"
 
 #include <visualization_msgs/msg/marker_array.hpp>
 
@@ -17,7 +17,6 @@ public:
     explicit DwppNavigatorEngine(const App& app);
 
 protected:
-
     void OnEnable() override;
     void OnDisable() override;
 

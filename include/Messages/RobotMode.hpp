@@ -15,13 +15,10 @@ struct RobotModeChangeEvent {
     RobotMode newMode;
 };
 
-
 struct RobotResetEvent {
-
 };
 
 struct RobotEnvironmentChangeEvent {
-
 };
 
 struct MotorCommandEvent {

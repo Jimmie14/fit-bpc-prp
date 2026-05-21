@@ -16,9 +16,7 @@ public:
     explicit MazeGraphEngine(const App& app);
 
 protected:
-
     TimerBase::SharedPtr _timer;
-
 
     void OnEnable() override;
     void OnDisable() override;
@@ -30,7 +28,6 @@ private:
     nav::Grid<bool> _skeleton;
     nav::GridMap _map;
 
-
     Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _debugPublisher;
 
     vector<vector<Vector2i>> followPath(set<Vector2i>& visited, vector<Vector2i>& path);
@@ -40,7 +37,6 @@ private:
     Vector2i findStartCandidate() const;
 
     nav::NodeId getNodeId(const nav::MazeGraph& oldGraph, const Vector2i& cell);
-
 
     void update();
     void publish() const;

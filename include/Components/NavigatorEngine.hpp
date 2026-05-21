@@ -4,11 +4,11 @@
 #include <rclcpp/rclcpp.hpp>
 #include <visualization_msgs/msg/marker_array.hpp>
 
-#include "Math/LinearPath.hpp"
+#include "Common/RosEngine.hpp"
 #include "MappingEngine.hpp"
+#include "Math/LinearPath.hpp"
 #include "MotorDriver.hpp"
 #include "Pid.hpp"
-#include "Common/RosEngine.hpp"
 
 namespace Manhattan::core {
 class NavigatorEngine final : public RosEngine {

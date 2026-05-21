@@ -16,13 +16,12 @@ protected:
     void OnDisable() override;
 
 private:
-
     mutex _lock;
 
     Subscription<geometry_msgs::msg::PointStamped>::SharedPtr _pointSubscription;
 
     math::Pose _pose;
-    nav::GridMap _map{};
+    nav::GridMap _map {};
     nav::MazeGraph _graph;
     std::optional<nav::GraphPosition> _target;
 

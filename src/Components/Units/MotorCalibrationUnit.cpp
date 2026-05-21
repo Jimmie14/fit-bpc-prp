@@ -46,8 +46,10 @@ double median(std::vector<double> values)
 
 double normalizeAngle(double angle)
 {
-    while (angle > M_PI) angle -= 2.0 * M_PI;
-    while (angle < -M_PI) angle += 2.0 * M_PI;
+    while (angle > M_PI)
+        angle -= 2.0 * M_PI;
+    while (angle < -M_PI)
+        angle += 2.0 * M_PI;
     return angle;
 }
 
@@ -174,7 +176,6 @@ void MotorCalibrationUnit::advancePhase()
         _phase = Phase::Done;
         setMotorPwm(0, 0);
 
-
         std::cout << "--- left ---" << std::endl;
         std::cout << tableToToml(_leftTable) << std::endl;
 
@@ -207,7 +208,6 @@ std::string MotorCalibrationUnit::tableToToml(std::vector<CalibrationPoint>& tab
 
     return result.str();
 }
-
 
 void MotorCalibrationUnit::update()
 {

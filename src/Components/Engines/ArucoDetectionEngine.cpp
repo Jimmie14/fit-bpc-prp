@@ -86,7 +86,6 @@ void ArucoDetectionEngine::OnMap(const nav_msgs::msg::OccupancyGrid::SharedPtr& 
     _mapSubscription.reset();
 }
 
-
 void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::SharedPtr& msg)
 {
     if (_map.width() == 0) return;
@@ -152,7 +151,8 @@ void ArucoDetectionEngine::OnImage(const sensor_msgs::msg::CompressedImage::Shar
     cv::flip(frame, frame, -1);
 
     const auto outMessage = cv_bridge::CvImage(
-        msg->header, "bgr8", frame).toImageMsg();
+        msg->header, "bgr8", frame)
+                                .toImageMsg();
 
     _debugPublisher->publish(*outMessage);
 }

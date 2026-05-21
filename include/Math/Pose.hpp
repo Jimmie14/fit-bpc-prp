@@ -49,14 +49,12 @@ struct Pose {
         : position(Vector2::zero())
         , theta(0.0)
     {
-
     }
 
     explicit Pose(const Vector2 position, const double theta)
         : position(position)
         , theta(theta)
     {
-
     }
 
     Pose operator-(const Pose& other) const

@@ -1,7 +1,7 @@
 #include "Components/LidarDriver.hpp"
 
-#include "Math/Vector2.hpp"
 #include "App.hpp"
+#include "Math/Vector2.hpp"
 
 namespace Manhattan::core {
 constexpr auto LIDAR_TOPIC = "/bpc_prp_robot/lidar";

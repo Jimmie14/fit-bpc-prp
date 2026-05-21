@@ -19,7 +19,8 @@ class MotorCalibrationSolver {
 public:
     explicit MotorCalibrationSolver(const config::MotorCalibrationConfig& config)
         : _table(config.table)
-    {}
+    {
+    }
 
     [[nodiscard]] uint8_t angularToPwm(const double targetAngular) const
     {
@@ -59,7 +60,6 @@ private:
     std::vector<config::MotorCalibrationConfig::CalibrationPoint> _table;
 };
 
-
 class MotorController {
 public:
     explicit MotorController(const config::MotorControllerConfig& config);
@@ -69,6 +69,7 @@ public:
     [[nodiscard]] uint8_t angularToPwm(double angular) const;
 
     void reset();
+
 private:
     config::MotorCharacteristics _characteristics;
     MotorCalibrationSolver _calibrationSolver;
@@ -89,17 +90,18 @@ protected:
     void OnEnable() override;
 
     void OnDisable() override;
+
 private:
     Publisher<std_msgs::msg::UInt8MultiArray>::SharedPtr _publisher;
 
     TimerBase::SharedPtr _timer;
     std_msgs::msg::UInt8MultiArray _msg;
-    RobotMode _mode = { };
+    RobotMode _mode = {};
 
-    kinematics::WheelAngularVelocity _desired = { };
+    kinematics::WheelAngularVelocity _desired = {};
 
     config::MotorDriverConfig _config;
-    kinematics::DifferentialDriveKinematics _kinematics = kinematics::DifferentialDriveKinematics({ });
+    kinematics::DifferentialDriveKinematics _kinematics = kinematics::DifferentialDriveKinematics({});
 
     MotorController _left;
     MotorController _right;

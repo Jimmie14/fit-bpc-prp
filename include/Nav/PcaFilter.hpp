@@ -4,16 +4,14 @@
 #include <stdexcept>
 #include <vector>
 
-class PcaFitter
-{
+class PcaFitter {
 public:
-    struct FittedLine
-    {
-        Manhattan::math::Vector2 Point;      // Mean of the data
-        Manhattan::math::Vector2 Direction;  // Principal direction
-        Manhattan::math::Vector2 Normal;     // Perpendicular to direction
-        float Variance;     // Variance along principal direction
-        int PointCount;     // Number of fitted points
+    struct FittedLine {
+        Manhattan::math::Vector2 Point; // Mean of the data
+        Manhattan::math::Vector2 Direction; // Principal direction
+        Manhattan::math::Vector2 Normal; // Perpendicular to direction
+        float Variance; // Variance along principal direction
+        int PointCount; // Number of fitted points
     };
 
     static FittedLine FitLine(const std::vector<Manhattan::math::Vector2>& points)
@@ -24,8 +22,7 @@ public:
         // Calculate mean
         Manhattan::math::Vector2 mean(0.0f, 0.0f);
 
-        for (const auto& point : points)
-        {
+        for (const auto& point : points) {
             mean.x += point.x;
             mean.y += point.y;
         }
@@ -38,8 +35,7 @@ public:
         float cov01 = 0.0f;
         float cov11 = 0.0f;
 
-        for (const auto& point : points)
-        {
+        for (const auto& point : points) {
             Manhattan::math::Vector2 diff(point.x - mean.x, point.y - mean.y);
 
             cov00 += diff.x * diff.x;

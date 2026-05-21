@@ -1,7 +1,7 @@
 #pragma once
 
-#include "Messages/RobotMode.hpp"
 #include "Common/RosDeviceDriver.hpp"
+#include "Messages/RobotMode.hpp"
 #include <rclcpp/rclcpp.hpp>
 #include <std_msgs/msg/u_int8.hpp>
 

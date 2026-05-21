@@ -1,9 +1,9 @@
 #include "Components/DwppNavigatorEngine.hpp"
 
 #include "App.hpp"
+#include "Components/OdometryEngine.hpp"
 #include "Messages/Nav.hpp"
 #include "Messages/RobotMode.hpp"
-#include "Components/OdometryEngine.hpp"
 #include "Viz/Marker.hpp"
 
 namespace Manhattan::core {
@@ -12,8 +12,8 @@ using namespace Manhattan::messages;
 
 DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
     : RosEngine(app, "navigator")
-    , _kinematics({ })
-    , _odometry({ })
+    , _kinematics({})
+    , _odometry({})
 {
     _app.config->watch<DwppConfig>("navigation.dwpp", [this](const DwppConfig& config) {
         _config = config;
@@ -24,7 +24,6 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
         _odometry = DifferentialDriveOdometry(geometry);
     });
 
-
     _app.events->Subscribe<RobotEnvironmentChangeEvent>([this](const auto& _) {
         std::lock_guard guard(_lock);
 
@@ -32,7 +31,6 @@ DwppNavigatorEngine::DwppNavigatorEngine(const App& app)
     });
 
     _app.events->Subscribe<RobotFollowPathEvent>([this](const auto& event) {
-
         vector<Vector2> points;
 
         for (const auto p : event.path) {
@@ -118,8 +116,7 @@ void DwppNavigatorEngine::Update()
 
     std::cout << "twist  : " << bestTwist << std::endl;
     _app.events->Publish(MotorCommandEvent {
-        .twist = bestTwist
-    });
+        .twist = bestTwist });
 }
 
 double DwppNavigatorEngine::Evaluate(const Twist& twist)
@@ -162,8 +159,7 @@ double DwppNavigatorEngine::Evaluate(const Twist& twist)
     headingError /= time;
     progressReward /= time;
 
-    const auto score =
-        + _config.progressRewardWeight * progressReward
+    const auto score = +_config.progressRewardWeight * progressReward
         - _config.pathErrorCostWeight * pathError
         - _config.headingErrorCostWeight * headingError;
 
@@ -188,21 +184,18 @@ void DwppNavigatorEngine::PublishDebug()
 
     builder.add(viz::marker::twist(_pose, _twist, "map"));
 
-    if (!_debugSimulations.empty())
-    {
+    if (!_debugSimulations.empty()) {
         double minScore = std::numeric_limits<double>::max();
         double maxScore = std::numeric_limits<double>::lowest();
 
-        for (const auto& error : _debugSimulations | views::values)
-        {
+        for (const auto& error : _debugSimulations | views::values) {
             minScore = std::min(minScore, error);
             maxScore = std::max(maxScore, error);
         }
 
         const double range = std::max(1e-6, maxScore - minScore);
 
-        for (const auto& [point, score] : _debugSimulations)
-        {
+        for (const auto& [point, score] : _debugSimulations) {
             const double t = (maxScore - score) / range;
 
             marker = viz::marker::point(point, "map");

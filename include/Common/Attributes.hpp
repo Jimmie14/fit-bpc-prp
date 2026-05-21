@@ -13,7 +13,6 @@ class Attributes {
 public:
     Attributes() = default;
 
-
     template <typename T>
     void set(const std::string& key, T value)
     {

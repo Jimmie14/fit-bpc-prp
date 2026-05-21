@@ -1,6 +1,5 @@
 #include "Components/MazeEngine.hpp"
 
-
 #include "Nav/PcaFilter.hpp"
 #include "Viz/Color.hpp"
 #include "Viz/Grid.hpp"
@@ -39,8 +38,10 @@ constexpr float TURN_D = 0.01f;
 
 static float NormalizeAngle(float angle)
 {
-    while (angle > M_PI) angle -= 2.f * M_PI;
-    while (angle < -M_PI) angle += 2.f * M_PI;
+    while (angle > M_PI)
+        angle -= 2.f * M_PI;
+    while (angle < -M_PI)
+        angle += 2.f * M_PI;
 
     return angle;
 }
@@ -71,7 +72,8 @@ MazeEngine::MazeEngine(const App& app)
     });
 }
 
-void MazeEngine::OnEnable() {
+void MazeEngine::OnEnable()
+{
     _initialTimer = create_wall_timer(3s, [this] {
         _lastUpdate = std::chrono::steady_clock::now();
         _timer = create_wall_timer(10ms, [this] { Update(); });
@@ -81,43 +83,44 @@ void MazeEngine::OnEnable() {
     _publisherTimer = create_wall_timer(100ms, [this] {
         publishDebug();
         publishLeds();
-        //PublishHeading();
+        // PublishHeading();
     });
 }
 
-void MazeEngine::OnDisable() {
+void MazeEngine::OnDisable()
+{
     _timer.reset();
     _initialTimer.reset();
     _publisherTimer.reset();
 }
 
-void MazeEngine::Update() {
+void MazeEngine::Update()
+{
     auto now = std::chrono::steady_clock::now();
     _dt = duration<float>(now - _lastUpdate).count();
     _lastUpdate = now;
 
-    switch (_state)
-    {
+    switch (_state) {
     case NavState::FOLLOW_CORRIDOR:
-            FollowCorridor();
-            break;
+        FollowCorridor();
+        break;
 
-        case NavState::TURNING:
-            ExecuteTurnState();
-            break;
+    case NavState::TURNING:
+        ExecuteTurnState();
+        break;
 
-        case NavState::RECENTER:
-            RecenterState();
-            break;
+    case NavState::RECENTER:
+        RecenterState();
+        break;
 
-        default:
-            break;
+    default:
+        break;
     }
 }
 
 void MazeEngine::FollowCorridor()
 {
-    _rays = { };
+    _rays = {};
 
     CalculateWalls();
 
@@ -146,9 +149,7 @@ void MazeEngine::FollowCorridor()
     _app.events->Publish(MotorCommandEvent {
         Twist {
             NORMAL_SPEED * speed * speed,
-            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)
-        }
-    });
+            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR) } });
 }
 
 bool MazeEngine::CalculateWalls()
@@ -227,27 +228,26 @@ void MazeEngine::PickDirection()
 
     const auto pose = _mapping->CurrentPose();
 
-    switch (ChooseDirection(openLeft, openFront, openRight))
-    {
-        case TurnDirection::LEFT:
-            _targetRotation = static_cast<float>(pose.theta + M_PI_2);
-            // std::cout << "Turning left" << std::endl;
-            break;
+    switch (ChooseDirection(openLeft, openFront, openRight)) {
+    case TurnDirection::LEFT:
+        _targetRotation = static_cast<float>(pose.theta + M_PI_2);
+        // std::cout << "Turning left" << std::endl;
+        break;
 
-        case TurnDirection::RIGHT:
-            _targetRotation = static_cast<float>(pose.theta - M_PI_2);
-            // std::cout << "Turning right" << std::endl;
-            break;
+    case TurnDirection::RIGHT:
+        _targetRotation = static_cast<float>(pose.theta - M_PI_2);
+        // std::cout << "Turning right" << std::endl;
+        break;
 
-        case TurnDirection::FORWARD:
-            _targetRotation = static_cast<float>(pose.theta);
-            // std::cout << "Going forward" << std::endl;
-            _state = NavState::FOLLOW_CORRIDOR;
-            return;
-        case TurnDirection::BACK:
-            _targetRotation = static_cast<float>(pose.theta - M_PI);
-            // std::cout << "Turning back" << std::endl;
-            break;
+    case TurnDirection::FORWARD:
+        _targetRotation = static_cast<float>(pose.theta);
+        // std::cout << "Going forward" << std::endl;
+        _state = NavState::FOLLOW_CORRIDOR;
+        return;
+    case TurnDirection::BACK:
+        _targetRotation = static_cast<float>(pose.theta - M_PI);
+        // std::cout << "Turning back" << std::endl;
+        break;
     }
 
     _previous_corridor_dir = Vector2::FromAngle(_targetRotation);
@@ -260,10 +260,10 @@ void MazeEngine::ExecuteTurnState()
     const auto pose = _mapping->CurrentPose();
     const float error = NormalizeAngle(_targetRotation - static_cast<float>(pose.theta));
 
-    _lastTurn = std::chrono::steady_clock::now();;
+    _lastTurn = std::chrono::steady_clock::now();
+    ;
 
-    if (std::abs(error) < 0.01f)
-    {
+    if (std::abs(error) < 0.01f) {
         _state = NavState::FOLLOW_CORRIDOR;
         _turnPid.reset();
         return;
@@ -273,9 +273,7 @@ void MazeEngine::ExecuteTurnState()
     _app.events->Publish(MotorCommandEvent {
         Twist {
             TURN_SPEED,
-            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)
-        }
-    });
+            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR) } });
 }
 
 void MazeEngine::RecenterState()
@@ -283,8 +281,7 @@ void MazeEngine::RecenterState()
     const auto pose = _mapping->CurrentPose();
     const float error = NormalizeAngle(_targetRotation - static_cast<float>(pose.theta));
 
-    if (std::abs(error) < 0.08f)
-    {
+    if (std::abs(error) < 0.08f) {
         _state = NavState::FOLLOW_CORRIDOR;
         _turnPid.reset();
 
@@ -295,8 +292,7 @@ void MazeEngine::RecenterState()
     _app.events->Publish(MotorCommandEvent {
         Twist {
             TURN_SPEED,
-            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)}
-    });
+            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR) } });
 }
 
 bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverride)
@@ -308,23 +304,23 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverrid
     auto direction = _heading;
 
     switch (side) {
-        case TurnDirection::FORWARD: {
-            RayHit rayHit;
+    case TurnDirection::FORWARD: {
+        RayHit rayHit;
 
-            const auto hit = _mapping->RayCast(center, direction, rayHit, frontDstOverride);
+        const auto hit = _mapping->RayCast(center, direction, rayHit, frontDstOverride);
 
-            _rays.emplace_back(center, direction, hit);
-            return !hit;
-        }
-        case TurnDirection::LEFT:
-            direction = -Vector2::Perpendicular(direction);
-            break;
-        case TurnDirection::RIGHT:
-            direction = Vector2::Perpendicular(direction);
-            break;
-        case TurnDirection::BACK:
-            direction = -direction;
-            break;
+        _rays.emplace_back(center, direction, hit);
+        return !hit;
+    }
+    case TurnDirection::LEFT:
+        direction = -Vector2::Perpendicular(direction);
+        break;
+    case TurnDirection::RIGHT:
+        direction = Vector2::Perpendicular(direction);
+        break;
+    case TurnDirection::BACK:
+        direction = -direction;
+        break;
     }
 
     auto perpendicularDir = Vector2::Perpendicular(direction);
@@ -357,8 +353,7 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverrid
                 lastHit = i;
 
             _rays.push_back({ point, direction, true });
-        }
-        else {
+        } else {
             if (firstHit >= 0)
                 hasFirstHit = true;
 
@@ -372,7 +367,7 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverrid
 float MazeEngine::GetHeadingError()
 {
     const auto pose = _mapping->CurrentPose();
-    auto leftDir  = _leftWall->Direction.normalized();
+    auto leftDir = _leftWall->Direction.normalized();
     auto rightDir = _rightWall->Direction.normalized();
 
     if (Vector2::dot(leftDir, rightDir) < 0.0f)
@@ -397,18 +392,18 @@ std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side
     const auto pose = _mapping->CurrentPose();
     float baseAngle = 0;
     switch (side) {
-        case TurnDirection::FORWARD:
-            baseAngle = static_cast<float>(pose.theta);
-            break;
-        case TurnDirection::LEFT:
-            baseAngle = static_cast<float>(pose.theta + M_PI_2);
-            break;
-        case TurnDirection::RIGHT:
-            baseAngle = static_cast<float>(pose.theta - M_PI_2);
-            break;
-        case TurnDirection::BACK:
-            baseAngle = static_cast<float>(pose.theta - M_PI);
-            break;
+    case TurnDirection::FORWARD:
+        baseAngle = static_cast<float>(pose.theta);
+        break;
+    case TurnDirection::LEFT:
+        baseAngle = static_cast<float>(pose.theta + M_PI_2);
+        break;
+    case TurnDirection::RIGHT:
+        baseAngle = static_cast<float>(pose.theta - M_PI_2);
+        break;
+    case TurnDirection::BACK:
+        baseAngle = static_cast<float>(pose.theta - M_PI);
+        break;
     }
 
     const auto rad = fov * M_PI / 180.0;
@@ -418,8 +413,7 @@ std::vector<RayHit> MazeEngine::RayArc(const float fov, const TurnDirection side
 
     std::vector<RayHit> hits;
 
-    for (int i = 0; i <= RAY_COUNT; ++i)
-    {
+    for (int i = 0; i <= RAY_COUNT; ++i) {
         RayHit ray;
         const auto hit = _mapping->RayCast(pose.position, Vector2::FromAngle(angle), ray, dst);
         angle += angleStep;
@@ -442,17 +436,14 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
     // Build contiguous segments
     points.push_back(hits[0].hit);
 
-    for (size_t i = 1; i < hits.size(); ++i)
-    {
+    for (size_t i = 1; i < hits.size(); ++i) {
         const auto prev = hits[i - 1];
         const auto curr = hits[i];
 
         const auto dot = Vector2::dot(prev.normal, curr.normal);
 
-        if (dot < 0.8f)
-        {
-            if (points.size() >= MIN_POINTS_PER_SEGMENT)
-            {
+        if (dot < 0.8f) {
+            if (points.size() >= MIN_POINTS_PER_SEGMENT) {
                 auto line = PcaFitter::FitLine(points);
                 line.PointCount = static_cast<int>(points.size());
 
@@ -466,8 +457,7 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
     }
 
     // Add final segment
-    if (points.size() >= MIN_POINTS_PER_SEGMENT)
-    {
+    if (points.size() >= MIN_POINTS_PER_SEGMENT) {
         auto line = PcaFitter::FitLine(points);
         line.PointCount = static_cast<int>(points.size());
 
@@ -488,8 +478,7 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
     std::optional<PcaFitter::FittedLine> bestLine;
     auto bestScore = -std::numeric_limits<double>::infinity();
 
-    for (const auto& line : lines)
-    {
+    for (const auto& line : lines) {
         const auto alignment = std::abs(Vector2::dot(line.Direction.normalized(), forward));
 
         Vector2 toLine(
@@ -519,8 +508,7 @@ std::optional<PcaFitter::FittedLine> MazeEngine::FilterHitPoints(const std::vect
         // Prefer larger segments
         score += static_cast<float>(line.PointCount) * 0.5f;
 
-        if (score > bestScore)
-        {
+        if (score > bestScore) {
             bestScore = score;
             bestLine = line;
         }
@@ -545,14 +533,17 @@ TurnDirection MazeEngine::ChooseDirection(const bool left, const bool forward, c
         auto aruCode = waypoint.treasureCode.has_value() ? waypoint.treasureCode.value() : waypoint.exitCode.value();
 
         _lastTurn = std::chrono::steady_clock::now();
-       _waypoints.erase(_waypoints.begin());
+        _waypoints.erase(_waypoints.begin());
 
-        switch (aruCode.id % 10)
-        {
-            case 0: return forward ? TurnDirection::FORWARD : TurnDirection::BACK;
-            case 1: return left ? TurnDirection::LEFT : TurnDirection::RIGHT;
-            case 2: return right ? TurnDirection::RIGHT : TurnDirection::LEFT;
-            default: return TurnDirection::LEFT;
+        switch (aruCode.id % 10) {
+        case 0:
+            return forward ? TurnDirection::FORWARD : TurnDirection::BACK;
+        case 1:
+            return left ? TurnDirection::LEFT : TurnDirection::RIGHT;
+        case 2:
+            return right ? TurnDirection::RIGHT : TurnDirection::LEFT;
+        default:
+            return TurnDirection::LEFT;
         }
     }
 
@@ -570,17 +561,17 @@ void MazeEngine::OnAruCode(CodeDetectedEvent aruCode)
     // std::cout << "AruCode detected: " << aruCode.id << std::endl;
 
     if (_waypoints.empty())
-        _waypoints.push_back({std::nullopt, std::nullopt});
+        _waypoints.push_back({ std::nullopt, std::nullopt });
 
     auto& waypoint = _waypoints.back();
     if (aruCode.id >= 10) {
         if (waypoint.treasureCode.has_value() && waypoint.treasureCode->id != aruCode.id)
-            _waypoints.push_back({std::nullopt, aruCode});
+            _waypoints.push_back({ std::nullopt, aruCode });
         else
             waypoint.treasureCode = aruCode;
     } else {
         if (waypoint.exitCode.has_value() && waypoint.exitCode->id != aruCode.id)
-            _waypoints.push_back({aruCode, std::nullopt});
+            _waypoints.push_back({ aruCode, std::nullopt });
         else
             waypoint.exitCode = aruCode;
     }
@@ -633,7 +624,6 @@ void MazeEngine::publishLeds() const
     // 1 - right
     // 2 - left
     // 3 - front
-
 
     if (waypoint.treasureCode.has_value()) {
         switch (waypoint.treasureCode->id % 10) {

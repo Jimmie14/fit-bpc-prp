@@ -43,7 +43,7 @@ private:
 
     std::chrono::steady_clock::time_point _lastTurn;
     std::chrono::steady_clock::time_point _lastUpdate;
-    float _dt{};
+    float _dt {};
 
     bool _previous_left;
     bool _previous_right;

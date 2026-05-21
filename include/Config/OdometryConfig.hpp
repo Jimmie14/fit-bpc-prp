@@ -2,8 +2,7 @@
 
 #include "Configurable.hpp"
 
-namespace Manhattan::config
-{
+namespace Manhattan::config {
 struct OdometryConfig : Configurable {
     std::string encodersTopic;
     double linearVelocitySmoothingTime;

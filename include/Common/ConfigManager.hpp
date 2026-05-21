@@ -14,7 +14,6 @@ namespace fs = std::filesystem;
 
 class ConfigManager : public Node {
 public:
-
     explicit ConfigManager()
         : Node("config")
         , _configPath(declare_parameter("config", "manhattan.toml"))
@@ -38,7 +37,8 @@ public:
     }
 
     template <typename T>
-    requires std::is_base_of_v<Configurable, T> void watch(const std::string& key, std::function<void(const T&)> callback)
+    requires std::is_base_of_v<Configurable, T>
+    void watch(const std::string& key, std::function<void(const T&)> callback)
     {
         lock_guard guard(_lock);
 
@@ -77,7 +77,6 @@ private:
         } catch (const std::exception& e) {
             std::cout << "Error in config watcher: " << e.what() << std::endl;
         }
-
     }
 };
 }
