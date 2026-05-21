@@ -22,7 +22,7 @@ UserInputDriver::UserInputDriver(const App& app)
 {
     _tcpServer = app.getTcpServer();
 
-    _lineController = app.getComponent<LineEngine>();
+    _lineController = nullptr; // app.getComponent<LineEngine>();
 
     Enable();
 }

@@ -560,11 +560,11 @@ angular_velocity_smoothing_time = 0.07
 delta_time = 0.1
 lookahead_distance = 0.1
 
-linear_acceleration = 0.25
-angular_acceleration = 0.5
+linear_acceleration = 0.2
+angular_acceleration = 0.3
 
 max_linear_speed = 0.5
-max_angular_speed = 1.5
+max_angular_speed = 0.5
 
 linear_velocity_samples = 10
 angular_velocity_samples = 10
@@ -574,4 +574,4 @@ simulation_delta_time = 0.08
 
 progress_reward_weight = 4.0
 path_error_cost_weight = 2.0
-heading_error_cost_weight = 1.0
+heading_error_cost_weight = 2.0

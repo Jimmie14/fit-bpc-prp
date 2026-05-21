@@ -3,6 +3,7 @@
 ### 🚀 Features
 
 - Minor dwpp score function enhancements
+- Minor maze graph enhancements
 
 ### 🐛 Bug Fixes
 
