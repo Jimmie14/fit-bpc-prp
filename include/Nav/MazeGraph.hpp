@@ -191,7 +191,36 @@ public:
 
     Edge& getEdge(NodeId from, NodeId current, float turn);
 
-    const Edge& getEdge(NodeId from, NodeId current, float turn) const;
+    optional<NodeId> followEdge(NodeId from, NodeId current, float turn) const
+    {
+        if (!_edges.contains({ from, current })) {
+            return nullopt;
+        }
+
+        const auto neighbours = getNeighbours(current);
+        if (neighbours.empty()) return nullopt;
+
+        if (neighbours.size() == 1) return neighbours.front();
+
+
+        // todo: finish implementation
+        // const auto p1 = getEdge(from, current).path().
+
+        return nullopt;
+    }
+
+    bool existEdge(NodeId from, NodeId to) const
+    {
+        return _edges.contains({ from, to }) || _edges.contains({ to, from });
+    }
+
+    vector<NodeId> getNeighbours(const NodeId from) const
+    {
+        const auto it = _toEdges.find(from);
+        if (it == _toEdges.end()) return {};
+
+        return it->second;
+    }
 
     const unordered_map<NodeId, Node>& nodes() const
     {
@@ -332,6 +361,32 @@ public:
         ranges::reverse(path);
 
         return path;
+    }
+
+    void update(MazeGraph other)
+    {
+        const auto oldNodes = _nodes;
+        const auto oldEdges = _edges;
+
+        _nodes = std::move(other._nodes);
+        _nodeMap = std::move(other._nodeMap);
+
+        _edges = std::move(other._edges);
+        _toEdges = std::move(other._toEdges);
+
+        for (auto& [id, node] : oldNodes) {
+            auto it = _nodes.find(id);
+            if (it == _nodes.end()) continue;
+
+            it->second.attributes = node.attributes;
+        }
+
+        for (auto& [key, edge] : oldEdges) {
+            auto it = _edges.find(key);
+            if (it == _edges.end()) continue;
+
+            it->second.attributes = edge.attributes;
+        }
     }
 
 private:
