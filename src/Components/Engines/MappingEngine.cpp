@@ -143,7 +143,7 @@ void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
     });
 
     auto best = ranges::min_element(_hypotheses, [](const auto& a, const auto& b) {
-        return a.error > b.error;
+        return a.error < b.error;
     });
 
     if (best != _hypotheses.end() && best->error + poseChangeThreshold < _activeHypothesis.error) {
@@ -233,7 +233,7 @@ void MappingEngine::CreateHypothesis()
     }
 
     const auto it = ranges::min_element(_hypotheses, [](const auto& a, const auto& b) {
-        return a.error > b.error;
+        return a.error < b.error;
     });
 
     if (it == _hypotheses.end())
@@ -373,6 +373,7 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
             const auto distance = std::sqrt((point.x - _stablePose.position.x) * (point.x - _stablePose.position.x) + (point.y - _stablePose.position.y) * (point.y - _stablePose.position.y));
 
             _grid.SetFree(cell, distance);
+            if (_grid.GetCell(cell)->IsOccupied()) break;
         }
 
         // Mark the endpoint as occupied
@@ -415,7 +416,7 @@ PoseMatchResult MappingEngine::MatchPose(const Pose& pose) const
     auto best = PoseMatchResult(pose, maxInvalidError);
 
     for (auto i = 0; i < 16; i++) {
-        const auto correction = (static_cast<double>(i) / 15.0) * 2 * M_PI;
+        const auto correction = (static_cast<double>(i) / 16.0) * 2 * M_PI;
 
         auto newPose = pose;
         newPose.theta += correction;
@@ -460,7 +461,7 @@ void MappingEngine::Publish()
     PublishGrid();
     PublishDistanceField();
     // PublishGridMap();
-    // PublishScan();
+    PublishScan();
 
 
 }
@@ -490,7 +491,7 @@ void MappingEngine::PublishScan() const
     auto iterY = sensor_msgs::PointCloud2Iterator<float>(msg, "y");
     auto iterZ = sensor_msgs::PointCloud2Iterator<float>(msg, "z");
 
-    for (const auto& p : _lastScan) {
+    for (const auto& p : _stablePose.transformPoints(_lastScan)) {
         *iterX = static_cast<float>(p.x);
         *iterY = static_cast<float>(p.y);
         *iterZ = 0.0f;

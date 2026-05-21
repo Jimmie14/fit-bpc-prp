@@ -9,9 +9,9 @@
 namespace Manhattan::core {
 
 enum class NavState {
+    RECENTER,
     FOLLOW_CORRIDOR,
     TURNING,
-    RECENTER
 };
 
 enum class TurnDirection {

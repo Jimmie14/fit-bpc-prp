@@ -57,10 +57,12 @@ static Vector2 ClosestPointOnLine(Vector2 direction, Vector2 start, Vector2 targ
 
 MazeEngine::MazeEngine(const App& app)
     : RosEngine(app, "maze")
+    , _previous_corridor_dir(1, 0)
     , _headingPid(HEADING_P, 0.0f, HEADING_D)
     , _turnPid(TURN_P, TURN_I, TURN_D)
-    , _previous_corridor_dir(1, 0)
 {
+    _state = NavState::RECENTER;
+
     _mapping = app.getComponent<MappingEngine>();
 
     _publisher = create_publisher<visualization_msgs::msg::MarkerArray>("maze_walls", 1);
@@ -280,23 +282,8 @@ void MazeEngine::ExecuteTurnState()
 
 void MazeEngine::RecenterState()
 {
-    const auto pose = _mapping->CurrentPose();
-    const float error = NormalizeAngle(_targetRotation - static_cast<float>(pose.theta));
-
-    if (std::abs(error) < 0.08f)
-    {
-        _state = NavState::FOLLOW_CORRIDOR;
-        _turnPid.reset();
-
-        return;
-    }
-
-    const float angular = _turnPid.step(error, _dt);
-    _app.events->Publish(MotorCommandEvent {
-        Twist {
-            TURN_SPEED,
-            std::clamp(angular, -TURN_ANGULAR, TURN_ANGULAR)}
-    });
+    _targetRotation = 0;
+    _state = NavState::TURNING;
 }
 
 bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverride)
