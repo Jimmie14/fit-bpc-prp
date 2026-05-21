@@ -11,12 +11,12 @@
 #include "Components/ManualPathPlannerEngine.hpp"
 #include "Components/MapThinningUnit.hpp"
 #include "Components/MappingEngine.hpp"
+#include "Components/MazeEngine.hpp"
 #include "Components/MazeGraphEngine.hpp"
 #include "Components/MotorCalibrationUnit.hpp"
 #include "Components/MotorDriver.hpp"
 #include "Components/OdometryEngine.hpp"
 #include "Components/UserInputDriver.hpp"
-#include "Components/MazePathPlannerEngine.hpp"
 
 
 using namespace std;
@@ -33,20 +33,21 @@ int main(const int argc, char* argv[])
     app->addComponent<LidarDriver>()->Enable();
     app->addComponent<MotorDriver>()->Enable();
     app->addComponent<ButtonsDriver>()->Enable();
-
-    app->addComponent<UserInputDriver>();
+    //
+    // app->addComponent<LineEngine>();
+    // app->addComponent<UserInputDriver>();
     //
     app->addComponent<OdometryEngine>()->Enable();
     app->addComponent<MappingEngine>()->Enable();
     //
     app->addComponent<ArucoDetectionEngine>()->Enable();
-    app->addComponent<DwppNavigatorEngine>()->Enable();
+    app->addComponent<MazeEngine>()->Enable();
+    // app->addComponent<DwppNavigatorEngine>()->Enable();
 
-    app->addComponent<MapThinningUnit>()->Enable();
+    // app->addComponent<MapThinningUnit>()->Enable();
 
-    app->addComponent<MazeGraphEngine>()->Enable();
-    app->addComponent<ManualPathPlannerEngine>()->Enable();
-    app->addComponent<MazePathPlannerEngine>()->Enable();
+    // app->addComponent<MazeGraphEngine>()->Enable();
+    // app->addComponent<ManualPathPlannerEngine>()->Enable();
 
     //app->addComponent<MotorCalibrationUnit>()->Enable();
     // app->addComponent<DebugUnit>()->Enable();
