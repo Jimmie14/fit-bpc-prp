@@ -66,4 +66,41 @@ inline nav_msgs::msg::OccupancyGrid ToOccupancyGridMessage(const Grid<bool>& gri
     return result;
 }
 
+inline nav_msgs::msg::OccupancyGrid ToDistanceFieldMessage(const Grid<double>& grid, const string& frameId)
+{
+    nav_msgs::msg::OccupancyGrid result;
+    result.header.stamp = Clock().now();
+    result.header.frame_id = frameId;
+
+    result.info.origin.position.x = static_cast<float>(grid.width()) * grid.resolution() * -0.5;
+    result.info.origin.position.y = static_cast<float>(grid.height()) * grid.resolution() * -0.5;
+    result.info.origin.position.z = 0.0;
+
+    result.info.origin.orientation.x = 0.0;
+    result.info.origin.orientation.y = 0.0;
+    result.info.origin.orientation.z = 0.0;
+    result.info.origin.orientation.w = 1.0;
+
+    result.info.width = grid.width();
+    result.info.height = grid.height();
+    result.info.resolution = grid.resolution();
+
+    result.data.resize(grid.size());
+
+    auto max = 0.0;
+    for (auto i = 0; i < grid.size(); i++) {
+        max = std::max(max, grid[i]);
+    }
+
+    for (auto i = 0; i < grid.size(); i++) {
+        const auto [x, y] = grid.indexToCoord(i);
+
+        const auto value = std::pow(grid[i] / max, 0.25);
+
+        result.data[y * grid.width() + x] = static_cast<int>(value * 100.0);
+    }
+
+    return result;
+}
+
 }

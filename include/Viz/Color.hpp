@@ -19,6 +19,8 @@ static inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a 
 
 const std_msgs::msg::ColorRGBA white = color(1.0f, 1.0f, 1.0f);
 
+const std_msgs::msg::ColorRGBA black = color(0.0f, 0.0f, 0.0f);
+
 const std_msgs::msg::ColorRGBA red = color(1.0f, 0.0f, 0.0f);
 
 const std_msgs::msg::ColorRGBA green = color(0.0f, 1.0f, 0.0f);

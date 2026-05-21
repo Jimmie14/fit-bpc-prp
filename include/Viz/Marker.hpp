@@ -1,6 +1,7 @@
 #pragma once
 
 #include "Nav.hpp"
+#include "Color.hpp"
 
 #include <geometry_msgs/msg/point.hpp>
 #include <rclcpp/rclcpp.hpp>
@@ -95,7 +96,6 @@ inline visualization_msgs::msg::Marker text(
     marker.type = visualization_msgs::msg::Marker::TEXT_VIEW_FACING;
     marker.action = visualization_msgs::msg::Marker::ADD;
     marker.pose = toPose(position, 0.0f);
-    marker.pose.position.z = 0.18;
     marker.scale.z = 0.14;
     marker.color.r = 1.0f;
     marker.color.g = 1.0f;
@@ -318,7 +318,8 @@ inline std_msgs::msg::ColorRGBA color(float r, float g, float b, float a = 1.0f)
 class MarkerArrayBuilder {
 public:
     visualization_msgs::msg::MarkerArray array;
-    std_msgs::msg::ColorRGBA color;
+    std_msgs::msg::ColorRGBA color = viz::color::red;
+    float scale = 1.0f;
 
 
     int GetNextMarkerId()
@@ -330,6 +331,11 @@ public:
     {
         marker.color = color;
         marker.id = _nextId++;
+
+        marker.scale.x *= scale;
+        marker.scale.y *= scale;
+        marker.scale.z *= scale;
+
         array.markers.push_back(marker);
     }
 

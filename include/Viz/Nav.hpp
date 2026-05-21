@@ -22,7 +22,7 @@ inline geometry_msgs::msg::Pose toPose(const tf2::Vector3& position, const float
 
     pose.position.x = position.x();
     pose.position.y = position.y();
-    pose.position.z = 0.0f;
+    pose.position.z = position.z();
 
     pose.orientation.x = 0;
     pose.orientation.y = 0;

@@ -9,11 +9,12 @@ using namespace Manhattan::core;
 
 struct PoseMatchResult {
     Pose pose { Vector2 {}, 0.0 };
-    double confidence { 0.0 };
+    //double confidence { 0.0 };
+    double error { 0.0 };
 
     [[nodiscard]] static PoseMatchResult Best(const PoseMatchResult& left, const PoseMatchResult& right)
     {
-        return left.confidence > right.confidence ? left : right;
+        return left.error < right.error ? left : right;
     }
 };
 

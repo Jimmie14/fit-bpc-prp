@@ -278,5 +278,17 @@ public:
 
         return path;
     }
+
+    auto begin()
+    {
+        return _grid.begin();
+    }
+
+    auto end()
+    {
+        return _grid.end();
+    }
+
+
 };
 } // namespace Manhattan::Core

@@ -1,7 +1,10 @@
 #include "Components/MappingEngine.hpp"
-#include "Messages/RobotMode.hpp"
 #include "Components/LidarDriver.hpp"
+#include "Math/Vec3.hpp"
 #include "Messages/Nav.hpp"
+#include "Messages/RobotMode.hpp"
+#include "Viz/Marker.hpp"
+#include "Viz/Grid.hpp"
 #include "sensor_msgs/point_cloud2_iterator.hpp"
 
 #include <grid_map_ros/GridMapRosConverter.hpp>
@@ -12,8 +15,9 @@ using namespace std;
 constexpr auto gridResolution = 0.05;
 constexpr auto rotationResolution = M_PI * 0.25;
 
-constexpr auto minConfidence = 0.6;
-constexpr auto poseThreshold = 0.05;
+const float maxInvalidError = 0.4f;
+const float poseChangeThreshold = 0.10f;
+const float stablePoseError = 0.08f;
 
 namespace Manhattan::core {
 
@@ -22,9 +26,10 @@ using namespace Manhattan::messages;
 MappingEngine::MappingEngine(const App& app)
     : RosEngine(app, "mapping")
     , _grid(Vector2i(200, 200), gridResolution, 8, 20)
+    , _distanceField(200, 200, gridResolution)
     , _poseMatcher(PoseMatcher(_grid, 5))
     , _lastOdomPose(Pose::zero())
-    , _activeHypothesis(PoseMatchResult(Pose::zero(), minConfidence))
+    , _activeHypothesis(PoseMatchResult(Pose::zero(), maxInvalidError - 0.1))
     , _hypotheses({})
 {
     _lostTime = now();
@@ -44,10 +49,11 @@ MappingEngine::MappingEngine(const App& app)
     _posePublisher = create_publisher<geometry_msgs::msg::PoseStamped>("slam/pose", 1);
     _pathPublisher = create_publisher<nav_msgs::msg::Path>("slam/path", 1);
 
-    _hypoPublisher = create_publisher<geometry_msgs::msg::PoseArray>("slam/hypo", 1);
+    _debugPublisher = create_publisher<visualization_msgs::msg::MarkerArray>("slam/debug", 1);
 
     _scanPublisher = create_publisher<sensor_msgs::msg::PointCloud2>("slam/scan", 1);
     _gridPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/grid", 1);
+    _distanceFieldPublisher = create_publisher<nav_msgs::msg::OccupancyGrid>("slam/distance_field", 1);
     _gridMapPublisher = create_publisher<grid_map_msgs::msg::GridMap>("slam/grid_map", 1);
 
     _path.header.frame_id = "map";
@@ -121,26 +127,26 @@ void MappingEngine::OnLidar(const vector<Vector2>& points)
 void MappingEngine::UpdateHypotheses(const Pose& odomDelta)
 {
     for (auto& hypothesis : _hypotheses) {
-        const auto stableResult = _poseMatcher.Match(_lastScan, hypothesis.pose);
-        const auto odomResult = _poseMatcher.Match(_lastScan, hypothesis.pose + odomDelta);
+        const auto stableResult = MatchPose(hypothesis.pose);
+        const auto odomResult = MatchPose(hypothesis.pose + odomDelta);
 
         hypothesis = PoseMatchResult::Best(stableResult, odomResult);
     }
 
-    const auto stableResult = _poseMatcher.Match(_lastScan, _activeHypothesis.pose);
-    const auto odomResult = _poseMatcher.Match(_lastScan, _activeHypothesis.pose + odomDelta);
+    const auto stableResult = MatchPose(_activeHypothesis.pose);
+    const auto odomResult = MatchPose(_activeHypothesis.pose + odomDelta);
 
     _activeHypothesis = PoseMatchResult::Best(stableResult, odomResult);
 
     erase_if(_hypotheses, [](const PoseMatchResult& result) {
-        return result.confidence < minConfidence;
+        return result.error > maxInvalidError;
     });
 
-    auto best = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
-        return a.confidence < b.confidence;
+    auto best = ranges::min_element(_hypotheses, [](const auto& a, const auto& b) {
+        return a.error > b.error;
     });
 
-    if (best != _hypotheses.end() && best->confidence > _activeHypothesis.confidence + poseThreshold) {
+    if (best != _hypotheses.end() && best->error + poseChangeThreshold < _activeHypothesis.error) {
         _hypotheses.push_back(_activeHypothesis);
         _activeHypothesis = *best;
 
@@ -172,11 +178,11 @@ void MappingEngine::UpdateState()
         return;
     }
 
-    if (_activeHypothesis.confidence > minConfidence) {
+    if (_activeHypothesis.error < maxInvalidError) {
         _stablePose = _activeHypothesis.pose;
     }
 
-    if (_activeHypothesis.confidence >= 0.8) {
+    if (_activeHypothesis.error < stablePoseError) {
         ChangeState(MappingEngineState::Stable);
         return;
     }
@@ -226,8 +232,8 @@ void MappingEngine::CreateHypothesis()
         return;
     }
 
-    const auto it = ranges::max_element(_hypotheses, [](const auto& a, const auto& b) {
-        return a.confidence < b.confidence;
+    const auto it = ranges::min_element(_hypotheses, [](const auto& a, const auto& b) {
+        return a.error > b.error;
     });
 
     if (it == _hypotheses.end())
@@ -246,9 +252,8 @@ void MappingEngine::CreateHypothesis()
             Vector2(best.pose.position.x + offsetXY(prng), best.pose.position.y + offsetXY(prng)),
             best.pose.theta + offsetTheta(prng));
 
-        const auto hypothesis = _poseMatcher.Match(_lastScan, candidatePose);
-        if (hypothesis.confidence < minConfidence)
-            continue;
+        const auto hypothesis = MatchPose(candidatePose);
+        if (hypothesis.error > maxInvalidError) continue;
 
         _hypotheses.push_back(hypothesis);
 
@@ -280,12 +285,55 @@ void ClearSimilarHypotheses(std::vector<PoseMatchResult>& hypotheses)
 
 void MappingEngine::Reset()
 {
-    _hypotheses = { PoseMatchResult(Pose::zero(), minConfidence) };
+    _hypotheses = { PoseMatchResult(Pose::zero(), maxInvalidError - 0.1) };
     _grid.Reset();
 
     _stablePose = Pose::zero();
 
     ChangeState(MappingEngineState::Initializing);
+}
+
+static double estimateInitialTheta(const std::vector<Vector2>& points)
+{
+    vector<double> angles;
+    angles.reserve(points.size() - 1);
+
+    for (auto i = 1; i < points.size(); i++) {
+        const auto& previous = points[i - 1];
+        const auto& current = points[i];
+
+        angles.emplace_back(Vector2::signedAngle(current - previous, Vector2(1, 0)));
+    }
+
+    ranges::sort(angles);
+
+    double best = angles[0];
+    int bestCount = 1;
+
+    double current = angles[0];
+    int currentCount = 1;
+
+    for (size_t i = 1; i < angles.size(); ++i) {
+        if (std::fabs(angles[i] - current) <= 0.05) {
+            currentCount++;
+            continue;
+
+        }
+
+        if (currentCount > bestCount) {
+            bestCount = currentCount;
+            best = current;
+        }
+
+        current = angles[i];
+        currentCount = 1;
+    }
+
+    if (currentCount > bestCount) {
+        best = current;
+    }
+
+    return best;
 }
 
 void MappingEngine::MapScan(const std::vector<Vector2>& points)
@@ -294,6 +342,11 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         return;
 
     if (_state == MappingEngineState::Initializing) {
+        const auto theta = estimateInitialTheta(points);
+
+        _stablePose.theta = theta;
+        _activeHypothesis.pose.theta = theta;
+
         ChangeState(MappingEngineState::Lost);
     }
 
@@ -325,6 +378,76 @@ void MappingEngine::MapScan(const std::vector<Vector2>& points)
         // Mark the endpoint as occupied
         _grid.SetOccupied(endGridPos);
     }
+
+    RecalculateDistanceField();
+}
+
+void MappingEngine::RecalculateDistanceField()
+{
+    const auto defaultValue = 200.0 * 200.0 * _distanceField.resolution();
+
+    vector<Vector2i> obstacles;
+
+    for (auto cell : _grid) {
+        if (cell.IsUnknown()) continue;
+        if (!cell.IsOccupied()) continue;
+
+        obstacles.push_back(cell.GetGridPosition());
+    }
+
+    for (auto i = 0; i < _distanceField.size(); i++) {
+        const auto pos = Vector2i(_distanceField.indexToCoord(i));
+
+        auto min = defaultValue;
+
+        for (auto obstacle : obstacles) {
+            const auto dist = Vector2(obstacle - pos).magnitude() * _distanceField.resolution();
+
+            min = std::min(min, dist);
+        }
+
+        _distanceField.set(i, min);
+    }
+}
+
+PoseMatchResult MappingEngine::MatchPose(const Pose& pose) const
+{
+    auto result = _poseMatcher.Match(_lastScan, pose);
+    result.error = GetDistanceFieldError(pose);
+
+    return result;
+}
+
+double MappingEngine::GetDistanceFieldError(const Pose& pose) const
+{
+    auto error = 0.0;
+
+    for (auto point : pose.transformPoints(_lastScan)) {
+        const auto pos = _grid.WorldToGrid(point);
+        if (!_grid.InBounds(pos.x, pos.y)) {
+            error += 200.0 * 200.0 * _distanceField.resolution();
+        }
+
+        error += _distanceField[pos];
+    }
+
+    error /= static_cast<double>(_lastScan.size());
+
+    return error;
+}
+
+void MappingEngine::Publish()
+{
+    std::lock_guard lock(_mapLock);
+
+    PublishDebug();
+    PublishPose();
+    PublishGrid();
+    PublishDistanceField();
+    // PublishGridMap();
+    // PublishScan();
+
+
 }
 
 void MappingEngine::PublishStablePose() const
@@ -333,20 +456,6 @@ void MappingEngine::PublishStablePose() const
         .pose = _stablePose.Normalized(),
         .twist = _twist
     });
-}
-
-void MappingEngine::Publish()
-{
-    const std::unique_lock lock(_mapLock, std::try_to_lock);
-    if (!lock.owns_lock())
-        return;
-
-    PublishPose();
-    PublishGrid();
-    // PublishGridMap();
-    // PublishScan();
-
-
 }
 
 void MappingEngine::PublishScan() const
@@ -379,18 +488,32 @@ void MappingEngine::PublishScan() const
     _scanPublisher->publish(msg);
 }
 
-void MappingEngine::PublishPose()
+void MappingEngine::PublishDebug() const
 {
-    auto msg = geometry_msgs::msg::PoseArray();
-    msg.header.stamp = now();
-    msg.header.frame_id = "map";
+    auto markers = viz::marker::MarkerArrayBuilder();
+
+    markers.add(viz::marker::clear("map"));
 
     for (const auto hypothesis : _hypotheses) {
-        msg.poses.push_back(hypothesis.pose.ToRosPoseMessage());
+        markers.color = viz::color::red;
+        markers.scale = 0.5f;
+
+        const auto start = hypothesis.pose.position.toTf2();
+        markers.add(viz::marker::direction(start, hypothesis.pose.forward().toTf2(), "map"));
+
+
+        markers.color = viz::color::black;
+        markers.scale = 0.25f;
+
+        const auto textPos = start + vec3::Up * 0.02f;
+        markers.add(viz::marker::text(textPos, std::to_string(hypothesis.error), "map"));
     }
 
-    _hypoPublisher->publish(msg);
+    _debugPublisher->publish(markers.array);
+}
 
+void MappingEngine::PublishPose()
+{
     auto poseMsg = geometry_msgs::msg::PoseStamped();
 
     poseMsg.header.stamp = now();
@@ -438,6 +561,13 @@ void MappingEngine::PublishGrid()
     }
 
     _gridPublisher->publish(gridMsg);
+}
+
+void MappingEngine::PublishDistanceField() const
+{
+    const auto msg = viz::nav::ToDistanceFieldMessage(_distanceField, "map");
+
+    _distanceFieldPublisher->publish(msg);
 }
 
 void MappingEngine::PublishGridMap()

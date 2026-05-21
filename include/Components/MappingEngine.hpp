@@ -1,5 +1,6 @@
 #pragma once
 
+#include <visualization_msgs/msg/marker_array.hpp>
 #include <geometry_msgs/msg/pose_array.hpp>
 #include <geometry_msgs/msg/pose_stamped.hpp>
 #include <grid_map_msgs/msg/grid_map.hpp>
@@ -8,9 +9,10 @@
 #include <nav_msgs/msg/path.hpp>
 #include <rclcpp/rclcpp.hpp>
 
+#include "App.hpp"
 #include "Math/PoseMatcher.hpp"
 #include "Math/Vector2.hpp"
-#include "App.hpp"
+#include "Nav/Grid.hpp"
 #include "OccupancyGrid.hpp"
 
 namespace Manhattan::core {
@@ -80,13 +82,15 @@ private:
     TimerBase::SharedPtr _costUpdateTimer;
 
     Publisher<geometry_msgs::msg::PoseStamped>::SharedPtr _posePublisher;
-    Publisher<geometry_msgs::msg::PoseArray>::SharedPtr _hypoPublisher;
+    Publisher<visualization_msgs::msg::MarkerArray>::SharedPtr _debugPublisher;
     Publisher<nav_msgs::msg::Path>::SharedPtr _pathPublisher;
 
     Publisher<sensor_msgs::msg::PointCloud2>::SharedPtr _scanPublisher;
     Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _gridPublisher;
+    Publisher<nav_msgs::msg::OccupancyGrid>::SharedPtr _distanceFieldPublisher;
     Publisher<grid_map_msgs::msg::GridMap>::SharedPtr _gridMapPublisher;
 
+    nav::Grid<double> _distanceField;
     OccupancyGrid _grid;
     PoseMatcher _poseMatcher;
 
@@ -127,14 +131,21 @@ private:
     void CreateHypothesis();
 
     void MapScan(const std::vector<Vector2>& points);
+    void RecalculateDistanceField();
 
-    void PublishStablePose() const;
+
+    PoseMatchResult MatchPose(const Pose& pose) const;
+    double GetDistanceFieldError(const Pose& pose) const;
+
 
     void Publish();
 
+    void PublishStablePose() const;
     void PublishScan() const;
+    void PublishDebug() const;
     void PublishPose();
     void PublishGrid();
+    void PublishDistanceField() const;
     void PublishGridMap();
 };
 } // namespace Manhattan::Core
