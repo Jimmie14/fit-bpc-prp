@@ -303,7 +303,7 @@ void MazeEngine::RecenterState()
 bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverride)
 {
     // const auto pose = _mapping->CurrentPose();
-    auto offset = HALF_CORRIDOR_SIZE * 0.9f;
+    auto offset = HALF_CORRIDOR_SIZE * 1.1f;
 
     auto center = _center;
     auto direction = _heading;
@@ -344,22 +344,30 @@ bool MazeEngine::DirectionIsFree(const TurnDirection side, float frontDstOverrid
     auto stepSize = (frontDst + backDst) / (RAY_COUNT * 2 - 1);
     auto origin = center - perpendicularDir * backDst;
 
-    int hitCount = 0;
-    int indexOffset = 2;
+    bool hasFirstHit = false;
+    int firstHit = -1;
+    int lastHit = -1;
 
-    for (auto i = indexOffset; i < RAY_COUNT * 2 - indexOffset; i++) {
+    for (auto i = 0; i < RAY_COUNT * 2; i++) {
         const auto point = origin + perpendicularDir * stepSize * i;
+
         if (RayHit rayHit; _mapping->RayCast(point, direction, rayHit, CORRIDOR_SIZE)) {
-            hitCount++;
+            if (!hasFirstHit)
+                firstHit = i;
+            else if (lastHit < 0)
+                lastHit = i;
+
             _rays.push_back({ point, direction, true });
         }
         else {
+            if (firstHit >= 0)
+                hasFirstHit = true;
+
             _rays.push_back({ point, direction, false });
         }
     }
 
-    // 25% of hits allowed
-    return static_cast<float>(hitCount) <= (RAY_COUNT * 2.0 - 2 * indexOffset) * 0.25f;
+    return firstHit >= 0 && lastHit >= 0;
 }
 
 float MazeEngine::GetHeadingError()
